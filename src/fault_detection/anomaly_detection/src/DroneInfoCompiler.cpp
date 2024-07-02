@@ -4,9 +4,9 @@
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include <sensor_msgs/msg/imu.hpp>
-#include <mavros_msgs/msg/waypoint_list.hpp>
-#include <mavros_msgs/srv/command_bool.hpp>
-#include <mavros_msgs/msg/vfr_hud.hpp>
+#include <mavros_msgs/msg/WaypointList.hpp>
+#include <mavros_msgs/srv/CommandBool.hpp>
+#include <mavros_msgs/msg/VfrHud.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
@@ -42,7 +42,7 @@ class Drone
 		interfaces::DronePose pose;
 		void chatterCallback_localPose(const geometry_msgs::PoseStamped::ConstPtr& msg);
 		void chatterCallback_imu(const sensor_msgs::Imu::ConstPtr& msg);
-		void chatterCallback_vfr_hud(const mavros_msgs::VFR_HUD::ConstPtr& msg);
+		void chatterCallback_vfr_hud(const mavros_msgs::VfrHud::ConstPtr& msg);
 		void chatterCallback_golbalp(const nav_msgs::Odometry::ConstPtr& msg);
 		void chatterCallback_compass(const std_msgs::Float64::ConstPtr& msg);
 };
@@ -76,7 +76,7 @@ void Drone::chatterCallback_imu(const sensor_msgs::Imu::ConstPtr& msg)
     pose.yawRate = msg->angular_velocity.z;
 }
 
-void Drone::chatterCallback_vfr_hud(const mavros_msgs::VFR_HUD::ConstPtr& msg)
+void Drone::chatterCallback_vfr_hud(const mavros_msgs::VfrHud::ConstPtr& msg)
 {
     pose.groundSpeed = msg->groundspeed;
     pose.climbRate   = msg->climb;
