@@ -35,7 +35,7 @@ include_directories(
 )
 
 # Declare a C++ executable
-add_executable(DroneInfoCompiler src/DroneInfoCompiler.cpp)
+add_executable(DroneInfoCompiler anomaly_detection/src/DroneInfoCompiler.cpp)
 
 # Specify libraries to link a library or executable target against
 ament_target_dependencies(DroneInfoCompiler
