@@ -13,7 +13,7 @@
 #include <bits/stdc++.h>
 // Update or replace harpia_msgs with ROS 2 equivalent
 #include <interfaces/msg/drone_pose.hpp>
-#include "action_msgs/msg/goal_id.hpp"
+#include <interfaces/msg/GoalID.msg>
 #include "rclcpp_action/rclcpp_action.hpp"
 
 #include <tf2/LinearMath/Quaternion.h>
