@@ -4,9 +4,9 @@
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include <sensor_msgs/msg/imu.hpp>
-#include <mavros_msgs/msg/WaypointList.msg>
-#include <mavros_msgs/srv/CommandBool.srv>
-#include <mavros_msgs/msg/VfrHud.msg>
+#include <mavros_msgs/msg/WaypointList.hpp>
+#include <mavros_msgs/srv/CommandBool.hpp>
+#include <mavros_msgs/msg/VfrHud.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
