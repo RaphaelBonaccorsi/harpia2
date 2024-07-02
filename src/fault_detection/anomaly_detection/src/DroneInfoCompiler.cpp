@@ -103,7 +103,7 @@ public:
     Drone()
     {
         // Initialize publishers and subscribers
-        pub_ = this->create_publisher<harpia_msgs::msg::DronePose>("pose", 10);
+        pub_ = this->create_publisher<interfaces::msg::DronePose>("pose", 10);
 
         gps_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
             "/mavros/local_position/pose", 1, std::bind(&Drone::chatterCallbackLocalPose, this, std::placeholders::_1));
@@ -156,14 +156,14 @@ private:
         pub_->publish(pose_);
     }
 
-    rclcpp::Publisher<harpia_msgs::msg::DronePose>::SharedPtr pub_;
+    rclcpp::Publisher<interfaces::msg::DronePose>::SharedPtr pub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr gps_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vfr_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gpos_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr hdg_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
-    harpia_msgs::msg::DronePose pose_;
+    interfaces::msg::DronePose pose_;
 };
 
 int main(int argc, char **argv)
