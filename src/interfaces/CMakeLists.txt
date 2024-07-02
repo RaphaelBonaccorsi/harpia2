@@ -47,6 +47,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Mission.msg"
   "msg/ActionDispatch.msg"
   "msg/CompletePlan.msg"
+  "msg/GoalID.msg"
   "srv/MissionFaultMitigation.srv"
   "srv/MissionGoalManager.srv"
   "srv/WeatherCheck.srv"
