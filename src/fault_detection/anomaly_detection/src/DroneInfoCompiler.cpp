@@ -1,28 +1,28 @@
-#include "ros/ros.h"
+#include "rclcpp/rclcpp.hpp"
 #include <iostream>
-#include "std_msgs/String.h"
-#include "sensor_msgs/NavSatFix.h"
-#include "std_msgs/Float64.h"
-#include <sensor_msgs/Imu.h>
-#include "mavros_msgs/WaypointList.h"
-#include <mavros_msgs/CommandBool.h>
-#include <mavros_msgs/VFR_HUD.h>
-#include <nav_msgs/Odometry.h>
-#include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/PoseWithCovarianceStamped.h>
+#include "std_msgs/msg/string.hpp"
+#include "sensor_msgs/msg/nav_sat_fix.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include <sensor_msgs/msg/imu.hpp>
+#include "mavros_msgs/msg/waypoint_list.hpp"
+#include <mavros_msgs/srv/command_bool.hpp>
+#include <mavros_msgs/msg/vfr_hud.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <bits/stdc++.h>
-#include <harpia_msgs/DronePose.h>
-#include <actionlib/client/simple_action_client.h>
-#include <actionlib/client/terminal_state.h>
-#include "actionlib_msgs/GoalID.h"
+// Update or replace harpia_msgs with ROS 2 equivalent
+#include <interfaces/msg/drone_pose.hpp>
+#include "action_msgs/msg/goal_id.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 
-#include <tf/transform_datatypes.h>
+#include <tf2/LinearMath/Quaternion.h>
 
 #include <signal.h>
-#include<math.h>
+#include <cmath>
 
 #include <fstream>
-#include<iomanip>
+#include <iomanip>
 
 #include <cstdlib>
 using namespace std;
@@ -39,7 +39,7 @@ struct GeoPoint{
 class Drone
 {
 	public:
-		harpia_msgs::DronePose pose;
+		interfaces::DronePose pose;
 		void chatterCallback_localPose(const geometry_msgs::PoseStamped::ConstPtr& msg);
 		void chatterCallback_imu(const sensor_msgs::Imu::ConstPtr& msg);
 		void chatterCallback_vfr_hud(const mavros_msgs::VFR_HUD::ConstPtr& msg);
@@ -97,36 +97,83 @@ void Drone::chatterCallback_compass(const std_msgs::Float64::ConstPtr& msg)
 /*-------------*/
 /* Main method */
 /*-------------*/
-
-int main(int argc, char **argv) {
-
-    ros::init(argc, argv, "drone_info", ros::init_options::AnonymousName);
-    ros::NodeHandle nh("~");
-    // signal(SIGINT, mySigintHandler);
-    
-    Drone drone;
-
-    ros::Subscriber GPS  = nh.subscribe("/mavros/local_position/pose"			,1, &Drone::chatterCallback_localPose,&drone);
-    ros::Subscriber IMU  = nh.subscribe("/mavros/imu/data"						,1, &Drone::chatterCallback_imu		 ,&drone);
-    ros::Subscriber VFR  = nh.subscribe("/mavros/vfr_hud"						,1, &Drone::chatterCallback_vfr_hud	 ,&drone);
-    ros::Subscriber GPOS = nh.subscribe("/mavros/global_position/local"			,1, &Drone::chatterCallback_golbalp	 ,&drone);
-    ros::Subscriber HDG  = nh.subscribe("/mavros/global_position/compass_hdg"	,1, &Drone::chatterCallback_compass	 ,&drone);
-
-    ros::Publisher  PUB  = nh.advertise<harpia_msgs::DronePose>("pose", 1000);
-
-    ros::Rate loop_rate(10);
-
-    ROS_INFO("ROS INFO NODE");
-
-    while(ros::ok)
+class Drone
+{
+public:
+    Drone()
     {
-    	// ROS_INFO("%s", drone.pose.c_str());
-    	PUB.publish(drone.pose);
-    	ros::spinOnce();
-    	loop_rate.sleep();
+        // Initialize publishers and subscribers
+        pub_ = this->create_publisher<harpia_msgs::msg::DronePose>("pose", 10);
+
+        gps_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
+            "/mavros/local_position/pose", 1, std::bind(&Drone::chatterCallbackLocalPose, this, std::placeholders::_1));
+
+        imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
+            "/mavros/imu/data", 1, std::bind(&Drone::chatterCallbackImu, this, std::placeholders::_1));
+
+        vfr_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            "/mavros/vfr_hud", 1, std::bind(&Drone::chatterCallbackVfrHud, this, std::placeholders::_1));
+
+        gpos_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+            "/mavros/global_position/local", 1, std::bind(&Drone::chatterCallbackGlobalPos, this, std::placeholders::_1));
+
+        hdg_sub_ = this->create_subscription<std_msgs::msg::Float64>(
+            "/mavros/global_position/compass_hdg", 1, std::bind(&Drone::chatterCallbackCompass, this, std::placeholders::_1));
+
+        timer_ = this->create_wall_timer(
+            std::chrono::milliseconds(100), std::bind(&Drone::timerCallback, this));
     }
-    
 
+private:
+    void chatterCallbackLocalPose(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
+    {
+        // Process local pose data
+    }
 
+    void chatterCallbackImu(const sensor_msgs::msg::Imu::SharedPtr msg)
+    {
+        // Process IMU data
+    }
+
+    void chatterCallbackVfrHud(const nav_msgs::msg::Odometry::SharedPtr msg)
+    {
+        // Process VFR HUD data
+    }
+
+    void chatterCallbackGlobalPos(const nav_msgs::msg::Odometry::SharedPtr msg)
+    {
+        // Process global position data
+    }
+
+    void chatterCallbackCompass(const std_msgs::msg::Float64::SharedPtr msg)
+    {
+        // Process compass heading data
+    }
+
+    void timerCallback()
+    {
+        // Publish the drone pose
+        pub_->publish(pose_);
+    }
+
+    rclcpp::Publisher<harpia_msgs::msg::DronePose>::SharedPtr pub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr gps_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vfr_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gpos_sub_;
+    rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr hdg_sub_;
+    rclcpp::TimerBase::SharedPtr timer_;
+    harpia_msgs::msg::DronePose pose_;
+};
+
+int main(int argc, char **argv)
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<Drone>();
+
+    RCLCPP_INFO(node->get_logger(), "ROS 2 node started");
+
+    rclcpp::spin(node);
+    rclcpp::shutdown();
     return 0;
 }
