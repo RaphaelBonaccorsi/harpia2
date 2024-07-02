@@ -26,7 +26,7 @@ endif()
 find_package(geometry_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Battery.msg"
@@ -53,7 +53,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/MissionGoalManager.srv"
   "srv/WeatherCheck.srv"
   "action/MissionPlanner.action"
-  DEPENDENCIES geometry_msgs diagnostic_msgs std_msgs # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
+  DEPENDENCIES geometry_msgs diagnostic_msgs builtin_interfaces # Add packages that above messages depend on, in this case geometry_msgs for Sphere.msg
 )
 
 ament_package()
