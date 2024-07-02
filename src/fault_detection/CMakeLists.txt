@@ -19,6 +19,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(interfaces REQUIRED)
+find_package(mavros_msgs REQUIRED)
 
 # Uncomment if the package has a setup.py. This macro ensures modules and global scripts get installed
 # ament_python_install_package(${PROJECT_NAME})
@@ -32,6 +33,7 @@ include_directories(
   ${nav_msgs_INCLUDE_DIRS}
   ${geometry_msgs_INCLUDE_DIRS}
   ${interfaces_INCLUDE_DIRS}
+  ${mavros_msgs_INCLUDE_DIRS}
 )
 
 # Declare a C++ executable
@@ -45,6 +47,7 @@ ament_target_dependencies(DroneInfoCompiler
   nav_msgs
   geometry_msgs
   interfaces
+  mavros_msgs
 )
 
 install(TARGETS
