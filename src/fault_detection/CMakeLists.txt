@@ -21,6 +21,8 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(interfaces REQUIRED)
 find_package(mavros_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 # Uncomment if the package has a setup.py. This macro ensures modules and global scripts get installed
 # ament_python_install_package(${PROJECT_NAME})
@@ -30,6 +32,7 @@ include_directories(
   include
   ${rclcpp_INCLUDE_DIRS}
   ${rclcpp_action_INCLUDE_DIRS}
+  ${tf2_INCLUDE_DIRS}
   ${std_msgs_INCLUDE_DIRS}
   ${sensor_msgs_INCLUDE_DIRS}
   ${nav_msgs_INCLUDE_DIRS}
@@ -51,6 +54,8 @@ ament_target_dependencies(DroneInfoCompiler
   geometry_msgs
   interfaces
   mavros_msgs
+  tf2
+  tf2_geometry_msgs
 )
 
 install(TARGETS
