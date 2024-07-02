@@ -14,6 +14,7 @@ endif()
 # Find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -28,6 +29,7 @@ find_package(mavros_msgs REQUIRED)
 include_directories(
   include
   ${rclcpp_INCLUDE_DIRS}
+  ${rclcpp_action_INCLUDE_DIRS}
   ${std_msgs_INCLUDE_DIRS}
   ${sensor_msgs_INCLUDE_DIRS}
   ${nav_msgs_INCLUDE_DIRS}
@@ -42,6 +44,7 @@ add_executable(DroneInfoCompiler anomaly_detection/src/DroneInfoCompiler.cpp)
 # Specify libraries to link a library or executable target against
 ament_target_dependencies(DroneInfoCompiler
   rclcpp
+  rclcpp_action
   std_msgs
   sensor_msgs
   nav_msgs
