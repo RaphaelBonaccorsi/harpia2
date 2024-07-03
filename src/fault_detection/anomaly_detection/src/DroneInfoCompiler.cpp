@@ -13,7 +13,7 @@
 #include <bits/stdc++.h>
 // Update or replace harpia_msgs with ROS 2 equivalent
 #include <interfaces/msg/drone_pose.hpp>
-#include <interfaces/msg/goal_id.msg>
+#include <interfaces/msg/goal_id.hpp>
 #include "rclcpp_action/rclcpp_action.hpp"
 
 #include <tf2/LinearMath/Quaternion.h>
@@ -39,7 +39,7 @@ struct GeoPoint{
 class Drone
 {
 	public:
-		interfaces::DronePose pose;
+		interfaces::drone_pose pose;
 		void chatterCallback_localPose(const geometry_msgs::PoseStamped::ConstPtr& msg);
 		void chatterCallback_imu(const sensor_msgs::Imu::ConstPtr& msg);
 		void chatterCallback_vfr_hud(const mavros_msgs::vfr_hud::ConstPtr& msg);
@@ -103,7 +103,7 @@ public:
     Drone()
     {
         // Initialize publishers and subscribers
-        pub_ = this->create_publisher<interfaces::msg::DronePose>("pose", 10);
+        pub_ = this->create_publisher<interfaces::msg::drone_pose>("pose", 10);
 
         gps_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
             "/mavros/local_position/pose", 1, std::bind(&Drone::chatterCallbackLocalPose, this, std::placeholders::_1));
@@ -156,14 +156,14 @@ private:
         pub_->publish(pose_);
     }
 
-    rclcpp::Publisher<interfaces::msg::DronePose>::SharedPtr pub_;
+    rclcpp::Publisher<interfaces::msg::drone_pose>::SharedPtr pub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr gps_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr vfr_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr gpos_sub_;
     rclcpp::Subscription<std_msgs::msg::Float64>::SharedPtr hdg_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
-    interfaces::msg::DronePose pose_;
+    interfaces::msg::drone_pose pose_;
 };
 
 int main(int argc, char **argv)
