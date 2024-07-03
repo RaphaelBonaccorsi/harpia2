@@ -40,7 +40,7 @@ class Drone
 {
 	public:
 		interfaces::drone_pose pose;
-		void chatterCallback_localPose(const geometry_msgs::PoseStamped::ConstPtr& msg);
+		void chatterCallback_localPose(const geometry_msgs::pose_stamped::ConstPtr& msg);
 		void chatterCallback_imu(const sensor_msgs::Imu::ConstPtr& msg);
 		void chatterCallback_vfr_hud(const mavros_msgs::vfr_hud::ConstPtr& msg);
 		void chatterCallback_golbalp(const nav_msgs::Odometry::ConstPtr& msg);
