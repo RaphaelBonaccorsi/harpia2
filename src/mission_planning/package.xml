@@ -4,7 +4,7 @@
   <name>mission_planning</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
-  <maintainer email="raphael@todo.todo">raphael</maintainer>
+  <maintainer email="raphaelbonaccorsi@usp.br">Raphael M. C. Bonaccorsi</maintainer>
   <license>TODO: License declaration</license>
 
   <test_depend>ament_copyright</test_depend>
