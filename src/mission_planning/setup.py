@@ -1,14 +1,12 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 package_name = 'mission_planning'
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name],
+    packages=find_packages(exclude=['test']),
     data_files=[
-        ('share/ament_index/resource_index/packages',
-            ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
     install_requires=['setuptools'],
@@ -22,8 +20,9 @@ setup(
         'console_scripts': [
             'mission_planner_server = mission_planning.mission_planner_server:main',
             'test_add_goal = mission_planning.test_add_goal:main',
-            'test_client_copy = mission_planning.test_client_copy:main',  # Corrected entry point
+            'test_client_copy = mission_planning.test_client_copy:main',
             'test_client = mission_planning.test_client:main',
         ],
     },
 )
+
