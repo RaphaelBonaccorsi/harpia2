@@ -1,0 +1,57 @@
+<launch>
+    <arg name="harpia_home" default="$(env HOME)" doc="Defines the root directory of the project"/>
+
+    <include file="$(find-pkg-share mavros)/launch/px4.launch.py">
+        <arg name="fcu_url" value="udp://:14540@localhost:14557" />
+        <arg name="log_output" value="log" />
+    </include>
+
+    <node name="mission_planner_as" pkg="mission_planning" exec="mission_planner_server.py" output="screen" />
+    <node name="mission_fault_mitigation_server" pkg="mission_fault_mitigation" exec="mission_fault_mitigation_server.py" output="screen" />
+    <node name="mission_goal_manager_server" pkg="mission_goal_manager" exec="mission_goal_manager_server.py" output="screen" respawn="true" />
+    <node name="path_planning_server" pkg="path_planning" exec="path_planning_server.py" output="screen" />
+    <!-- <node name="weather_check_server" pkg="fault_detection" exec="weather_check_server.py" output="screen" /> -->
+    <!--<node name="drone_info" pkg="fault_detection" exec="DroneInfoCompiler" output="screen" />-->
+    <!--<node name="anomaly_detector" pkg="fault_detection" exec="anomaly_detector.py" output="screen" />-->
+    <!--
+    <include file="$(find-pkg-share rosplan_planning_system)/launch/interfaced_planning_system.launch.py">
+        <arg name="domain_path" value="$(arg harpia_home)/pddl/domain.pddl" />
+        <arg name="autom_gen_problem_path" value="$(arg harpia_home)/pddl/problem.pddl" />
+        <arg name="data_path" value="$(arg harpia_home)/pddl/" />
+    </include>
+
+    <node name="rosplan_interface_recharge_input" pkg="rosplan_interface_harpia" exec="RPHarpiaExecutor" output="screen">
+        <param name="knowledge_base" value="rosplan_knowledge_base" />
+        <param name="pddl_action_name" value="recharge_input" />
+        <param name="action_dispatch_topic" value="/rosplan_plan_dispatcher/action_dispatch" />
+        <param name="action_feedback_topic" value="/rosplan_plan_dispatcher/action_feedback" />
+    </node>
+
+    <node name="rosplan_interface_go_to" pkg="rosplan_interface_harpia" exec="RPHarpiaExecutor" output="screen">
+        <param name="knowledge_base" value="rosplan_knowledge_base" />
+        <param name="pddl_action_name" value="go_to" />
+        <param name="action_dispatch_topic" value="/rosplan_plan_dispatcher/action_dispatch" />
+        <param name="action_feedback_topic" value="/rosplan_plan_dispatcher/action_feedback" />
+    </node>
+
+    <node name="rosplan_interface_pulverize_region" pkg="rosplan_interface_harpia" exec="RPHarpiaExecutor" output="screen">
+        <param name="knowledge_base" value="rosplan_knowledge_base" />
+        <param name="pddl_action_name" value="pulverize_region" />
+        <param name="action_dispatch_topic" value="/rosplan_plan_dispatcher/action_dispatch" />
+        <param name="action_feedback_topic" value="/rosplan_plan_dispatcher/action_feedback" />
+    </node>
+
+    <node name="rosplan_interface_take_img" pkg="rosplan_interface_harpia" exec="RPHarpiaExecutor" output="screen">
+        <param name="knowledge_base" value="rosplan_knowledge_base" />
+        <param name="pddl_action_name" value="take_image" />
+        <param name="action_dispatch_topic" value="/rosplan_plan_dispatcher/action_dispatch" />
+        <param name="action_feedback_topic" value="/rosplan_plan_dispatcher/action_feedback" />
+    </node>
+
+    <node name="rosplan_interface_recharge_battery" pkg="rosplan_interface_harpia" exec="RPHarpiaExecutor" output="screen">
+        <param name="knowledge_base" value="rosplan_knowledge_base" />
+        <param name="pddl_action_name" value="recharge_battery" />
+        <param name="action_dispatch_topic" value="/rosplan_plan_dispatcher/action_dispatch" />
+        <param name="action_feedback_topic" value="/rosplan_plan_dispatcher/action_feedback" />
+    </node>-->
+</launch>
