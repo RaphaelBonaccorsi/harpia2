@@ -14,8 +14,9 @@ from diagnostic_msgs.msg import KeyValue
 
 from std_msgs.msg import String
 
-from interfaces.msg import ChangeMission, MissionPlannerAction, MissionPlannerGoal, MissionPlannerFeedback, MissionPlannerResult, Mission, MissionPlannerActionGoal
+from interfaces.msg import ChangeMission, MissionPlannerGoal, MissionPlannerFeedback, MissionPlannerResult, Mission, MissionPlannerActionGoal
 from interfaces.srv import PathPlanning
+from interfaces.action import MissionPlanner
 
 from mavros_msgs.msg import *
 from mavros_msgs.srv import *
