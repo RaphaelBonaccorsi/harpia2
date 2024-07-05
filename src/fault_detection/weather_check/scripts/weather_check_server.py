@@ -12,12 +12,7 @@ import time
 import requests
 
 from libs import predictor
-"""
-from rosplan_knowledge_msgs.srv import *
-from rosplan_knowledge_msgs.msg import *
-from rosplan_dispatch_msgs.msg import *
-from rosplan_dispatch_msgs.srv import *
-"""
+
 from sensor_msgs.msg import NavSatFix, Imu, BatteryState
 from sensor_msgs.msg import BatteryState
 
@@ -28,13 +23,16 @@ from interfaces.srv import *
 from rclpy.node import Node
 from rclpy.exceptions import ROSInterruptException
 
+from plansys2_msgs.action import ExecutePlan
+
 # ---
 # CLASSES
 
 class Plan(Node):
     def __init__(self):
         super().__init__('plan')
-        self.sub  = self.create_subscription(CompletePlan, "rosplan_parsing_interface/complete_plan", self.plan_callback, 10)   
+        # Substitui "rosplan_parsing_interface/complete_plan"
+        self.sub  = self.create_subscription(CompletePlan, "/executor/execute_plan", self.plan_callback, 10)   
         self.plan = CompletePlan()
     
     def plan_callback(self, data): 
