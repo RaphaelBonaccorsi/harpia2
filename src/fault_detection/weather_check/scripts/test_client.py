@@ -6,7 +6,6 @@ from rclpy.action import ActionClient
 from rclpy.exceptions import ROSInterruptException
 
 import sys, select
-
 import math
 import json
 import time

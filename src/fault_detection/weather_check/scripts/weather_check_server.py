@@ -4,6 +4,7 @@ import sys, traceback
 
 import math
 import os
+import unittest
 import pandas as pd
 import pickle
 import json
@@ -143,6 +144,7 @@ class WeatherCheckServer(Node):
         return response
 
 def main(args=None):
+    unittest.main()
     rclpy.init(args=args)
 
     weather_check_server = WeatherCheckServer()
