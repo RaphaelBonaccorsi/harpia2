@@ -11,8 +11,10 @@ import rclpy
 from rclpy.node import Node
 import time
 import logging
+# Add the libs directory to the Python path
+current_dir = os.path.dirname(os.path.realpath(__file__))
 libs_path = os.path.join(current_dir, 'libs')
-
+sys.path.append(libs_path)
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
 from geographic_msgs.msg import GeoPoint
