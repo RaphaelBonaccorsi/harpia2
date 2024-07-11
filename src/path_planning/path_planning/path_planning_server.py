@@ -11,6 +11,7 @@ import rclpy
 from rclpy.node import Node
 import time
 import logging
+libs_path = os.path.join(current_dir, 'libs')
 
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
