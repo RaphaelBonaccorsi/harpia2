@@ -178,7 +178,8 @@ def get_harpia_root_dir():
     str
         The absolute path of the Harpia project's root directory.
     """
-    return os.path.expanduser("~/harpia") # Check if this is the correct path ********
+    print(os.getcwd())
+    return os.getcwd()
 
 def to_waypointList(route, geo_home):
     """
