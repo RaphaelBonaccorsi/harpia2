@@ -720,7 +720,7 @@ class PathPlanningServer(Node):
         harpia_root_dir = get_harpia_root_dir()
 
         # Load KNN model
-        knn_pickle_file = os.path.join(harpia_root_dir, "src/path_planning/scripts/libs/KNN/models/knn29.pickle")
+        knn_pickle_file = os.path.join(harpia_root_dir, "src/path_planning/path_planning/libs/KNN/models/knn29.pickle")
         self.knn = pickle.load(open(knn_pickle_file, "rb"))
 
         # Configure CSV path
