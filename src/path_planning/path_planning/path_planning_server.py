@@ -178,7 +178,6 @@ def get_harpia_root_dir():
     str
         The absolute path of the Harpia project's root directory.
     """
-    print(os.getcwd())
     return os.getcwd()
 
 def to_waypointList(route, geo_home):
@@ -617,7 +616,7 @@ def run_path_planning(from_wp, to_wp, map, obstacles_qty):
     if not wait_until(lambda: uav.battery is not None, msg="Waiting for UAV battery..."):
         return None
 
-    selected_planner = select_planner(obstacles_qty, distance, uav.battery)
+    selected_planner = "rrt"  # select_planner(obstacles_qty, distance, uav.battery)
     logger.info(f"selected_planner={selected_planner}")
 
     result = None
@@ -720,8 +719,8 @@ class PathPlanningServer(Node):
         harpia_root_dir = get_harpia_root_dir()
 
         # Load KNN model
-        knn_pickle_file = os.path.join(harpia_root_dir, "src/path_planning/path_planning/libs/KNN/models/knn29.pickle")
-        self.knn = pickle.load(open(knn_pickle_file, "rb"))
+        # knn_pickle_file = os.path.join(harpia_root_dir, "src/path_planning/path_planning/libs/KNN/models/knn29.pickle")
+        # self.knn = pickle.load(open(knn_pickle_file, "rb"))
 
         # Configure CSV path
         self.csv_path = os.path.join(harpia_root_dir, "csv")
