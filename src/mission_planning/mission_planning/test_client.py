@@ -36,9 +36,7 @@ from interfaces.msg import *
 from interfaces.action import *
 
 feedback = 0
-harpia_root = get_harpia_root_dir()
-PATH    = os.path.join(harpia_root, "json/")
-LOG_DIR = os.path.join(harpia_root, "results/")
+
 
 def get_harpia_root_dir():
     """
@@ -52,6 +50,10 @@ def get_harpia_root_dir():
         The absolute path of the Harpia project's root directory.
     """
     return os.getcwd()
+
+harpia_root = get_harpia_root_dir()
+PATH    = os.path.join(harpia_root, "json/")
+LOG_DIR = os.path.join(harpia_root, "results/")
 
 def geo_to_cart(geo_point, geo_home):
     """
