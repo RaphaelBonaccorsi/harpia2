@@ -7,6 +7,7 @@ from rclpy.node import Node
 from rclpy.exceptions import ROSInterruptException
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.qos import QoSProfile
 
 
 
