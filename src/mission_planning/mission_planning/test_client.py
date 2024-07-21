@@ -32,6 +32,7 @@ from mavros_msgs.srv import CommandHome
 # goal message and the result message.
 from interfaces.srv import *
 from interfaces.msg import *
+from interfaces.action import *
 
 feedback = 0
 
