@@ -37,6 +37,9 @@ from interfaces.action import *
 
 feedback = 0
 
+PATH    = os.path.join(harpia_root, "json/")
+LOG_DIR = os.path.join(harpia_root, "results/")
+
 def get_harpia_root_dir():
     """
     Returns the root directory of the Harpia project.
@@ -517,9 +520,6 @@ def main():
     node = Node('test_client')
 
     harpia_root = get_harpia_root_dir()
-
-    PATH    = os.path.join(harpia_root, "json/")
-    LOG_DIR = os.path.join(harpia_root, "results/")
 
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
