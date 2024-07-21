@@ -510,7 +510,7 @@ def parse_args():
 
     return parser.parse_args()
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
 
     rclpy.init()
@@ -548,3 +548,6 @@ if __name__ == '__main__':
         node.get_logger().error("program interrupted before completion")
 
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

@@ -2,7 +2,11 @@
     <arg name="harpia_home" default="$(env HOME)" doc="Defines the root directory of the project"/>
 
     <include file="$(find-pkg-share mavros)/launch/px4.launch.py">
+        <!-- For local tests with gazebo simulation -->
+		<!-- <arg name="fcu_url"		value="udp://:14540@127.0.0.1:14557" /> -->
         <arg name="fcu_url" value="udp://:14540@localhost:14557" />
+        <!-- For interfacing with USB telemetry -->
+		<!-- <arg name="fcu_url" value="/dev/ttyUSB0:57600" /> -->
         <arg name="log_output" value="log" />
     </include>
 
