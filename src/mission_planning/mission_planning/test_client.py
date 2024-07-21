@@ -182,7 +182,7 @@ def feedback_callback(feedback_msg):
         # print('Received feedback: {}'.format(feedback))
         # return feedback
 
-def test_client(hardware, map, mission, mission_file):
+def test_client(node, hardware, map, mission, mission_file):
     """
     Creates a MissionPlannerGoal message from the hardware, map and mission
     data with op = 0. Sends the message to the action server
@@ -540,7 +540,7 @@ def main():
         hardware = hw_file[args.hardware_id]
 
     try:
-        result = test_client(hardware, map, mission, mission_file)
+        result = test_client(node, hardware, map, mission, mission_file)
         node.get_logger().info(f"Result: {result}")
     except rclpy.exceptions.ROSInterruptException:
         node.get_logger().error("program interrupted before completion")
