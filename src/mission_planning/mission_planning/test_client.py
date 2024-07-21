@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import rclpy
+# Brings in the SimpleActionClient
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.exceptions import ROSInterruptException
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 
-# Brings in the SimpleActionClient
+
 
 from actionlib_msgs.msg import GoalStatus
 import sys, select
@@ -188,9 +189,6 @@ def test_client(hardware, map, mission, mission_file):
     "harpia/mission_goal_manager" and then publishes to "/harpia/mission" while
     the action server state is < 2.
     """
-
-    rclpy.init()
-    node = Node('test_client')
     executor = MultiThreadedExecutor()
 
     client = ActionClient(node, MissionPlanner, 'harpia/mission_goal_manager')
