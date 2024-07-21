@@ -36,7 +36,7 @@ from interfaces.msg import *
 from interfaces.action import *
 
 feedback = 0
-
+harpia_root = get_harpia_root_dir()
 PATH    = os.path.join(harpia_root, "json/")
 LOG_DIR = os.path.join(harpia_root, "results/")
 
@@ -518,8 +518,6 @@ def main():
 
     rclpy.init()
     node = Node('test_client')
-
-    harpia_root = get_harpia_root_dir()
 
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
