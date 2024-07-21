@@ -45,7 +45,7 @@ def get_harpia_root_dir():
     str
         The absolute path of the Harpia project's root directory.
     """
-    return os.path.expanduser("~/harpia") # Check if this is the correct path ********
+    return os.getcwd()
 
 def geo_to_cart(geo_point, geo_home):
     """
