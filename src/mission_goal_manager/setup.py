@@ -9,7 +9,15 @@ setup(
     data_files=[
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'rclpy',               # ROS 2 Python client library
+        'plansys2',            # Plansys2 library
+        'plansys2_msgs',       # Plansys2 messages
+        'sensor_msgs',         # Sensor messages (if needed)
+        'std_msgs',            # Standard messages
+        'diagnostic_msgs',    # Diagnostic messages (if needed)
+    ],
     zip_safe=True,
     maintainer='Raphael M. C. Bonaccorsi',
     maintainer_email='raphaelbonaccorsi@usp.br',

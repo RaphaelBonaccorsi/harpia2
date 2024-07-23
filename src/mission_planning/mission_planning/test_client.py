@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
 import rclpy
+# Brings in the SimpleActionClient
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.exceptions import ROSInterruptException
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.qos import QoSProfile
 
-# Brings in the SimpleActionClient
+
 
 from actionlib_msgs.msg import GoalStatus
 import sys, select
@@ -18,8 +20,6 @@ import time
 import os
 import argparse
 from std_srvs.srv import Empty
-#from rosplan_knowledge_msgs.srv import *
-#from rosplan_knowledge_msgs.msg import *
 
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
@@ -31,8 +31,10 @@ from mavros_msgs.srv import CommandHome
 # goal message and the result message.
 from interfaces.srv import *
 from interfaces.msg import *
+from interfaces.action import *
 
 feedback = 0
+
 
 def get_harpia_root_dir():
     """
@@ -45,7 +47,11 @@ def get_harpia_root_dir():
     str
         The absolute path of the Harpia project's root directory.
     """
-    return os.path.expanduser("~/harpia") # Check if this is the correct path ********
+    return os.getcwd()
+
+harpia_root = get_harpia_root_dir()
+PATH    = os.path.join(harpia_root, "json/")
+LOG_DIR = os.path.join(harpia_root, "results/")
 
 def geo_to_cart(geo_point, geo_home):
     """
@@ -181,16 +187,13 @@ def feedback_callback(feedback_msg):
         # print('Received feedback: {}'.format(feedback))
         # return feedback
 
-def test_client(hardware, map, mission, mission_file):
+def test_client(node, hardware, map, mission, mission_file):
     """
     Creates a MissionPlannerGoal message from the hardware, map and mission
     data with op = 0. Sends the message to the action server
     "harpia/mission_goal_manager" and then publishes to "/harpia/mission" while
     the action server state is < 2.
     """
-
-    rclpy.init()
-    node = Node('test_client')
     executor = MultiThreadedExecutor()
 
     client = ActionClient(node, MissionPlanner, 'harpia/mission_goal_manager')
@@ -510,16 +513,11 @@ def parse_args():
 
     return parser.parse_args()
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
 
     rclpy.init()
     node = Node('test_client')
-
-    harpia_root = get_harpia_root_dir()
-
-    PATH    = os.path.join(harpia_root, "json/")
-    LOG_DIR = os.path.join(harpia_root, "results/")
 
     if not os.path.exists(LOG_DIR):
         os.makedirs(LOG_DIR)
@@ -542,9 +540,12 @@ if __name__ == '__main__':
         hardware = hw_file[args.hardware_id]
 
     try:
-        result = test_client(hardware, map, mission, mission_file)
+        result = test_client(node, hardware, map, mission, mission_file)
         node.get_logger().info(f"Result: {result}")
     except rclpy.exceptions.ROSInterruptException:
         node.get_logger().error("program interrupted before completion")
 
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

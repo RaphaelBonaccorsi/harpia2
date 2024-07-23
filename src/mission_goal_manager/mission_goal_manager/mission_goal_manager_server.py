@@ -4,7 +4,7 @@
 # Pega bateria pelo MavROS
 # Controla waypoints
 # Funções de calculo de distancia entre pontos
-# Trabalha com o ROSPlan para replanejar missão
+# Trabalha com o Plansys2 para replanejar missão
 
 import rclpy #ROS2
 #import actionlib
@@ -17,10 +17,13 @@ from rclpy.node import Node
 from rclpy.action import ActionServer
 import psutil
 from std_srvs.srv import Empty
-from rosplan_knowledge_msgs.srv import *
-from rosplan_knowledge_msgs.msg import *
-from rosplan_dispatch_msgs.msg import *
-from rosplan_dispatch_msgs.srv import *
+
+# Importação para mensagens do PlanSys2
+from plansys2_msgs.srv import GetPlan, AddProblemGoal, AddProblemInstance, AddProblemPredicate, AddProblemFunction
+from plansys2_msgs.srv import GetProblem, ExecutePlan, CancelExecution, RemoveProblemInstance, RemoveProblemPredicate, RemoveProblemFunction
+
+
+
 from diagnostic_msgs.msg import KeyValue
 
 from std_msgs.msg import String
@@ -351,37 +354,23 @@ def wait_until(check, msg=None, rate=1):
     return True
 
 '''
-	Callers for ROSPlan Services
+	Callers for PLANSYS2 Services
     Services are another way that nodes can communicate with each other. 
     Services allow nodes to send a request and receive a response.
 '''
 
-def try_call_srv(topic, msg_ty=Empty):
+def try_call_srv(node, topic, msg_ty=Empty):
     """
-    Attempts to call a ROS service and returns True if successful, False otherwise.
+    Attempts to call a ROS2 service and returns True if successful, False otherwise.
 
     Args:
-        topic (str): The topic of the ROS service.
+        node (Node): The ROS2 node instance.
+        topic (str): The topic of the ROS2 service.
         msg_ty (Message, optional): The message type to be sent to the service. Defaults to Empty.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
-
-    Example:
-        ```python
-        # Try calling a service with default Empty message type
-        result = try_call_srv('/some_service')
-
-        # Try calling a service with a specific message type
-        result = try_call_srv('/another_service', SomeMessageType)
-        ```
-
-    Raises:
-        rospy.ServiceException: If the service call fails.
-
     """
-    rclpy.init()
-    node = rclpy.create_node('service_caller')
     client = node.create_client(msg_ty, topic)
 
     while not client.wait_for_service(timeout_sec=1.0):
@@ -399,59 +388,65 @@ def try_call_srv(topic, msg_ty=Empty):
         node.get_logger().info('Service call failed')
         return False
 
-    node.destroy_node()
-    rclpy.shutdown()
-
-
-def call_problem_generator() -> bool:
+def call_problem_generator(node) -> bool:
     """
-    Calls the ROS service for problem generation.
+    Calls the ROS2 service to add a problem goal in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_problem_interface/problem_generation_server', Empty)
+    return try_call_srv(node, 'problem_expert/add_problem_goal', AddProblemGoal)
 
-
-def call_plan_generator() -> bool:
+def call_plan_generator(node) -> bool:
     """
-    Calls the ROS service for planning.
+    Calls the ROS2 service to generate a plan in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_planner_interface/planning_server', Empty)
+    return try_call_srv(node, 'planner/get_plan', Empty)
 
-
-def call_parser() -> bool:
+def call_parser(node) -> bool:
     """
-    Calls the ROS service for plan parsing.
+    Calls the ROS2 service to get the current problem definition in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_parsing_interface/parse_plan', Empty)
+    return try_call_srv(node, 'problem_expert/get_problem', Empty)
 
-
-def call_dispatch() -> bool:
+def call_dispatch(node) -> bool:
     """
-    Calls the ROS service for plan dispatching.
+    Calls the ROS2 service to execute a plan in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_plan_dispatcher/dispatch_plan', Empty)
+    return try_call_srv(node, 'planner/execute_plan', ExecutePlan)
 
-
-def cancel_dispatch() -> bool:
+def cancel_dispatch(node) -> bool:
     """
-    Calls the ROS service to cancel plan dispatching.
+    Calls the ROS2 service to cancel plan execution in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_plan_dispatcher/cancel_dispatch', Empty)
-
+    return try_call_srv(node, 'planner/cancel_execution', CancelExecution)
 
 def call_mission_planning() -> bool:
     """
@@ -533,169 +528,177 @@ def geo_to_cart(geo_point, geo_home):
 	Functions to manipulate Knowledge base
 '''
 
-def try_update_knowledge(item, update_type):
+def try_update_knowledge(node, service_topic, request_type, item):
     """
-    Try to update knowledge in the ROSPlan knowledge base.
+    Try to update knowledge in the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
+        service_topic (str): The service topic to call.
+        request_type (Message): The type of the request message.
         item: The item to update.
-        update_type: The type of update.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    rclpy.init()
-    node = rclpy.create_node('knowledge_updater')
-    client = node.create_client(KnowledgeUpdateService, '/rosplan_knowledge_base/update')
+    client = node.create_client(request_type, service_topic)
 
     while not client.wait_for_service(timeout_sec=1.0):
-        pass
+        node.get_logger().info('Service not available, waiting...')
 
-    request = KnowledgeUpdateService.Request()
-    request.update_type = update_type
-    request.knowledge = item
-
+    request = request_type()
+    request.item = item  # Adjust this based on the actual request type and field
     future = client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
 
-    if future.result() is not None:
-        node.destroy_node()
-        rclpy.shutdown()
-        return True
-    else:
-        node.destroy_node()
-        rclpy.shutdown()
-        return False
+    success = future.result() is not None
+    node.get_logger().info('Service call {}'.format('successful' if success else 'failed'))
+    return success
 
-def call_clear():
+def call_clear(node) -> bool:
     """
-    Call the ROSPlan knowledge base service to clear all knowledge.
+    Call the PlanSys2 service to clear all knowledge.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call was successful, False otherwise.
     """
-    return try_call_srv('/rosplan_knowledge_base/clear', Empty)
+    return try_update_knowledge(node, 'problem_expert/clear', Empty, None)
 
-def add_instance(item):
+def add_instance(node, item) -> bool:
     """
-    Add an instance to the ROSPlan knowledge base.
+    Add an instance to the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         item: The item to add.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_ADD_KNOWLEDGE)
+    return try_update_knowledge(node, 'problem_expert/add_problem_instance', AddProblemInstance, item)
 
-def remove_instance(item):
+def remove_instance(node, item) -> bool:
     """
-    Remove an instance from the ROSPlan knowledge base.
+    Remove an instance from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         item: The item to remove.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_RM_KNOWLEDGE)
+    return try_update_knowledge(node, 'problem_expert/remove_problem_instance', RemoveProblemInstance, item)
 
-def add_goal(item):
+def add_goal(node, item) -> bool:
     """
-    Add a goal to the ROSPlan knowledge base.
+    Add a goal to the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         item: The item to add.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_ADD_GOAL)
+    return try_update_knowledge(node, 'problem_expert/add_problem_goal', AddProblemPredicate, item)
 
-def remove_goal(item):
+def remove_goal(node, item) -> bool:
     """
-    Remove a goal from the ROSPlan knowledge base.
+    Remove a goal from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         item: The item to remove.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_RM_GOAL)
+    return try_update_knowledge(node, 'problem_expert/remove_problem_goal', RemoveProblemPredicate, item)
 
-def add_metric(item):
+def add_metric(node, item) -> bool:
     """
-    Add a metric to the ROSPlan knowledge base.
+    Add a metric to the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         item: The item to add.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_ADD_METRIC)
+    return try_update_knowledge(node, 'problem_expert/add_problem_function', AddProblemFunction, item)
 
-def get_knowledge(name, topic):
+def get_knowledge(node, name, service_topic):
     """
-    Get knowledge from the ROSPlan knowledge base.
+    Get knowledge from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         name: The name of the knowledge item to retrieve.
-        topic: The ROSPlan knowledge base service topic.
+        service_topic (str): The ROS2 service topic to call.
 
     Returns:
         KnowledgeItem: The knowledge item retrieved from the knowledge base.
     """
-    rclpy.init()
-    node = rclpy.create_node('knowledge_query')
-    client = node.create_client(GetAttributeService, topic)
+    client = node.create_client(GetProblem, service_topic)
+    
     while not client.wait_for_service(timeout_sec=1.0):
-        pass
-    request = GetAttributeService.Request()
-    request.attribute_name = name
+        node.get_logger().info('Service not available, waiting...')
+
+    request = GetProblem.Request()
+    request.problem_name = name
     future = client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
-    if future.result() is not None:
-        return future.result().knowledge
-    else:
-        return KnowledgeItem()
 
-def get_function(function_name):
+    result = future.result()
+    if result is not None:
+        return result.problem  # Adjust based on actual result structure
+    else:
+        node.get_logger().info('Failed to retrieve knowledge')
+        return None
+
+def get_function(node, function_name):
     """
-    Get a function from the ROSPlan knowledge base.
+    Get a function from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         function_name: The name of the function to retrieve.
 
     Returns:
         KnowledgeItem: The function retrieved from the knowledge base.
     """
-    return get_knowledge(function_name, '/rosplan_knowledge_base/state/functions')
+    return get_knowledge(node, function_name, 'problem_expert/get_function')
 
-def get_goal(goal_name):
+def get_goal(node, goal_name):
     """
-    Get a goal from the ROSPlan knowledge base.
+    Get a goal from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         goal_name: The name of the goal to retrieve.
 
     Returns:
         KnowledgeItem: The goal retrieved from the knowledge base.
     """
-    return get_knowledge(goal_name, '/rosplan_knowledge_base/state/goals')
+    return get_knowledge(node, goal_name, 'problem_expert/get_goal')
 
-def get_predicate(predicate_name):
+def get_predicate(node, predicate_name):
     """
-    Get a predicate from the ROSPlan knowledge base.
+    Get a predicate from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         predicate_name: The name of the predicate to retrieve.
 
     Returns:
         KnowledgeItem: The predicate retrieved from the knowledge base.
     """
-    return get_knowledge(predicate_name, '/rosplan_knowledge_base/state/propositions')
+    return get_knowledge(node, predicate_name, 'problem_expert/get_predicate')
 
 def create_object(item_name, item_type):
     """

@@ -32,8 +32,6 @@
   <exec_depend>mavros_msgs</exec_depend>
   <exec_depend>tf2</exec_depend>
   <exec_depend>tf2_geometry_msgs</exec_depend>
-  <exec_depend>plansys2</exec_depend>
-  <exec_depend>plansys2_msgs</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
 

@@ -11,16 +11,14 @@ import rclpy
 from rclpy.node import Node
 import time
 import logging
-
+# Add the libs directory to the Python path
+current_dir = os.path.dirname(os.path.realpath(__file__))
+libs_path = os.path.join(current_dir, 'libs')
+sys.path.append(libs_path)
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
 from geographic_msgs.msg import GeoPoint
-"""
-from rosplan_knowledge_msgs.srv import *
-from rosplan_knowledge_msgs.msg import *
-from rosplan_dispatch_msgs.msg import *
-from rosplan_dispatch_msgs.srv import *
-"""
+
 from sensor_msgs.msg import BatteryState
 
 
@@ -175,7 +173,7 @@ def get_harpia_root_dir():
     str
         The absolute path of the Harpia project's root directory.
     """
-    return os.path.expanduser("~/harpia") # Check if this is the correct path ********
+    return os.getcwd()
 
 def to_waypointList(route, geo_home):
     """
@@ -613,7 +611,7 @@ def run_path_planning(from_wp, to_wp, map, obstacles_qty):
     if not wait_until(lambda: uav.battery is not None, msg="Waiting for UAV battery..."):
         return None
 
-    selected_planner = select_planner(obstacles_qty, distance, uav.battery)
+    selected_planner = "rrt"  # select_planner(obstacles_qty, distance, uav.battery)
     logger.info(f"selected_planner={selected_planner}")
 
     result = None
@@ -716,8 +714,8 @@ class PathPlanningServer(Node):
         harpia_root_dir = get_harpia_root_dir()
 
         # Load KNN model
-        knn_pickle_file = os.path.join(harpia_root_dir, "src/path_planning/scripts/libs/KNN/models/knn29.pickle")
-        self.knn = pickle.load(open(knn_pickle_file, "rb"))
+        # knn_pickle_file = os.path.join(harpia_root_dir, "src/path_planning/path_planning/libs/KNN/models/knn29.pickle")
+        # self.knn = pickle.load(open(knn_pickle_file, "rb"))
 
         # Configure CSV path
         self.csv_path = os.path.join(harpia_root_dir, "csv")

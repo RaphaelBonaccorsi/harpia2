@@ -15,10 +15,7 @@ import time
 import os
 import argparse
 from std_srvs.srv import Empty
-'''
-from rosplan_knowledge_msgs.srv import *
-from rosplan_knowledge_msgs.msg import *
-'''
+
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
 from geographic_msgs.msg import GeoPoint
