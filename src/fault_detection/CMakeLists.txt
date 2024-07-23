@@ -39,7 +39,6 @@ include_directories(
   ${geometry_msgs_INCLUDE_DIRS}
   ${interfaces_INCLUDE_DIRS}
   ${mavros_msgs_INCLUDE_DIRS}
-  ${plansys2_INCLUDE_DIRS}
 )
 
 # Declare a C++ executable
@@ -57,8 +56,6 @@ ament_target_dependencies(DroneInfoCompiler
   mavros_msgs
   tf2
   tf2_geometry_msgs
-  plansys2
-  plansys2_msgs
 )
 
 install(TARGETS
