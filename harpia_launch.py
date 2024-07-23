@@ -1,10 +1,15 @@
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
 from launch_ros.actions import Node
 
 def generate_launch_description():
     return LaunchDescription([
+        # Declare arguments
+        DeclareLaunchArgument('px4_path', default_value='/home/harpia/PX4-Autopilot/build/px4_sitl_default/bin/px4', description='Path to the px4 executable'),
+
+        # PX4 Node (if you want to use it in a Node, you would have to create a custom launch file or script)
         Node(
-            package='mavros',
+            package='px4',
             executable='px4',
             name='px4',
             output='screen',
@@ -44,8 +49,8 @@ def generate_launch_description():
             name='plansys2_problem_expert',
             output='screen',
             parameters=[{
-                'domain_path': '~/harpia_plansys2/pddl/domain.pddl',
-                'problem_path': '~/harpia_plansys2/pddl/problem.pddl'
+                'domain_path': '/home/harpia/harpia_plansys2/pddl/domain.pddl',
+                'problem_path': '/home/harpia/harpia_plansys2/pddl/problem.pddl'
             }]
         ),
         Node(
@@ -54,8 +59,8 @@ def generate_launch_description():
             name='plansys2_planner',
             output='screen',
             parameters=[{
-                'domain_path': '~/harpia_plansys2/pddl/domain.pddl',
-                'problem_path': '~/harpia_plansys2/pddl/problem.pddl'
+                'domain_path': '/home/harpia/harpia_plansys2/pddl/domain.pddl',
+                'problem_path': '/home/harpia/harpia_plansys2/pddl/problem.pddl'
             }]
         ),
         Node(
@@ -64,7 +69,7 @@ def generate_launch_description():
             name='plansys2_executor',
             output='screen',
             parameters=[{
-                'domain_path': '~/harpia_plansys2/pddl/domain.pddl'
+                'domain_path': '/home/harpia/harpia_plansys2/pddl/domain.pddl'
             }]
         ),
         Node(
@@ -73,8 +78,7 @@ def generate_launch_description():
             name='plansys2_domain_expert',
             output='screen',
             parameters=[{
-                'domain_path': '~/harpia_plansys2/pddl/domain.pddl'
+                'domain_path': '/home/harpia/harpia_plansys2/pddl/domain.pddl'
             }]
         )
     ])
-
