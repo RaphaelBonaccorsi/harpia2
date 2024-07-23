@@ -41,335 +41,682 @@
 #include<iomanip>
 
 #include <cstdlib>
+
+
+#include <string>
+#include <cstdlib>
+#include <geographic_msgs/msg/geo_point.hpp>
+#include <mavros_msgs/msg/state.hpp>
+#include <mavros_msgs/msg/extended_state.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include <harpia_msgs/msg/mission.hpp>
+#include <mavros_msgs/msg/waypoint_list.hpp>
+#include <mavros_msgs/msg/waypoint_reached.hpp>
+#include <harpia_msgs/msg/mission_planner_action_goal.hpp>
+#include <harpia_msgs/msg/change_mission.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <mavros_msgs/srv/command_tol.hpp>
+#include <mavros_msgs/srv/set_mode.hpp>
+#include <mavros_msgs/srv/command_bool.hpp>
+#include <harpia_msgs/msg/region_point.hpp>
+#include <harpia_msgs/msg/map.hpp>
+#include <cstring>  // For std::strcmp
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <cstdlib>  // For std::system
+#include <harpia_msgs/srv/path_planning.hpp>
+
+
+
 using namespace std;
+
 std::string homepath = getenv("HOME");
 
-// change GeoPoint to geographic_msgs/geopoint
-struct GeoPoint{
-	string  name;
-	double longitude;
-	double latitude;
-	double altitude;
+/**
+ * @brief Struct representing a geographic point with additional metadata.
+ * 
+ * This struct is used to represent a geographical point with name, longitude, latitude, and altitude.
+ */
+struct GeoPoint
+{
+    std::string name;       ///< Name or identifier for the geographic point
+    double longitude;       ///< Longitude of the geographic point
+    double latitude;        ///< Latitude of the geographic point
+    double altitude;        ///< Altitude of the geographic point
 };
 
+/**
+ * @brief Class representing a drone with its current state and position.
+ * 
+ * This class provides methods to handle callbacks related to the drone's GPS data, 
+ * current state, and extended state. It also stores the current position and state of the drone.
+ */
 class Drone
 {
 public:
-	GeoPoint position;
-	mavros_msgs::State current_state;
-	mavros_msgs::ExtendedState ex_current_state;
-	void chatterCallback_GPS(const sensor_msgs::NavSatFix::ConstPtr& msg);
-	void chatterCallback_currentState(const mavros_msgs::State::ConstPtr& msg);
-	void chatterCallback_currentStateExtended(const mavros_msgs::ExtendedState::ConstPtr& msg);
+    GeoPoint position;                       ///< Current geographic position of the drone
+    mavros_msgs::msg::State current_state;   ///< Current state of the drone
+    mavros_msgs::msg::ExtendedState ex_current_state; ///< Extended state of the drone
+
+    /**
+     * @brief Callback function for handling GPS data.
+     * 
+     * This function updates the drone's position based on the received GPS data.
+     * 
+     * @param msg A pointer to the GPS data message of type sensor_msgs::msg::NavSatFix.
+     */
+    void chatterCallback_GPS(const sensor_msgs::msg::NavSatFix::SharedPtr msg);
+
+    /**
+     * @brief Callback function for handling the current state of the drone.
+     * 
+     * This function updates the drone's current state based on the received state data.
+     * 
+     * @param msg A pointer to the state data message of type mavros_msgs::msg::State.
+     */
+    void chatterCallback_currentState(const mavros_msgs::msg::State::SharedPtr msg);
+
+    /**
+     * @brief Callback function for handling the extended state of the drone.
+     * 
+     * This function updates the drone's extended state based on the received extended state data.
+     * 
+     * @param msg A pointer to the extended state data message of type mavros_msgs::msg::ExtendedState.
+     */
+    void chatterCallback_currentStateExtended(const mavros_msgs::msg::ExtendedState::SharedPtr msg);
 };
 
-void Drone::chatterCallback_GPS(const sensor_msgs::NavSatFix::ConstPtr& msg)
-{
-	position.longitude = msg->longitude;
-	position.latitude = msg->latitude;
-	position.altitude = msg->altitude;
+/**
+ * @brief Callback function for handling GPS data.
+ * 
+ * This method updates the drone's position attributes based on the received GPS data.
+ * It assigns the longitude, latitude, and altitude from the GPS message to the respective 
+ * fields in the `position` attribute of the `Drone` class.
+ * 
+ * @param msg A shared pointer to the GPS data message of type sensor_msgs::msg::NavSatFix.
+ */
+void Drone::chatterCallback_GPS(const sensor_msgs::msg::NavSatFix::SharedPtr msg){
+    position.longitude = msg->longitude;
+    position.latitude = msg->latitude;
+    position.altitude = msg->altitude;
 }
 
-void Drone::chatterCallback_currentState(const mavros_msgs::State::ConstPtr& msg){
+/**
+ * @brief Callback function for handling the current state of the drone.
+ * 
+ * This method updates the `current_state` attribute of the `Drone` class based on the 
+ * received state data message. The state message contains information about the drone's 
+ * current status.
+ * 
+ * @param msg A shared pointer to the state data message of type mavros_msgs::msg::State.
+ */
+void Drone::chatterCallback_currentState(const mavros_msgs::msg::State::SharedPtr msg){
     current_state = *msg;
 }
 
-void Drone::chatterCallback_currentStateExtended(const mavros_msgs::ExtendedState::ConstPtr& msg){
+/**
+ * @brief Callback function for handling the extended state of the drone.
+ * 
+ * This method updates the `ex_current_state` attribute of the `Drone` class based on the 
+ * received extended state data message. The extended state message provides additional 
+ * information about the drone's status.
+ * 
+ * @param msg A shared pointer to the extended state data message of type mavros_msgs::msg::ExtendedState.
+ */
+void Drone::chatterCallback_currentStateExtended(const mavros_msgs::msg::ExtendedState::SharedPtr msg){
     ex_current_state = *msg;
 }
 
-// detach route from mission
-class Mission
-{
-	public:
-		int WPqtd; // waypoint qtd
-		int currentWP;
-		int IDGoal;
-		bool Ended = true;
-		bool Cancelled = false;
-		harpia_msgs::Mission hMission;
-		// decision_support::newMission missionWP;
-		void send_mission();
-		void chatterCallback_wpqtd(const mavros_msgs::WaypointList::ConstPtr& msg);
-		void chatterCallback_current(const mavros_msgs::WaypointReached::ConstPtr& msg);
-		void chatterCallback_harpiaMission(const harpia_msgs::Mission::ConstPtr& msg);
-		void chatterCallback_IDGoal(const harpia_msgs::MissionPlannerActionGoal::ConstPtr& msg);
-		void chatterCallback_cancelGoal(const harpia_msgs::ChangeMission::ConstPtr& msg);
+/**
+ * @brief Represents a mission with waypoints and goal management.
+ * 
+ * This class encapsulates the information and operations related to a mission. It maintains
+ * the state of the mission, including the current waypoint, goal ID, and status flags. It also
+ * provides methods for handling mission-related messages and managing waypoints.
+ */
+class Mission{
+public:
+    int WPqtd;              ///< Number of waypoints in the mission.
+    int currentWP;          ///< Index of the current waypoint.
+    int IDGoal;             ///< ID of the goal.
+    bool Ended = true;     ///< Flag indicating whether the mission has ended.
+    bool Cancelled = false; ///< Flag indicating whether the mission has been cancelled.
+    harpia_msgs::msg::Mission hMission; ///< Mission data.
+    // decision_support::newMission missionWP; ///< Uncomment if needed for new mission support.
 
-		Mission();
+    /**
+     * @brief Sends the current mission data.
+     * 
+     * This method is responsible for sending the mission data to relevant subscribers or services.
+     */
+    void send_mission();
 
+    /**
+     * @brief Callback function for handling waypoint list messages.
+     * 
+     * This method updates the waypoint count based on the received waypoint list message.
+     * 
+     * @param msg A shared pointer to the waypoint list message of type mavros_msgs::msg::WaypointList.
+     */
+    void chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::SharedPtr msg);
 
+    /**
+     * @brief Callback function for handling waypoint reached messages.
+     * 
+     * This method processes the waypoint reached message and updates the mission status.
+     * 
+     * @param msg A shared pointer to the waypoint reached message of type mavros_msgs::msg::WaypointReached.
+     */
+    void chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg);
+
+    /**
+     * @brief Callback function for handling Harpia mission messages.
+     * 
+     * This method updates the mission data based on the received Harpia mission message.
+     * 
+     * @param msg A shared pointer to the Harpia mission message of type harpia_msgs::msg::Mission.
+     */
+    void chatterCallback_harpiaMission(const harpia_msgs::msg::Mission::SharedPtr msg);
+
+    /**
+     * @brief Callback function for handling mission planner action goal messages.
+     * 
+     * This method updates the goal ID based on the received action goal message.
+     * 
+     * @param msg A shared pointer to the mission planner action goal message of type harpia_msgs::msg::MissionPlannerActionGoal.
+     */
+    void chatterCallback_IDGoal(const harpia_msgs::msg::MissionPlannerActionGoal::SharedPtr msg);
+
+    /**
+     * @brief Callback function for handling change mission messages.
+     * 
+     * This method processes the change mission message and updates the mission cancellation status.
+     * 
+     * @param msg A shared pointer to the change mission message of type harpia_msgs::msg::ChangeMission.
+     */
+    void chatterCallback_cancelGoal(const harpia_msgs::msg::ChangeMission::SharedPtr msg);
+
+    /**
+     * @brief Default constructor for the Mission class.
+     * 
+     * Initializes the mission status to ended.
+     */
+    Mission();
 };
 
-Mission::Mission(void)
-{
-	Ended = true;
+// Implementation of the Mission constructor
+Mission::Mission(){
+    Ended = true;
 }
 
-
-void Mission::chatterCallback_wpqtd(const mavros_msgs::WaypointList::ConstPtr& msg)
-{
-	WPqtd = msg->waypoints.size()-1;
+/**
+ * @brief Callback function for handling waypoint list messages.
+ * 
+ * This method updates the waypoint count based on the received waypoint list message.
+ * 
+ * @param msg A shared pointer to the waypoint list message of type mavros_msgs::msg::WaypointList.
+ */
+void Mission::chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::SharedPtr msg){
+    WPqtd = msg->waypoints.size() - 1;
 }
 
-void Mission::chatterCallback_IDGoal(const harpia_msgs::MissionPlannerActionGoal::ConstPtr& msg)
-{
-	IDGoal = atoi(msg->goal_id.id.c_str());
-	// ROS_INFO("id Goal: %i", IDGoal);
+/**
+ * @brief Callback function for handling mission planner action goal messages.
+ * 
+ * This method updates the goal ID based on the received action goal message.
+ * 
+ * @param msg A shared pointer to the mission planner action goal message of type harpia_msgs::msg::MissionPlannerActionGoal.
+ */
+void Mission::chatterCallback_IDGoal(const harpia_msgs::msg::MissionPlannerActionGoal::SharedPtr msg){
+    IDGoal = std::stoi(msg->goal_id.id);
+    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "id Goal: %i", IDGoal);
 }
 
-void Mission::chatterCallback_current(const mavros_msgs::WaypointReached::ConstPtr& msg)
-{
-	if(currentWP!=msg->wp_seq)
-	{
-		currentWP = msg->wp_seq;
-		ROS_INFO("Waypoint: %i", msg->wp_seq+1);
-	}
-	if(WPqtd == msg->wp_seq)
-	{
-		Ended = true;
-	}
-	else
-		Ended = false;
-
+/**
+ * @brief Callback function for handling waypoint reached messages.
+ * 
+ * This method processes the waypoint reached message and updates the current waypoint and mission status.
+ * 
+ * @param msg A shared pointer to the waypoint reached message of type mavros_msgs::msg::WaypointReached.
+ */
+void Mission::chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg){
+    if (currentWP != msg->wp_seq)
+    {
+        currentWP = msg->wp_seq;
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Waypoint: %i", msg->wp_seq + 1);
+    }
+    if (WPqtd == msg->wp_seq)
+    {
+        Ended = true;
+    }
+    else
+    {
+        Ended = false;
+    }
 }
 
-void Mission::chatterCallback_cancelGoal(const harpia_msgs::ChangeMission::ConstPtr& msg)
-{
+/**
+ * @brief Callback function for handling change mission messages.
+ * 
+ * This method updates the mission cancellation status based on the received change mission message.
+ * 
+ * @param msg A shared pointer to the change mission message of type harpia_msgs::msg::ChangeMission.
+ */
+void Mission::chatterCallback_cancelGoal(const harpia_msgs::msg::ChangeMission::SharedPtr msg){
+    Cancelled = (msg->op != 0);
+    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "%s", msg->goals[0]);
+    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "%li", msg->op);
 
-	if(msg->op != 0)
-	{
-		Cancelled = true; 
-	}
-	else
-		Cancelled = false;
-		// ROS_INFO("%s", msg.goals[0]);
-		// ROS_INFO("%li", msg.op);
-
-	// ROS_INFO("msg: %li", sizeof(msg));
+    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "msg size: %li", sizeof(msg));
 }
 
-void Mission::chatterCallback_harpiaMission(const harpia_msgs::Mission::ConstPtr& msg)
+/**
+ * @brief Callback function for handling mission messages.
+ * 
+ * This method updates the internal mission data based on the received mission message.
+ * 
+ * @param msg A shared pointer to the mission message of type harpia_msgs::msg::Mission.
+ */
+void Mission::chatterCallback_harpiaMission(const harpia_msgs::msg::Mission::SharedPtr msg)
 {
-	hMission.uav = msg->uav;
-	hMission.map = msg->map;
-	hMission.goals = msg->goals;
+    hMission.uav = msg->uav;
+    hMission.map = msg->map;
+    hMission.goals = msg->goals;
 }
 
+// Global instances of Mission and Drone classes
 Mission mission;
 Drone drone;
 
-
-void land(Drone drone)
+/**
+ * @brief Land the drone at its current position.
+ * 
+ * This function sends a land command to the drone using the MAVROS CommandTOL service.
+ * 
+ * @param drone A reference to the Drone object containing current position data.
+ */
+void land(Drone &drone)
 {
-	ros::NodeHandle n;
-	ros::ServiceClient land_cl = n.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/land");
-    mavros_msgs::CommandTOL srv_land;
-    srv_land.request.altitude = 0;
-    srv_land.request.latitude = drone.position.latitude;//0;
-    srv_land.request.longitude = drone.position.longitude;//0;
-    srv_land.request.min_pitch = 0;
-    srv_land.request.yaw = 0;
-    if(land_cl.call(srv_land))
+    auto node = rclcpp::Node::make_shared("drone_land_node");
+    auto land_client = node->create_client<mavros_msgs::srv::CommandTOL>("/mavros/cmd/land");
+
+    auto request = std::make_shared<mavros_msgs::srv::CommandTOL::Request>();
+    request->altitude = 0;
+    request->latitude = drone.position.latitude;
+    request->longitude = drone.position.longitude;
+    request->min_pitch = 0;
+    request->yaw = 0;
+
+    if (land_client->wait_for_service(std::chrono::seconds(10)))
     {
-        ROS_INFO("srv_land send ok %d", srv_land.response.success);
+        auto result_future = land_client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            auto response = result_future.get();
+            RCLCPP_INFO(node->get_logger(), "Land service response: %d", response->success);
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to call land service.");
+        }
     }
     else
     {
-        ROS_ERROR("Failed Land");
+        RCLCPP_ERROR(node->get_logger(), "Land service not available.");
     }
 }
 
+/**
+ * @brief Set the drone to loiter mode.
+ * 
+ * This function sends a set mode command to the drone using the MAVROS SetMode service.
+ */
 void set_loiter()
 {
-	ros::NodeHandle n;
-	ros::ServiceClient cl = n.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
-    mavros_msgs::SetMode srv_setMode;
-    srv_setMode.request.base_mode = 0;
-    //srv_setMode.request.custom_mode = "AUTO.LOITER";
-    srv_setMode.request.custom_mode = "AUTO.LOITER";
-    if(cl.call(srv_setMode))
+    auto node = rclcpp::Node::make_shared("drone_set_loiter_node");
+    auto mode_client = node->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
+
+    auto request = std::make_shared<mavros_msgs::srv::SetMode::Request>();
+    request->base_mode = 0;
+    request->custom_mode = "AUTO.LOITER";
+
+    if (mode_client->wait_for_service(std::chrono::seconds(10)))
     {
-        //ROS_INFO("AUTO.LOITER");
-        ROS_INFO("LOITER");
+        auto result_future = mode_client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            RCLCPP_INFO(node->get_logger(), "Set mode to LOITER.");
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to set mode.");
+        }
     }
     else
     {
-        ROS_ERROR("Failed SetMode");
+        RCLCPP_ERROR(node->get_logger(), "Set mode service not available.");
     }
 }
 
+/**
+ * @brief Set the drone to auto mission mode.
+ * 
+ * This function sends a set mode command to the drone using the MAVROS SetMode service to switch to "AUTO.MISSION" mode.
+ */
 void set_auto()
 {
-	ros::NodeHandle n;
-	ros::ServiceClient cl = n.serviceClient<mavros_msgs::SetMode>("/mavros/set_mode");
-    mavros_msgs::SetMode srv_setMode;
-    srv_setMode.request.base_mode = 0;
-    srv_setMode.request.custom_mode = "AUTO.MISSION";
-    //srv_setMode.request.custom_mode = "AUTO";
-    if(cl.call(srv_setMode))
+    auto node = rclcpp::Node::make_shared("drone_set_auto_node");
+    auto mode_client = node->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
+
+    auto request = std::make_shared<mavros_msgs::srv::SetMode::Request>();
+    request->base_mode = 0;
+    request->custom_mode = "AUTO.MISSION";
+
+    if (mode_client->wait_for_service(std::chrono::seconds(10)))
     {
-        //ROS_INFO("AUTO.MISSION");
-        ROS_INFO("AUTO");
+        auto result_future = mode_client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            RCLCPP_INFO(node->get_logger(), "Set mode to AUTO.");
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to set mode.");
+        }
     }
     else
     {
-        ROS_ERROR("Failed SetMode");
+        RCLCPP_ERROR(node->get_logger(), "Set mode service not available.");
     }
 }
 
+/**
+ * @brief Arm the drone.
+ * 
+ * This function sends a command to arm the drone using the MAVROS CommandBool service.
+ */
 void arm()
 {
-	ros::NodeHandle n;
-	ros::ServiceClient arming_cl = n.serviceClient<mavros_msgs::CommandBool>("/mavros/cmd/arming");
-    mavros_msgs::CommandBool srv;
-    srv.request.value = true;
-    if(arming_cl.call(srv)){
-        ROS_INFO("ARM send ok %d", srv.response.success);
-    }else{
-        ROS_ERROR("Failed arming or disarming");
+    auto node = rclcpp::Node::make_shared("drone_arm_node");
+    auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
+
+    auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
+    request->value = true;
+
+    if (arming_client->wait_for_service(std::chrono::seconds(10)))
+    {
+        auto result_future = arming_client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            auto response = result_future.get();
+            RCLCPP_INFO(node->get_logger(), "Arming command response: %d", response->success);
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to arm the drone.");
+        }
+    }
+    else
+    {
+        RCLCPP_ERROR(node->get_logger(), "Arming service not available.");
     }
 }
 
-void takeoff(Drone drone)
+/**
+ * @brief Command the drone to take off.
+ * 
+ * This function sends a takeoff command to the drone using the MAVROS CommandTOL service.
+ * 
+ * @param drone The Drone object containing the current position of the drone.
+ */
+void takeoff(const Drone& drone)
 {
-	ros::NodeHandle n;
-	ros::ServiceClient takeoff_cl = n.serviceClient<mavros_msgs::CommandTOL>("/mavros/cmd/takeoff");
+    auto node = rclcpp::Node::make_shared("drone_takeoff_node");
+    auto takeoff_client = node->create_client<mavros_msgs::srv::CommandTOL>("/mavros/cmd/takeoff");
 
-    mavros_msgs::CommandTOL srv_takeoff;
-    // ROS_INFO("Takeoff at %f, at %f", drone.position.altitude+5, drone.position.altitude);
-    srv_takeoff.request.altitude = 15;
-    srv_takeoff.request.latitude = drone.position.latitude;//-12.82046769976293;
-    srv_takeoff.request.longitude = drone.position.longitude;//-50.33633513165995;
-    //srv_takeoff.request.latitude = 0;
-    //srv_takeoff.request.longitude = 0;
-    srv_takeoff.request.min_pitch = 0;
-    srv_takeoff.request.yaw = 0;
-    if(takeoff_cl.call(srv_takeoff)){
-        ROS_INFO("srv_takeoff send ok %d", srv_takeoff.response.success);
-    }else{
-        ROS_ERROR("Failed Takeoff");
+    auto request = std::make_shared<mavros_msgs::srv::CommandTOL::Request>();
+    request->altitude = 15;
+    request->latitude = drone.position.latitude;
+    request->longitude = drone.position.longitude;
+    request->min_pitch = 0;
+    request->yaw = 0;
+
+    if (takeoff_client->wait_for_service(std::chrono::seconds(10)))
+    {
+        auto result_future = takeoff_client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            auto response = result_future.get();
+            RCLCPP_INFO(node->get_logger(), "Takeoff command response: %d", response->success);
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to send takeoff command.");
+        }
+    }
+    else
+    {
+        RCLCPP_ERROR(node->get_logger(), "Takeoff service not available.");
     }
 }
 
-harpia_msgs::RegionPoint getGeoPoint(GeoPoint geo, harpia_msgs::Map mapa)
+/**
+ * @brief Retrieve the geographical point from the map based on the given GeoPoint name.
+ * 
+ * This function searches the provided map for a region or base that matches the name in the given GeoPoint.
+ * 
+ * @param geo The GeoPoint containing the name to search for.
+ * @param mapa The map to search within.
+ * 
+ * @return The RegionPoint corresponding to the name in the map, or a null RegionPoint if not found.
+ */
+harpia_msgs::msg::RegionPoint getGeoPoint(const GeoPoint& geo, const harpia_msgs::msg::Map& mapa)
 {
-	int qtd_regions = mapa.roi.size();
-	int i;
-	for(i = 0; i<qtd_regions; i++)
-		if(strcmp(mapa.roi[i].name.c_str(), geo.name.c_str()) == 0 )
-		{
-			ROS_INFO("%s", mapa.roi[i].name.c_str());
-			return mapa.roi[i].center;
-		}
-	qtd_regions = mapa.bases.size();
-	for(int i = 0; i<qtd_regions; i++)
-		if(strcmp(mapa.bases[i].name.c_str(), geo.name.c_str()) == 0 )
-		{
-			ROS_INFO("%s", mapa.bases[i].name.c_str());
-			return mapa.bases[i].center;
-		}
-	harpia_msgs::RegionPoint null;
-	return null;
+    int qtd_regions = mapa.roi.size();
+    for (int i = 0; i < qtd_regions; ++i)
+    {
+        if (std::strcmp(mapa.roi[i].name.c_str(), geo.name.c_str()) == 0)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("getGeoPoint"), "%s", mapa.roi[i].name.c_str());
+            return mapa.roi[i].center;
+        }
+    }
 
+    qtd_regions = mapa.bases.size();
+    for (int i = 0; i < qtd_regions; ++i)
+    {
+        if (std::strcmp(mapa.bases[i].name.c_str(), geo.name.c_str()) == 0)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("getGeoPoint"), "%s", mapa.bases[i].name.c_str());
+            return mapa.bases[i].center;
+        }
+    }
 
+    // Return a null RegionPoint if not found
+    harpia_msgs::msg::RegionPoint null;
+    return null;
 }
 
-int getRadius(string region)
+/**
+ * @brief Retrieve the radius of a given region by executing a Python script.
+ * 
+ * This function executes a Python script to get the radius of a specified region and reads the result
+ * from a file. The file path is constructed using the home directory path.
+ * 
+ * @param region The name of the region for which to retrieve the radius.
+ * 
+ * @return The radius of the region as an integer. Returns a default value of 10 if the file cannot be opened.
+ */
+int getRadius(const std::string& region)
 {
-	string command = "python3 ~/drone_arch/drone_ws/src/ROSPlan/src/rosplan/rosplan_planning_system/src/ActionInterface/getRadius.py "+region+" >> ~/drone_arch/Data/out.txt";
-	system(command.c_str());
-	// cout << result;
-	string line;
-  	ifstream myfile ((homepath + "/drone_arch/Data/out.txt").c_str());
-  	if (myfile.is_open())
- 	{
- 		cout << "file opened" << endl;
- 		getline (myfile,line);
- 		int radius = stod(line);
-    	myfile.clear();
-    	myfile.close();
+    std::string command = "python3 ~/drone_arch/drone_ws/src/ROSPlan/src/rosplan/rosplan_planning_system/src/ActionInterface/getRadius.py " + region + " >> ~/drone_arch/Data/out.txt";
+    std::system(command.c_str());
 
-    	return radius;
-  	}
-  	else
-  		cout << "Unable to open file";
-  		return 10.0;
+    std::string line;
+    std::ifstream myfile((std::getenv("HOME") + std::string("/drone_arch/Data/out.txt")).c_str());
+    if (myfile.is_open())
+    {
+        std::getline(myfile, line);
+        myfile.close();
+        
+        try
+        {
+            return std::stoi(line);
+        }
+        catch (const std::invalid_argument& e)
+        {
+            RCLCPP_ERROR(rclcpp::get_logger("getRadius"), "Failed to convert line to integer: %s", e.what());
+            return 10; // Return a default value in case of error
+        }
+    }
+    else
+    {
+        RCLCPP_ERROR(rclcpp::get_logger("getRadius"), "Unable to open file");
+        return 10; // Return a default value if file cannot be opened
+    }
 }
 
-mavros_msgs::WaypointList calcRoute(harpia_msgs::RegionPoint from, harpia_msgs::RegionPoint to, string name_from, string name_to, harpia_msgs::Map map) // TODO VERONICA arrumar chamada da funcao
+/**
+ * @brief Calculate the route between two geographic points using a path planning service.
+ * 
+ * This function calls a path planning service to calculate a route between the specified points. The route
+ * is represented as a list of waypoints.
+ * 
+ * @param from The starting point of the route.
+ * @param to The destination point of the route.
+ * @param name_from The name associated with the starting point.
+ * @param name_to The name associated with the destination point.
+ * @param map The map used for planning the route.
+ * 
+ * @return A list of waypoints representing the calculated route. Returns an empty list if the service call fails.
+ */
+mavros_msgs::msg::WaypointList calcRoute(const harpia_msgs::msg::RegionPoint& from, const harpia_msgs::msg::RegionPoint& to,
+                                         const std::string& name_from, const std::string& name_to, const harpia_msgs::msg::Map& map)
 {
-	ros::NodeHandle n;
- 	ros::ServiceClient client = n.serviceClient<harpia_msgs::PathPlanning>("harpia/path_planning");
-  	harpia_msgs::PathPlanning srv;
-  	srv.request.r_from = from;
-  	srv.request.r_to = to;
-  	srv.request.name_from = name_from;
-  	srv.request.name_to = name_to;
-  	srv.request.op = 0;
-  	srv.request.map = map;
+    auto node = rclcpp::Node::make_shared("route_calculation_node");
+    auto client = node->create_client<harpia_msgs::srv::PathPlanning>("harpia/path_planning");
 
-  	if (client.call(srv))
-  	{
-    	return srv.response.waypoints;
-  	}
-  	else
-  	{
-    	ROS_ERROR("Failed to call service harpia/path_planning");
-    	mavros_msgs::WaypointList null;
-    	return null;
-  	}
+    auto request = std::make_shared<harpia_msgs::srv::PathPlanning::Request>();
+    request->r_from = from;
+    request->r_to = to;
+    request->name_from = name_from;
+    request->name_to = name_to;
+    request->op = 0;
+    request->map = map;
+
+    if (client->wait_for_service(std::chrono::seconds(10)))
+    {
+        auto result_future = client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            return result_future.get()->waypoints;
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to call service harpia/path_planning");
+            mavros_msgs::msg::WaypointList null;
+            return null;
+        }
+    }
+    else
+    {
+        RCLCPP_ERROR(node->get_logger(), "Service harpia/path_planning not available.");
+        mavros_msgs::msg::WaypointList null;
+        return null;
+    }
 }
 
-mavros_msgs::WaypointList calcRoute_pulverize(harpia_msgs::RegionPoint at, harpia_msgs::Map map)
+/**
+ * @brief Calculate the route to pulverize a region from a given point using a path planning service.
+ * 
+ * This function requests a route from a specified point to a "pulverize_region" using the path planning service.
+ * The operation type is set to 1 for pulverizing.
+ * 
+ * @param at The point from which the route starts and ends.
+ * @param map The map used for planning the route.
+ * 
+ * @return A list of waypoints representing the calculated route. Returns an empty list if the service call fails.
+ */
+mavros_msgs::msg::WaypointList calcRoute_pulverize(const harpia_msgs::msg::RegionPoint& at, const harpia_msgs::msg::Map& map)
 {
-	ros::NodeHandle n;
- 	ros::ServiceClient client = n.serviceClient<harpia_msgs::PathPlanning>("harpia/path_planning");
-  	harpia_msgs::PathPlanning srv;
-  	srv.request.r_from = at;
-  	srv.request.r_to = at;
-  	srv.request.op = 1;
-  	srv.request.name_from = "at";
-  	srv.request.name_to = "pulverize_region";
-  	srv.request.map = map;
+    auto node = rclcpp::Node::make_shared("route_calculation_node");
+    auto client = node->create_client<harpia_msgs::srv::PathPlanning>("harpia/path_planning");
 
-  	if (client.call(srv))
-  	{
-    	return srv.response.waypoints;
-  	}
-  	else
-  	{
-    	ROS_ERROR("Failed to call service harpia/path_planning");
-    	mavros_msgs::WaypointList null;
-    	return null;
-  	}
+    auto request = std::make_shared<harpia_msgs::srv::PathPlanning::Request>();
+    request->r_from = at;
+    request->r_to = at;
+    request->op = 1; // Operation type for pulverize
+    request->name_from = "at";
+    request->name_to = "pulverize_region";
+    request->map = map;
+
+    if (client->wait_for_service(std::chrono::seconds(10)))
+    {
+        auto result_future = client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            return result_future.get()->waypoints;
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to call service harpia/path_planning");
+            mavros_msgs::msg::WaypointList null;
+            return null;
+        }
+    }
+    else
+    {
+        RCLCPP_ERROR(node->get_logger(), "Service harpia/path_planning not available.");
+        mavros_msgs::msg::WaypointList null;
+        return null;
+    }
 }
 
-mavros_msgs::WaypointList calcRoute_picture(harpia_msgs::RegionPoint at, harpia_msgs::Map map)
+/**
+ * @brief Calculate the route to take a picture from a given point using a path planning service.
+ * 
+ * This function requests a route from a specified point to a "take_picture" region using the path planning service.
+ * The operation type is set to 2 for taking a picture.
+ * 
+ * @param at The point from which the route starts and ends.
+ * @param map The map used for planning the route.
+ * 
+ * @return A list of waypoints representing the calculated route. Returns an empty list if the service call fails.
+ */
+mavros_msgs::msg::WaypointList calcRoute_picture(const harpia_msgs::msg::RegionPoint& at, const harpia_msgs::msg::Map& map)
 {
-	// string command = "python3 ~/harpia/path_planners/simple-behaivors/square.py "+to_string(at.longitude)+" "+to_string(at.latitude)+" "+to_string(at.altitude)+ " 250";
-	// system(command.c_str());
+    auto node = rclcpp::Node::make_shared("route_calculation_node");
+    auto client = node->create_client<harpia_msgs::srv::PathPlanning>("harpia/path_planning");
 
-	ros::NodeHandle n;
- 	ros::ServiceClient client = n.serviceClient<harpia_msgs::PathPlanning>("harpia/path_planning");
-  	harpia_msgs::PathPlanning srv;
-  	srv.request.r_from = at;
-  	srv.request.r_to = at;
-  	srv.request.op = 2;
-  	srv.request.name_from = "at";
-  	srv.request.name_to = "take_picture";
-  	srv.request.map = map;
+    auto request = std::make_shared<harpia_msgs::srv::PathPlanning::Request>();
+    request->r_from = at;
+    request->r_to = at;
+    request->op = 2; // Operation type for taking a picture
+    request->name_from = "at";
+    request->name_to = "take_picture";
+    request->map = map;
 
-  	if (client.call(srv))
-  	{
-    	return srv.response.waypoints;
-  	}
-  	else
-  	{
-    	ROS_ERROR("Failed to call service harpia/path_planning");
-    	mavros_msgs::WaypointList null;
-    	return null;
-  	}
+    if (client->wait_for_service(std::chrono::seconds(10)))
+    {
+        auto result_future = client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result_future) == rclcpp::FutureReturnCode::SUCCESS)
+        {
+            return result_future.get()->waypoints;
+        }
+        else
+        {
+            RCLCPP_ERROR(node->get_logger(), "Failed to call service harpia/path_planning");
+            mavros_msgs::msg::WaypointList null;
+            return null;
+        }
+    }
+    else
+    {
+        RCLCPP_ERROR(node->get_logger(), "Service harpia/path_planning not available.");
+        mavros_msgs::msg::WaypointList null;
+        return null;
+    }
 }
 
 int sendWPFile(mavros_msgs::WaypointList mission_wp)
