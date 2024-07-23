@@ -23,9 +23,11 @@ find_package(interfaces REQUIRED)
 find_package(mavros_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-find_package(plansys2_msgs REQUIRED)
 
-# Include directories (optional if you're using target-based includes)
+# Uncomment if the package has a setup.py. This macro ensures modules and global scripts get installed
+# ament_python_install_package(${PROJECT_NAME})
+
+# Include directories
 include_directories(
   include
   ${rclcpp_INCLUDE_DIRS}
@@ -37,11 +39,11 @@ include_directories(
   ${geometry_msgs_INCLUDE_DIRS}
   ${interfaces_INCLUDE_DIRS}
   ${mavros_msgs_INCLUDE_DIRS}
-  ${plansys2_msgs_INCLUDE_DIRS}
+  ${plansys2_INCLUDE_DIRS}
 )
 
 # Declare a C++ executable
-add_executable(DroneInfoCompiler src/DroneInfoCompiler.cpp)
+add_executable(DroneInfoCompiler anomaly_detection/src/DroneInfoCompiler.cpp)
 
 # Specify libraries to link a library or executable target against
 ament_target_dependencies(DroneInfoCompiler
@@ -55,16 +57,15 @@ ament_target_dependencies(DroneInfoCompiler
   mavros_msgs
   tf2
   tf2_geometry_msgs
+  plansys2
   plansys2_msgs
 )
 
-# Install targets
 install(TARGETS
   DroneInfoCompiler
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Add tests if applicable
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
