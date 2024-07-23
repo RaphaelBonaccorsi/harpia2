@@ -12,7 +12,7 @@ def generate_launch_description():
     mavros_launch_file = os.path.join(
         get_package_share_directory('mavros'),
         'launch',
-        'px4.launch.py'
+        'px4.launch'
     )
 
     return LaunchDescription([
