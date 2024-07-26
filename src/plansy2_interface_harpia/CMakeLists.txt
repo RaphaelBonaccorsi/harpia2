@@ -20,7 +20,7 @@ find_package(action_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
-find_package(rosplan_planning_system REQUIRED)
+##find_package(rosplan_planning_system REQUIRED)
 find_package(interfaces REQUIRED)
 
 ## Declare ament package
