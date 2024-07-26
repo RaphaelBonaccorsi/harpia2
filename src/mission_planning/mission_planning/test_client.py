@@ -212,8 +212,9 @@ def test_client(node, hardware, map, mission, mission_file):
     goal.mission = get_objects(hardware, map, mission)
 
     client.send_goal_async(goal, feedback_callback=feedback_callback)
-
-    set_home_position(goal.mission.uav.home.latitude, goal.mission.uav.home.longitude, goal.mission.uav.home.altitude)
+    home_position_setter = HomePositionSetter()
+    home_position_setter.set_home_position(goal.mission.uav.home.latitude, goal.mission.uav.home.longitude, goal.mission.uav.home.altitude)
+    home_position_setter.destroy_node()
 
     print("ADD GOAL   -> 1")
     print("REMOVE GOAL -> 2")
@@ -453,47 +454,45 @@ def get_objects(hardware, map, goals):
     return mission
 
 
-def set_home_position(latitude, longitude, altitude, current_gps=True, yaw=0):
-    """
-    Sets the home position for a drone using the MAVROS set_home service.
+#def set_home_position(latitude, longitude, altitude, current_gps=True, yaw=0):
+class HomePositionSetter(Node):
+    def __init__(self):
+        super().__init__('home_position_setter')
+        self.cli = self.create_client(CommandHome, '/mavros/cmd/set_home')
+        while not self.cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('service not available, waiting again...')
 
-    Parameters:
-    latitude (float): The latitude of the home position in degrees.
-    longitude (float): The longitude of the home position in degrees.
-    altitude (float): The altitude of the home position in meters.
-    current_gps (bool, optional): If True, use the current GPS position as home. Defaults to True.
-    yaw (float, optional): The yaw orientation at the home position in degrees. Defaults to 0.
+    def set_home_position(self, latitude, longitude, altitude, current_gps=True, yaw=0):
+        """
+        Sets the home position for a drone using the MAVROS set_home service.
 
-    Returns:
-    None
+        Parameters:
+        latitude (float): The latitude of the home position in degrees.
+        longitude (float): The longitude of the home position in degrees.
+        altitude (float): The altitude of the home position in meters.
+        current_gps (bool, optional): If True, use the current GPS position as home. Defaults to True.
+        yaw (float, optional): The yaw orientation at the home position in degrees. Defaults to 0.
 
-    Raises:
-    rclpy.exceptions.ROSInterruptException: If the service call is interrupted.
-    """
-    rclpy.init()
-    node = rclpy.create_node('set_home_position_node')
+        Returns:
+        None
 
-    cli = node.create_client(CommandHome, '/mavros/cmd/set_home')
+        Raises:
+        rclpy.exceptions.ROSInterruptException: If the service call is interrupted.
+        """
+        req = CommandHome.Request()
+        req.current_gps = current_gps
+        req.latitude = latitude
+        req.longitude = longitude
+        req.altitude = altitude
+        req.yaw = yaw
 
-    while not cli.wait_for_service(timeout_sec=1.0):
-        node.get_logger().info('service not available, waiting again...')
+        future = self.cli.call_async(req)
+        rclpy.spin_until_future_complete(self, future)
+        if future.result() is not None:
+            self.get_logger().info('Home position set successfully!')
+        else:
+            self.get_logger().error('Service call failed %r' % (future.exception(),))
 
-    req = CommandHome.Request()
-    req.current_gps = current_gps
-    req.latitude = latitude
-    req.longitude = longitude
-    req.altitude = altitude
-    req.yaw = yaw
-
-    future = cli.call_async(req)
-    rclpy.spin_until_future_complete(node, future)
-    if future.result() is not None:
-        node.get_logger().info('Home position set successfully!')
-    else:
-        node.get_logger().error('Service call failed %r' % (future.exception(),))
-
-    node.destroy_node()
-    rclpy.shutdown()
 
 
 def parse_args():
