@@ -1,4 +1,3 @@
-
 cmake_minimum_required(VERSION 3.5)
 
 project(rosplan_interface_harpia)
@@ -11,8 +10,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
- 
-
 ## Find packages
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -22,9 +19,6 @@ find_package(std_srvs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 ##find_package(rosplan_planning_system REQUIRED)
 find_package(interfaces REQUIRED)
-
-## Declare ament package
-ament_package()
 
 ###########
 ## Build ##
@@ -64,3 +58,6 @@ ament_export_dependencies(
   ##rosplan_planning_system
   interfaces
 )
+
+## Declare ament package
+ament_package()
