@@ -30,7 +30,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <plansys2_executor/ActionExecutorClient.hpp>
 #include "mavros_msgs/msg/waypoint_reached.hpp"
-
+#include "geographic_msgs/msg/geo_point.hpp"
 #include <plansys2_msgs/msg/action_execution.hpp>
 #include <chrono>
 #include <thread>
@@ -53,10 +53,10 @@ struct GeoPoint{
 	double altitude;
 };
 
- class Drone
+class Drone
 {
 public:
-    GeoPoint position;
+    geographic_msgs::msg::GeoPoint position;
     mavros_msgs::msg::State current_state;
     mavros_msgs::msg::ExtendedState ex_current_state;
 
@@ -71,6 +71,7 @@ void Drone::chatterCallback_GPS(const sensor_msgs::msg::NavSatFix::SharedPtr msg
     position.latitude = msg->latitude;
     position.altitude = msg->altitude;
 }
+
 
 void Drone::chatterCallback_currentState(const mavros_msgs::msg::State::SharedPtr msg)
 {
@@ -575,18 +576,17 @@ geometry_msgs::Point convert_goe_to_cart(geographic_msgs::GeoPoint p, geographic
 	return point;
 }
 
-interfaces::RegionPoint create_RegionPoint(GeoPoint point, interfaces::Map map)
+interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoPoint& geo, const interfaces::msg::Map& map)
 {
-	interfaces::RegionPoint region_point;
+    interfaces::msg::RegionPoint region_point;
 
-	region_point.geo.latitude = point.latitude;
-	region_point.geo.longitude = point.longitude;
-	region_point.geo.altitude = point.altitude;
+    region_point.geo.latitude = geo.latitude;
+    region_point.geo.longitude = geo.longitude;
+    region_point.geo.altitude = geo.altitude;
 
-	region_point.cartesian = convert_goe_to_cart(region_point.geo, map.geo_home);
+    region_point.cartesian = convert_goe_to_cart(region_point.geo, map.geo_home);
 
-
-	return region_point;
+    return region_point;
 }
 
 /*--------------------------------------------*/
@@ -720,17 +720,17 @@ private:
 
 int main(int argc, char **argv)
 {
-    // Inicialize o ROS2
+    // Initialize ROS 2
     rclcpp::init(argc, argv);
 
-    // Crie o nó principal
+    // Create the main node
     auto node = std::make_shared<rclcpp::Node>("plansys2_interface_harpia");
 
-    // Crie o drone e a missão
-    auto drone = std::make_shared<Drone>(node);
-    auto mission = std::make_shared<Mission>(node);
+    // Create instances of Drone and Mission
+    auto drone = std::make_shared<Drone>();
+    auto mission = std::make_shared<Mission>();
 
-    // Crie assinaturas
+    // Create subscriptions
     auto gps_sub = node->create_subscription<sensor_msgs::msg::NavSatFix>(
         "/mavros/global_position/global", 1,
         [drone](const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
@@ -749,53 +749,10 @@ int main(int argc, char **argv)
             drone->chatterCallback_currentStateExtended(msg);
         });
 
-    auto global_sub = node->create_subscription<mavros_msgs::msg::WaypointList>(
-        "/mavros/mission/waypoints", 1,
-        [mission](const mavros_msgs::msg::WaypointList::SharedPtr msg) {
-            mission->chatterCallback_wpqtd(msg);
-        });
+    // Spin the node
+    rclcpp::spin(node);
 
-    auto current_sub = node->create_subscription<mavros_msgs::msg::WaypointReached>(
-        "/mavros/mission/reached", 1,
-        [mission](const mavros_msgs::msg::WaypointReached::SharedPtr msg) {
-            mission->chatterCallback_current(msg);
-        });
-
-    auto harpia_mission_sub = node->create_subscription<interfaces::msg::Mission>(
-        "/harpia/mission", 1,
-        [mission](const interfaces::msg::Mission::SharedPtr msg) {
-            mission->chatterCallback_harpiaMission(msg);
-        });
-
-    auto harpia_goalId_sub = node->create_subscription<interfaces::msg::MissionGoalManager>(
-        "/harpia/mission_goal_manager/goal", 1,
-        [mission](const interfaces::msg::MissionGoalManager::SharedPtr msg) {
-            mission->chatterCallback_IDGoal(msg);
-        });
-
-    auto harpia_goalCancel_sub = node->create_subscription<interfaces::msg::ChangeMission>(
-        "/harpia/ChangeMission", 1,
-        [mission](const interfaces::msg::ChangeMission::SharedPtr msg) {
-            mission->chatterCallback_cancelGoal(msg);
-        });
-
-    // Crie o executor e adicione o nó
-    auto rpti = std::make_shared<plansys2::RPHarpiaExecutor>();
-
-    // Adicione o executor à lista de nós para spinning
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(node);
-    executor.add_node(rpti);
-
-    // Execute o trigger_plan
-    rpti->trigger_plan();
-
-    // Inicie o spinning
-    executor.spin();
-
-    // Encerrar o ROS2
+    // Shutdown ROS 2
     rclcpp::shutdown();
-
     return 0;
 }
-
