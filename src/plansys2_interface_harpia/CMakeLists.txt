@@ -25,7 +25,7 @@ find_package(interfaces REQUIRED)
 include_directories(include)
 
 ## Declare action interface for HarpiaExecutor
-add_executable(HarpiaExecutor src/HarpiaExecutor.cpp)
+add_executable(HarpiaExecutor src/RPHarpiaExecutor.cpp)
 ament_target_dependencies(HarpiaExecutor
   rclcpp
   action_msgs
