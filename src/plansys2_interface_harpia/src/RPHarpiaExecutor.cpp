@@ -171,7 +171,7 @@ void land(const std::shared_ptr<Drone> &drone, const rclcpp::Node::SharedPtr &no
     if (land_client->wait_for_service(std::chrono::seconds(10)))
     {
         auto result = land_client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::executor::FutureReturnCode::SUCCESS)
+        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS)
         {
             RCLCPP_INFO(node->get_logger(), "srv_land send ok %d", result.get()->success);
         }
