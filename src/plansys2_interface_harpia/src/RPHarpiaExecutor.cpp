@@ -133,7 +133,7 @@ void Mission::chatterCallback_current(const mavros_msgs::msg::WaypointReached::S
     Ended = (WPqtd == msg->wp_seq);
 }
 
-void Mission::chatterCallback_cancelGoal(const interfaces::srv::ChangeMission::Request::SharedPtr msg)
+void Mission::chatterCallback_cancelGoal(const interfaces::msg::ChangeMission::Request::SharedPtr msg)
 {
     Cancelled = (msg->op != 0);
 }
