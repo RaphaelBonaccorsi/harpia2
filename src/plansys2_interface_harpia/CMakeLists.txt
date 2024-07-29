@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(plansys2_interface_harpia)
 
-## Compile as C++14, recomendado para ROS 2
+## Compile as C++17, recomendado para ROS 2
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
@@ -22,12 +22,6 @@ find_package(plansys2_msgs REQUIRED)
 find_package(interfaces REQUIRED)
 
 ## Declare ament package
-ament_package()
-
-###########
-## Build ##
-###########
-
 include_directories(include)
 
 ## Declare action interface for HarpiaExecutor
@@ -64,3 +58,5 @@ ament_export_dependencies(
   plansys2_msgs
   interfaces
 )
+
+ament_package()
