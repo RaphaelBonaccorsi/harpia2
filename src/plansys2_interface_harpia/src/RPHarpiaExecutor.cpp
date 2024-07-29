@@ -47,6 +47,7 @@
 #include <cstdlib>
 using namespace std;
 std::string homepath = getenv("HOME");
+rclcpp::Node::SharedPtr node;
 //
 // change GeoPoint to geographic_msgs/geopoint
 struct GeoPoint{
@@ -631,12 +632,20 @@ interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoP
 
 
 /*--------------------------------------------*/
+struct SignalHandlerParams
+{
+    rclcpp::Node::SharedPtr node;
+};
+
+SignalHandlerParams params;
+
 void mySigintHandler(int sig)
 {
-	// Do some custom action.
-	set_loiter(node);
-	// All the default sigint handler does is call shutdown()
-	rclcpp::shutdown();
+    // Usar params.node que foi inicializado anteriormente
+    if (params.node) {
+        set_loiter(params.node);
+    }
+    rclcpp::shutdown();
 }
 /*--------------------------------------------*/
 /*--------------------------------------------*/
@@ -763,6 +772,13 @@ int main(int argc, char **argv)
 {
     // Initialize ROS 2
     rclcpp::init(argc, argv);
+    params.node = std::make_shared<rclcpp::Node>("my_node");
+
+    // Configurar o manipulador de sinal
+    signal(SIGINT, mySigintHandler);
+
+    rclcpp::spin(params.node);
+
 
     // Create the main node
     auto node = std::make_shared<rclcpp::Node>("plansys2_interface_harpia");
