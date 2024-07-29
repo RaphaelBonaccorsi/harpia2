@@ -32,6 +32,9 @@
 #include "mavros_msgs/msg/waypoint_reached.hpp"
 #include "geographic_msgs/msg/geo_point.hpp"
 #include <plansys2_msgs/msg/action_execution.hpp>
+#include "geometry_msgs/msg/point.hpp"
+#include "rclcpp/executor.hpp"
+
 #include <chrono>
 #include <thread>
 
@@ -593,7 +596,7 @@ interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoP
 void mySigintHandler(int sig)
 {
 	// Do some custom action.
-	set_loiter();
+	set_loiter(node);
 	// All the default sigint handler does is call shutdown()
 	rclcpp::shutdown();
 }
