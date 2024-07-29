@@ -275,7 +275,7 @@ void arm(rclcpp::Node::SharedPtr &node)
     if (arming_client->wait_for_service(std::chrono::seconds(10)))
     {
         auto result = arming_client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::executor::FutureReturnCode::SUCCESS)
+        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS)
         {
             RCLCPP_INFO(node->get_logger(), "ARM send ok %d", result.get()->success);
         }
