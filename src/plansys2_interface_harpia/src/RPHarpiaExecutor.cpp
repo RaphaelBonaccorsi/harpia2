@@ -105,7 +105,8 @@ public:
     void chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg);
     void chatterCallback_harpiaMission(const interfaces::msg::Mission::SharedPtr msg);
     void chatterCallback_IDGoal(const interfaces::action::MissionPlanner::Goal::SharedPtr msg);
-    void chatterCallback_cancelGoal(const interfaces::msg::ChangeMission::Request::SharedPtr msg);
+    void chatterCallback_cancelGoal(const interfaces::msg::ChangeMission::SharedPtr msg);
+
 
     Mission();
 };
