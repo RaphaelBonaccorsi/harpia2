@@ -120,7 +120,9 @@ void Mission::chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::Shared
 
 void Mission::chatterCallback_IDGoal(const interfaces::action::MissionPlanner::Goal::SharedPtr msg)
 {
-   IDGoal = std::stoi(msg->action);
+    if (!msg->mission.goals.empty()) {
+        IDGoal = std::stoi(msg->mission.goals[0].goal_id.id);
+    }
 }
 
 void Mission::chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg)
