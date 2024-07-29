@@ -728,7 +728,7 @@ int main(int argc, char **argv)
     rclcpp::init(argc, argv);
 
     // Crie o nó principal
-    auto node = std::make_shared<rclcpp::Node>("rosplan_interface_harpia");
+    auto node = std::make_shared<rclcpp::Node>("plansys2_interface_harpia");
 
     // Crie o drone e a missão
     auto drone = std::make_shared<Drone>(node);
