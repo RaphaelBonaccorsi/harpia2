@@ -578,14 +578,14 @@ void callRoute(const std::string &from_name, const std::string &to_name)
 }
 
 
-geometry_msgs::Point convert_goe_to_cart(geographic_msgs::GeoPoint p, geographic_msgs::GeoPoint home)
+geometry_msgs::msg::Point convert_goe_to_cart(geographic_msgs::msg::GeoPoint p, geographic_msgs::msg::GeoPoint home)
 {
-	geometry_msgs::Point point;
-	double pi = 2*acos(0.0);
-	point.x = (p.longitude - home.longitude) * (6400000.0 * (cos(home.latitude * pi / 180) * 2 * pi / 360));
-	point.y =(p.latitude - home.latitude)  * (10000000.0 / 90);
+    geometry_msgs::msg::Point point;
+    double pi = 2 * acos(0.0);
+    point.x = (p.longitude - home.longitude) * (6400000.0 * (cos(home.latitude * pi / 180) * 2 * pi / 360));
+    point.y = (p.latitude - home.latitude) * (10000000.0 / 90);
 
-	return point;
+    return point;
 }
 
 interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoPoint& geo, const interfaces::msg::Map& map)
