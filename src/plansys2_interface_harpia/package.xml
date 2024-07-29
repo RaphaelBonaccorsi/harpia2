@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>plansys2_interface_harpia</name>
+  <version>0.0.0</version>
+  <description>Interface for action dispatch</description>
+  <maintainer email="danilo.barbosa@sistemafiepe.org.br">Danilo Barbosa</maintainer>
+  <license>BSD</license>
+
+  <!-- ROS 2 package dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>action_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>diagnostic_msgs</build_depend>
+  <build_depend>harpia_msgs</build_depend>
+  <build_depend>plansys2_executor</build_depend>
+  <build_depend>plansys2_msgs</build_depend>
+
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>harpia_msgs</exec_depend>
+  <exec_depend>plansys2_executor</exec_depend>
+  <exec_depend>plansys2_msgs</exec_depend>
+
+  <!-- Optional dependencies (if any) -->
+  <exec_depend>ament_cmake</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
