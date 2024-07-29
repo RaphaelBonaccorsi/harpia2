@@ -5,28 +5,34 @@
 #include <plansys2_executor/ActionExecutorClient.hpp>
 #include <plansys2_msgs/msg/action_execution_info.hpp>
 
-namespace plansys2 {
+namespace plansys2
+{
 
-class RPHarpiaExecutor : public plansys2::ActionExecutorClient {
-public:
-    RPHarpiaExecutor()
-    : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
+    class RPHarpiaExecutor : public plansys2::ActionExecutorClient
     {
-        this->declare_parameter<double>("action_duration", 2.0);
-    }
+    public:
+        RPHarpiaExecutor()
+            : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
+        {
+            this->declare_parameter<double>("action_duration", 2.0);
+        }
 
-    void do_work() override
-    {
-        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
-        feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
-        feedback->completion = 0.5;
-        send_feedback(feedback);
+        void do_work() override
+        {
+            // Crie um feedback
+            auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
+            feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
+            feedback->completion = 0.5;
 
-        // Adicione sua lógica de execução aqui
+            // Envie o feedback usando os valores apropriados
+            send_feedback(feedback->completion, "Executing");
 
-        finish(true, 1.0, "Action completed successfully");
-    }
-};
+            // Adicione sua lógica de execução aqui
+
+            // Finalize a ação com sucesso
+            finish(true, 1.0, "Action completed successfully");
+        }
+    };
 
 } // namespace plansys2
 
