@@ -17,7 +17,7 @@
 #include "mavros_msgs/srv/waypoint_clear.hpp"
 #include "mavros_msgs/srv/waypoint_set_current.hpp"
 #include "interfaces/msg/mission.hpp"
-#include "interfaces/srv/change_mission.hpp"
+#include "interfaces/msg/change_mission.hpp"
 #include "interfaces/msg/uav.hpp"
 #include "interfaces/msg/map.hpp"
 #include "interfaces/msg/goal.hpp"
