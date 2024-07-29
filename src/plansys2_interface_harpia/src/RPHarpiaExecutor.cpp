@@ -598,6 +598,15 @@ geographic_msgs::msg::GeoPoint convert_to_geographic(const interfaces::msg::GeoP
     return geo;
 }
 
+interfaces::msg::Point convert_to_interfaces_point(const geometry_msgs::msg::Point& geo_point)
+{
+    interfaces::msg::Point point;
+    point.x = geo_point.x;
+    point.y = geo_point.y;
+    point.z = geo_point.z;
+    return point;
+}
+
 // Função para criar RegionPoint
 interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoPoint& geo, const interfaces::msg::Map& map)
 {
@@ -614,7 +623,10 @@ interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoP
     geographic_msgs::msg::GeoPoint geo_home_converted = convert_to_geographic(map.geo_home);
 
     // Usar a conversão correta
-    region_point.cartesian = convert_goe_to_cart(geo, geo_home_converted);
+    geometry_msgs::msg::Point cartesian_point = convert_goe_to_cart(geo, geo_home_converted);
+
+    // Converter o resultado para o tipo esperado
+    region_point.cartesian = convert_to_interfaces_point(cartesian_point);
 
     return region_point;
 }
