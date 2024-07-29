@@ -31,16 +31,12 @@
 #include <plansys2_executor/ActionExecutorClient.hpp>
 #include "mavros_msgs/msg/waypoint_reached.hpp"
 
-#include "Drone.hpp"
-#include "Mission.hpp"
-#include "rpharpia_executor.hpp"
-
 #include <plansys2_msgs/msg/action_execution.hpp>
 #include <chrono>
 #include <thread>
 
 #include <signal.h>
-#include<math.h>
+#include <math.h>
 
 #include <fstream>
 #include <iomanip>
