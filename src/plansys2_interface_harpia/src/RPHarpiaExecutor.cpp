@@ -610,8 +610,11 @@ interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoP
     region_point.geo.longitude = geo.longitude;
     region_point.geo.altitude = geo.altitude;
 
+    // Converter map.geo_home para o tipo correto
+    geographic_msgs::msg::GeoPoint geo_home_converted = convert_to_geographic(map.geo_home);
+
     // Usar a conversão correta
-    region_point.cartesian = convert_goe_to_cart(geo, map.geo_home);
+    region_point.cartesian = convert_goe_to_cart(geo, geo_home_converted);
 
     return region_point;
 }
