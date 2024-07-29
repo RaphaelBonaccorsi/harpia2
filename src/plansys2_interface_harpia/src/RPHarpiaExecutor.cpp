@@ -346,7 +346,7 @@ interfaces::msg::RegionPoint getGeoPoint(const GeoPoint &geo, const interfaces::
     interfaces::msg::RegionPoint null;
     return null;
 }
-
+/*
 int getRadius(string region) // parte do código nao elterada
 {
 	string command = "python3 ~/drone_arch/drone_ws/src/ROSPlan/src/rosplan/rosplan_planning_system/src/ActionInterface/getRadius.py "+region+" >> ~/drone_arch/Data/out.txt";
@@ -367,7 +367,7 @@ int getRadius(string region) // parte do código nao elterada
   	else
   		cout << "Unable to open file";
   		return 10.0;
-}
+}*/
 
 mavros_msgs::msg::WaypointList calcRoute(
     const interfaces::msg::RegionPoint &from, 
