@@ -1,4 +1,4 @@
-#include "plansys2_interface_harpia/RPHarpiaExecutor.hpp"
+#include "rosplan_interface_harpia/RPHarpiaExecutor.hpp"
 
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/empty.hpp"
