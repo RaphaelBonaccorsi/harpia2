@@ -3,7 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <plansys2_executor/ActionExecutorClient.hpp>
-#include <plansys2_msgs/msg/action_execution_feedback.hpp>  // Atualizado para a mensagem correta
+#include <plansys2_msgs/msg/action_execution_info.hpp> 
 
 namespace plansys2 {
 
@@ -17,11 +17,12 @@ public:
 
     void do_work() override
     {
-        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
-        feedback->progress = 0.5; // Use the appropriate field for feedback
+        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
+        feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
+        feedback->completion = 0.5;
         send_feedback(feedback);
 
-        // Add your execution logic here
+        // Adicione sua lógica de execução aqui
 
         finish(true, 1.0, "Action completed successfully");
     }
@@ -30,6 +31,3 @@ public:
 } // namespace plansys2
 
 #endif // HARPIA_EXECUTOR
-
-
-#endif
