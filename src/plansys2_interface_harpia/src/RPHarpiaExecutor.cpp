@@ -16,15 +16,15 @@
 #include "mavros_msgs/msg/extended_state.hpp"
 #include "mavros_msgs/srv/waypoint_clear.hpp"
 #include "mavros_msgs/srv/waypoint_set_current.hpp"
-#include "harpia_msgs/msg/mission.hpp"
-#include "harpia_msgs/srv/change_mission.hpp"
-#include "harpia_msgs/msg/uav.hpp"
-#include "harpia_msgs/msg/map.hpp"
-#include "harpia_msgs/msg/goal.hpp"
-#include "harpia_msgs/msg/region_point.hpp"
-#include "harpia_msgs/action/mission_planner.hpp"
-#include "harpia_msgs/srv/mission_fault_mitigation.hpp"
-#include "harpia_msgs/srv/path_planning.hpp"
+#include "interfaces/msg/mission.hpp"
+#include "interfaces/srv/change_mission.hpp"
+#include "interfaces/msg/uav.hpp"
+#include "interfaces/msg/map.hpp"
+#include "interfaces/msg/goal.hpp"
+#include "interfaces/msg/region_point.hpp"
+#include "interfaces/action/mission_planner.hpp"
+#include "interfaces/srv/mission_fault_mitigation.hpp"
+#include "interfaces/srv/path_planning.hpp"
 #include "action_msgs/msg/goal_status_array.hpp"
 #include "action_msgs/msg/goal_status.hpp"
 #include <rclcpp/rclcpp.hpp>
@@ -98,14 +98,14 @@ public:
     int IDGoal;
     bool Ended = true;
     bool Cancelled = false;
-    harpia_msgs::msg::Mission hMission;
+    interfaces::msg::Mission hMission;
 
     void send_mission();
     void chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::SharedPtr msg);
     void chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg);
-    void chatterCallback_harpiaMission(const harpia_msgs::msg::Mission::SharedPtr msg);
-    void chatterCallback_IDGoal(const harpia_msgs::action::MissionPlanner::Goal::SharedPtr msg);
-    void chatterCallback_cancelGoal(const harpia_msgs::srv::ChangeMission::Request::SharedPtr msg);
+    void chatterCallback_harpiaMission(const interfaces::msg::Mission::SharedPtr msg);
+    void chatterCallback_IDGoal(const interfaces::action::MissionPlanner::Goal::SharedPtr msg);
+    void chatterCallback_cancelGoal(const interfaces::srv::ChangeMission::Request::SharedPtr msg);
 
     Mission();
 };
@@ -117,7 +117,7 @@ void Mission::chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::Shared
     WPqtd = msg->waypoints.size() - 1;
 }
 
-void Mission::chatterCallback_IDGoal(const harpia_msgs::action::MissionPlanner::Goal::SharedPtr msg)
+void Mission::chatterCallback_IDGoal(const interfaces::action::MissionPlanner::Goal::SharedPtr msg)
 {
     IDGoal = std::stoi(msg->goal_id.id);
 }
@@ -132,12 +132,12 @@ void Mission::chatterCallback_current(const mavros_msgs::msg::WaypointReached::S
     Ended = (WPqtd == msg->wp_seq);
 }
 
-void Mission::chatterCallback_cancelGoal(const harpia_msgs::srv::ChangeMission::Request::SharedPtr msg)
+void Mission::chatterCallback_cancelGoal(const interfaces::srv::ChangeMission::Request::SharedPtr msg)
 {
     Cancelled = (msg->op != 0);
 }
 
-void Mission::chatterCallback_harpiaMission(const harpia_msgs::msg::Mission::SharedPtr msg)
+void Mission::chatterCallback_harpiaMission(const interfaces::msg::Mission::SharedPtr msg)
 {
     hMission.uav = msg->uav;
     hMission.map = msg->map;
@@ -321,7 +321,7 @@ void takeoff(const std::shared_ptr<rclcpp::Node> &node, const Drone &drone)
 }
 
 
-harpia_msgs::msg::RegionPoint getGeoPoint(const GeoPoint &geo, const harpia_msgs::msg::Map &mapa, const rclcpp::Logger &logger)
+interfaces::msg::RegionPoint getGeoPoint(const GeoPoint &geo, const interfaces::msg::Map &mapa, const rclcpp::Logger &logger)
 {
     int qtd_regions = mapa.roi.size();
     
@@ -347,7 +347,7 @@ harpia_msgs::msg::RegionPoint getGeoPoint(const GeoPoint &geo, const harpia_msgs
     }
     
     // Retorno padrão em caso de não encontrar
-    harpia_msgs::msg::RegionPoint null;
+    interfaces::msg::RegionPoint null;
     return null;
 }
 
@@ -374,16 +374,16 @@ int getRadius(string region) // parte do código nao elterada
 }
 
 mavros_msgs::msg::WaypointList calcRoute(
-    const harpia_msgs::msg::RegionPoint &from, 
-    const harpia_msgs::msg::RegionPoint &to,
+    const interfaces::msg::RegionPoint &from, 
+    const interfaces::msg::RegionPoint &to,
     const std::string &name_from, 
     const std::string &name_to,
-    const harpia_msgs::msg::Map &map,
+    const interfaces::msg::Map &map,
     const rclcpp::Node::SharedPtr &node)
 {
-    auto client = node->create_client<harpia_msgs::srv::PathPlanning>("harpia/path_planning");
+    auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
 
-    auto request = std::make_shared<harpia_msgs::srv::PathPlanning::Request>();
+    auto request = std::make_shared<interfaces::srv::PathPlanning::Request>();
     request->r_from = from;
     request->r_to = to;
     request->name_from = name_from;
@@ -407,13 +407,13 @@ mavros_msgs::msg::WaypointList calcRoute(
 }
 
 mavros_msgs::msg::WaypointList calcRoute_pulverize(
-    const harpia_msgs::msg::RegionPoint &at,
-    const harpia_msgs::msg::Map &map,
+    const interfaces::msg::RegionPoint &at,
+    const interfaces::msg::Map &map,
     const rclcpp::Node::SharedPtr &node)
 {
-    auto client = node->create_client<harpia_msgs::srv::PathPlanning>("harpia/path_planning");
+    auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
 
-    auto request = std::make_shared<harpia_msgs::srv::PathPlanning::Request>();
+    auto request = std::make_shared<interfaces::srv::PathPlanning::Request>();
     request->r_from = at;
     request->r_to = at;
     request->op = 1;
@@ -437,13 +437,13 @@ mavros_msgs::msg::WaypointList calcRoute_pulverize(
 }
 
  mavros_msgs::msg::WaypointList calcRoute_picture(
-    const harpia_msgs::msg::RegionPoint &at,
-    const harpia_msgs::msg::Map &map,
+    const interfaces::msg::RegionPoint &at,
+    const interfaces::msg::Map &map,
     const rclcpp::Node::SharedPtr &node)
 {
-    auto client = node->create_client<harpia_msgs::srv::PathPlanning>("harpia/path_planning");
+    auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
 
-    auto request = std::make_shared<harpia_msgs::srv::PathPlanning::Request>();
+    auto request = std::make_shared<interfaces::srv::PathPlanning::Request>();
     request->r_from = at;
     request->r_to = at;
     request->op = 2;
@@ -579,9 +579,9 @@ geometry_msgs::Point convert_goe_to_cart(geographic_msgs::GeoPoint p, geographic
 	return point;
 }
 
-harpia_msgs::RegionPoint create_RegionPoint(GeoPoint point, harpia_msgs::Map map)
+interfaces::RegionPoint create_RegionPoint(GeoPoint point, interfaces::Map map)
 {
-	harpia_msgs::RegionPoint region_point;
+	interfaces::RegionPoint region_point;
 
 	region_point.geo.latitude = point.latitude;
 	region_point.geo.longitude = point.longitude;
@@ -613,7 +613,7 @@ public:
     RPHarpiaExecutor()
     : plansys2::ActionExecutorClient("rpharpia_executor")
     {
-        mission_fault_client_ = this->create_client<harpia_msgs::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
+        mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
         waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
         waypoint_clear_client_ = this->create_client<mavros_msgs::srv::WaypointClear>("mavros/mission/clear");
 
@@ -631,7 +631,7 @@ public:
         auto msg = get_goal();
 
         auto client = mission_fault_client_;
-        auto request = std::make_shared<harpia_msgs::srv::MissionFaultMitigation::Request>();
+        auto request = std::make_shared<interfaces::srv::MissionFaultMitigation::Request>();
         // Configure a solicitação do serviço usando msg->parameters, conforme necessário
 
         if (client->wait_for_service(std::chrono::seconds(10))) {
@@ -651,7 +651,7 @@ public:
                         // Implementar a lógica da ação
                         mission.Ended = false;
                         GeoPoint from, to;
-                        harpia_msgs::msg::RegionPoint r_from, r_to;
+                        interfaces::msg::RegionPoint r_from, r_to;
                         mavros_msgs::msg::WaypointList route;
 
                         // Obter coordenadas
@@ -710,8 +710,8 @@ public:
     }
 
 private:
-    rclcpp::Client<harpia_msgs::srv::MissionFaultMitigation>::SharedPtr mission_fault_client_;
-    rclcpp::Client<mavros_msgs::srv::WaypointPush>::SharedPtr waypoint_push_client_;
+    rclcpp::Client<interfaces::srv::MissionFaultMitigation>::SharedPtr mission_fault_client_;
+    rclcpp::Client<interfaces::srv::WaypointPush>::SharedPtr waypoint_push_client_;
     rclcpp::Client<mavros_msgs::srv::WaypointClear>::SharedPtr waypoint_clear_client_;
 };
 
@@ -765,21 +765,21 @@ int main(int argc, char **argv)
             mission->chatterCallback_current(msg);
         });
 
-    auto harpia_mission_sub = node->create_subscription<harpia_msgs::msg::Mission>(
+    auto harpia_mission_sub = node->create_subscription<interfaces::msg::Mission>(
         "/harpia/mission", 1,
-        [mission](const harpia_msgs::msg::Mission::SharedPtr msg) {
+        [mission](const interfaces::msg::Mission::SharedPtr msg) {
             mission->chatterCallback_harpiaMission(msg);
         });
 
-    auto harpia_goalId_sub = node->create_subscription<harpia_msgs::msg::MissionGoalManager>(
+    auto harpia_goalId_sub = node->create_subscription<interfaces::msg::MissionGoalManager>(
         "/harpia/mission_goal_manager/goal", 1,
-        [mission](const harpia_msgs::msg::MissionGoalManager::SharedPtr msg) {
+        [mission](const interfaces::msg::MissionGoalManager::SharedPtr msg) {
             mission->chatterCallback_IDGoal(msg);
         });
 
-    auto harpia_goalCancel_sub = node->create_subscription<harpia_msgs::msg::ChangeMission>(
+    auto harpia_goalCancel_sub = node->create_subscription<interfaces::msg::ChangeMission>(
         "/harpia/ChangeMission", 1,
-        [mission](const harpia_msgs::msg::ChangeMission::SharedPtr msg) {
+        [mission](const interfaces::msg::ChangeMission::SharedPtr msg) {
             mission->chatterCallback_cancelGoal(msg);
         });
 

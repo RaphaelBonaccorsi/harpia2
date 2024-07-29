@@ -19,7 +19,7 @@ find_package(std_srvs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(plansys2_executor REQUIRED)
 find_package(plansys2_msgs REQUIRED)
-find_package(harpia_msgs REQUIRED)
+find_package(interfaces REQUIRED)
 
 ## Declare ament package
 ament_package()
@@ -40,7 +40,7 @@ ament_target_dependencies(HarpiaExecutor
   diagnostic_msgs
   plansys2_executor
   plansys2_msgs
-  harpia_msgs
+  interfaces
 )
 
 install(TARGETS
@@ -62,5 +62,5 @@ ament_export_dependencies(
   diagnostic_msgs
   plansys2_executor
   plansys2_msgs
-  harpia_msgs
+  interfaces
 )
