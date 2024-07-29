@@ -22,7 +22,10 @@ find_package(plansys2_msgs REQUIRED)
 find_package(interfaces REQUIRED)
 
 ## Declare ament package
-include_directories(include)
+include_directories(
+  include
+  ${interfaces_INCLUDE_DIRS}  # Inclua os diretórios de cabeçalhos para o pacote interfaces
+)
 
 ## Declare action interface for HarpiaExecutor
 add_executable(HarpiaExecutor src/RPHarpiaExecutor.cpp)
@@ -47,7 +50,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
   FILES_MATCHING PATTERN "*.hpp"
 )
 
-ament_export_include_directories(include)
+ament_export_include_directories(include ${interfaces_INCLUDE_DIRS})
 ament_export_dependencies(
   rclcpp
   action_msgs
