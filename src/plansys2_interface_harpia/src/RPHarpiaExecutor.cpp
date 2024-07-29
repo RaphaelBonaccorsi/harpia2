@@ -588,6 +588,16 @@ geometry_msgs::msg::Point convert_goe_to_cart(geographic_msgs::msg::GeoPoint p, 
     return point;
 }
 
+// Função para converter de interfaces::msg::GeoPoint para geographic_msgs::msg::GeoPoint
+geographic_msgs::msg::GeoPoint convert_to_geographic(const interfaces::msg::GeoPoint& geo_point)
+{
+    geographic_msgs::msg::GeoPoint geo;
+    geo.latitude = geo_point.latitude;
+    geo.longitude = geo_point.longitude;
+    geo.altitude = geo_point.altitude;
+    return geo;
+}
+
 // Função para criar RegionPoint
 interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoPoint& geo, const interfaces::msg::Map& map)
 {
