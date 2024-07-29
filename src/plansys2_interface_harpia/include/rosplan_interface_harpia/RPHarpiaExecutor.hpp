@@ -6,9 +6,9 @@
 #include <plansys2_msgs/msg/action_execution_info.hpp>  // Atualizado para a mensagem correta
 
 namespace plansys2 {
-    class HarpiaExecutor : public plansys2::RPActionInterface {
+    class RPHarpiaExecutor : public plansys2::RPActionInterface {
     public:
-        HarpiaExecutor()
+        RPHarpiaExecutor()
         : plansys2::RPActionInterface("rpharpia_executor")
         {
             this->declare_parameter<double>("action_duration", 2.0);
