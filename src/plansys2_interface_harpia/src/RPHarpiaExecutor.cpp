@@ -612,9 +612,7 @@ interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoP
 {
     interfaces::msg::RegionPoint region_point;
 
-    // Converter o GeoPoint para o tipo esperado
-    geographic_msgs::msg::GeoPoint geo_converted = convert_to_geographic(region_point.geo);
-
+    // Definindo a região com valores diretamente
     region_point.geo.latitude = geo.latitude;
     region_point.geo.longitude = geo.longitude;
     region_point.geo.altitude = geo.altitude;
@@ -630,6 +628,7 @@ interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoP
 
     return region_point;
 }
+
 
 /*--------------------------------------------*/
 void mySigintHandler(int sig)
