@@ -104,7 +104,7 @@ public:
     void chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::SharedPtr msg);
     void chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg);
     void chatterCallback_harpiaMission(const interfaces::msg::Mission::SharedPtr msg);
-    void chatterCallback_IDGoal(const interfaces::action::MissionPlanner::GoalID::SharedPtr msg);
+    void chatterCallback_IDGoal(const interfaces::action::MissionPlanner::Goal::SharedPtr msg);
     void chatterCallback_cancelGoal(const interfaces::msg::ChangeMission::SharedPtr msg);
 
 
@@ -120,9 +120,7 @@ void Mission::chatterCallback_wpqtd(const mavros_msgs::msg::WaypointList::Shared
 
 void Mission::chatterCallback_IDGoal(const interfaces::action::MissionPlanner::Goal::SharedPtr msg)
 {
-    if (!msg->mission.goals.empty()) {
-        IDGoal = std::stoi(msg->mission.goals[0].goal_id.id);
-    }
+    IDGoal = std::stoi(msg->goal_id.id);
 }
 
 void Mission::chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg)
