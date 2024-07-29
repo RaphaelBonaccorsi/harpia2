@@ -149,7 +149,7 @@ Mission mission;
 Drone drone;
 
 
-void land(std::shared_ptr<Drone> drone, rclcpp::Node::SharedPtr node)
+void land(const std::shared_ptr<Drone> &drone, const rclcpp::Node::SharedPtr &node)
 {
     auto land_client = node->create_client<mavros_msgs::srv::CommandTOL>("/mavros/cmd/land");
     auto request = std::make_shared<mavros_msgs::srv::CommandTOL::Request>();
@@ -257,7 +257,7 @@ void set_auto(const rclcpp::Node::SharedPtr &node)
 
 
 
-void arm(rclcpp::Node::SharedPtr node)
+void arm(rclcpp::Node::SharedPtr &node)
 {
     auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
     auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();

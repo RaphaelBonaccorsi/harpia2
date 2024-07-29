@@ -3,7 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <plansys2_executor/ActionExecutorClient.hpp>
-#include <plansys2_msgs/msg/action_execution_info.hpp> 
+#include <plansys2_msgs/msg/action_execution_info.hpp>
 
 namespace plansys2 {
 
