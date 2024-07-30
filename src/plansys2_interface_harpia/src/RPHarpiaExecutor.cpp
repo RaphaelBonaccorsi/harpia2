@@ -753,7 +753,7 @@ namespace plansys2{
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
                         // Enviar rota
-                        if (!sendWPFile(route))
+                        if (!sendWPFile(route, node))
                             callRoute(from, to);
                         std::this_thread::sleep_for(std::chrono::seconds(20));
 
