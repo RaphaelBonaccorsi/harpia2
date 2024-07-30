@@ -727,6 +727,11 @@ namespace plansys2{
                         from.geo_point.longitude = drone.position.longitude;
                         from.geo_point.altitude = 15;
 
+                        GeoPoint to_geo_point;
+                        to_geo_point.latitude = to.geo_point.latitude;
+                        to_geo_point.longitude = to.geo_point.longitude;
+                        to_geo_point.altitude = to.geo_point.altitude;
+
                         // Ajuste para garantir que `r_from` seja do tipo correto
                         r_from = create_RegionPoint(from.geo_point, mission.hMission.map);
                         r_to = getGeoPoint(to_geo_point, mission.hMission.map, this->get_logger());
