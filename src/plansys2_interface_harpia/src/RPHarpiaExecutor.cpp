@@ -289,6 +289,14 @@ void arm(const std::shared_ptr<rclcpp::Node>& node)
     }
 }
 
+std::shared_ptr<plansys2_msgs::msg::ActionExecutionInfo> RPHarpiaExecutor::get_goal()
+{
+    // Provide a concrete implementation here
+    auto goal = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
+    // Initialize and return the goal
+    return goal;
+}
+
 
 void takeoff(const std::shared_ptr<rclcpp::Node> &node, const Drone &drone)
 {
