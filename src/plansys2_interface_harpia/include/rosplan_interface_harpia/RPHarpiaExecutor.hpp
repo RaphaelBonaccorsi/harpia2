@@ -4,6 +4,10 @@
 #include <rclcpp/rclcpp.hpp>
 #include <plansys2_executor/ActionExecutorClient.hpp>
 #include <plansys2_msgs/msg/action_execution_info.hpp>
+#include <interfaces/srv/mission_fault_mitigation.hpp>
+#include <mavros_msgs/srv/waypoint_push.hpp>
+#include <mavros_msgs/srv/waypoint_clear.hpp>
+
 
 namespace plansys2
 {
