@@ -639,7 +639,7 @@ struct SignalHandlerParams
 
 SignalHandlerParams params;
 
-void mySigintHandler(int sig)
+void mySigintHandler(int)
 {
     // Usar params.node que foi inicializado anteriormente
     if (params.node) {
@@ -647,6 +647,7 @@ void mySigintHandler(int sig)
     }
     rclcpp::shutdown();
 }
+
 /*--------------------------------------------*/
 /*--------------------------------------------*/
 
