@@ -723,9 +723,9 @@ namespace plansys2{
                         to.name = msg->arguments[1];
                         RCLCPP_INFO(this->get_logger(), "go_to %s -> %s", from.name.c_str(), to.name.c_str());
 
-                        from.latitude = drone.position.latitude;
-                        from.longitude = drone.position.longitude;
-                        from.altitude = 15;
+                        from.geo_point.latitude = drone.position.latitude;
+                        from.geo_point.longitude = drone.position.longitude;
+                        from.geo_point.altitude = 15;
 
                         // Ajuste para garantir que `r_from` seja do tipo correto
                         r_from = create_RegionPoint(from, mission.hMission.map);
