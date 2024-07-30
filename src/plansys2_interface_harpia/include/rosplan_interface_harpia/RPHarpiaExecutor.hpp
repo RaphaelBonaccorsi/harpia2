@@ -1,26 +1,39 @@
-#ifndef RP_HARPIA_EXECUTOR_HPP
-#define RP_HARPIA_EXECUTOR_HPP
+#ifndef HARPIA_EXECUTOR
+#define HARPIA_EXECUTOR
 
 #include <rclcpp/rclcpp.hpp>
-#include <plansys2_msgs/msg/action_dispatch.hpp>
-#include <memory>
+#include <plansys2_executor/ActionExecutorClient.hpp>
+#include <plansys2_msgs/msg/action_execution_info.hpp>
 
-namespace plansy2 {
-
-class RPHarpiaExecutor : public rclcpp::Node
+namespace plansys2
 {
-public:
-    /* constructor */
-    RPHarpiaExecutor(const rclcpp::NodeOptions & options);
 
-private:
-    /* callback function for action dispatch */
-    void concreteCallback(const plansys2_msgs::msg::ActionDispatch::SharedPtr msg);
+    class RPHarpiaExecutor : public plansys2::ActionExecutorClient
+    {
+    public:
+        RPHarpiaExecutor()
+            : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
+        {
+            this->declare_parameter<double>("action_duration", 2.0);
+        }
 
-    /* subscriber for action dispatch topic */
-    rclcpp::Subscription<plansys2_msgs::msg::ActionDispatch>::SharedPtr action_dispatch_subscriber_;
-};
+        void do_work() override
+        {
+            // Crie um feedback
+            auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
+            feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
+            feedback->completion = 0.5;
 
-}  // namespace plansy2
+            // Envie o feedback usando os valores apropriados
+            send_feedback(feedback->completion, "Executing");
 
-#endif  // RP_HARPIA_EXECUTOR_HPP
+            // Adicione sua lógica de execução aqui
+
+            // Finalize a ação com sucesso
+            finish(true, 1.0, "Action completed successfully");
+        }
+    };
+
+} // namespace plansys2
+
+#endif // HARPIA_EXECUTOR
