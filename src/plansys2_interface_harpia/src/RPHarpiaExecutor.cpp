@@ -729,7 +729,7 @@ namespace plansys2{
 
                         // Ajuste para garantir que `r_from` seja do tipo correto
                         r_from = create_RegionPoint(from.geo_point, mission.hMission.map);
-                        r_to = getGeoPoint(to.geo_point, mission.hMission.map, this->get_logger()); // Ajuste para passar todos os argumentos necessários
+                        r_to = getGeoPoint(to_geo_point, mission.hMission.map, this->get_logger());
 
                         RCLCPP_INFO(this->get_logger(), "GEO GeoPoint %f %f %f -> %f %f %f",
                                     r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude,
