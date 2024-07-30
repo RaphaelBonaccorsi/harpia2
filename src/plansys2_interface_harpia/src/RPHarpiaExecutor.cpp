@@ -653,8 +653,8 @@ void mySigintHandler(int)
 namespace plansys2
 {
 
-     RPHarpiaExecutor::RPHarpiaExecutor()
-        : plansys2::ActionExecutorClient("rpharpia_executor")
+    RPHarpiaExecutor::RPHarpiaExecutor()
+        : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
     {
         mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
         waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
