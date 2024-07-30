@@ -30,7 +30,7 @@ def generate_launch_description():
         ),
         Node(
             package='mission_goal_manager',
-            executable='mission_goal_manager_server',
+            executable='mission_goal_manager',
             name='mission_goal_manager',
             output='screen',
             parameters=[{'respawn': True}]
