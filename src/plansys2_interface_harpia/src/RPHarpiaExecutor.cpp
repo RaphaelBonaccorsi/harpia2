@@ -671,6 +671,14 @@ namespace plansys2
         send_feedback(feedback->completion, "Starting execution");
     }
 
+    Goal RPHarpiaExecutor::get_goal()
+    {
+        // Method implementation
+        Goal goal;
+        // Populate goal
+        return goal;
+    }
+
     struct NamedGeoPoint
     {
         std::string name;
