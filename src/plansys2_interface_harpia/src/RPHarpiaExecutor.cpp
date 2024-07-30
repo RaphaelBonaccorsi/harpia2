@@ -708,7 +708,8 @@ namespace plansys2{
                     {
                         // Implementar a lógica da ação
                         mission.Ended = false;
-                        GeoPoint from, to;
+                        //GeoPoint from, to;
+                        geographic_msgs::msg::GeoPoint from, to;
                         interfaces::msg::RegionPoint r_from, r_to;
                         mavros_msgs::msg::WaypointList route;
 
