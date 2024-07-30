@@ -51,10 +51,10 @@ rclcpp::Node::SharedPtr node;
 //
 // change GeoPoint to geographic_msgs/geopoint
 struct GeoPoint{
-	string  name;
-	double longitude;
-	double latitude;
-	double altitude;
+    string  name;
+    double longitude;
+    double latitude;
+    double altitude;
 };
 
 class Drone
@@ -125,12 +125,9 @@ void Mission::chatterCallback_IDGoal(const interfaces::action::MissionPlanner::G
         IDGoal = std::stoi(msg->mission.goals[0].region);
         std::string action = msg->mission.goals[0].action;
 
-        // Faça algo com `action` e `region` se necessário
+        // Handle `action` and `region` if necessary
     }
 }
-
-
-
 
 void Mission::chatterCallback_current(const mavros_msgs::msg::WaypointReached::SharedPtr msg)
 {
@@ -187,27 +184,27 @@ void land(const std::shared_ptr<Drone> &drone, const rclcpp::Node::SharedPtr &no
 
 void set_loiter(const rclcpp::Node::SharedPtr &node)
 {
-    // Cria um cliente para o serviço /mavros/set_mode
+    // Create a client for the /mavros/set_mode service
     auto client = node->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
     
-    // Cria um pedido para o serviço
+    // Create a request for the service
     auto request = std::make_shared<mavros_msgs::srv::SetMode::Request>();
     request->base_mode = 0;
     request->custom_mode = "AUTO.LOITER";
     
-    // Espera até o cliente estar disponível
+    // Wait until the client is available
     if (!client->wait_for_service(std::chrono::seconds(10)))
     {
         RCLCPP_ERROR(node->get_logger(), "Service /mavros/set_mode not available");
         return;
     }
     
-    // Cria um pedido de serviço
+    // Create a future for the service call
     auto future = client->async_send_request(request);
 
     try
     {
-        // Espera pelo resultado do serviço
+        // Wait for the service result
         auto result = future.get();
         if (result->mode_sent)
         {
@@ -228,27 +225,27 @@ void set_loiter(const rclcpp::Node::SharedPtr &node)
 
 void set_auto(const rclcpp::Node::SharedPtr &node)
 {
-    // Cria um cliente para o serviço /mavros/set_mode
+    // Create a client for the /mavros/set_mode service
     auto client = node->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
     
-    // Cria um pedido para o serviço
+    // Create a request for the service
     auto request = std::make_shared<mavros_msgs::srv::SetMode::Request>();
     request->base_mode = 0;
-    request->custom_mode = "AUTO.MISSION";
+    request->custom_mode = "AUTO";
     
-    // Espera até o cliente estar disponível
+    // Wait until the client is available
     if (!client->wait_for_service(std::chrono::seconds(10)))
     {
         RCLCPP_ERROR(node->get_logger(), "Service /mavros/set_mode not available");
         return;
     }
     
-    // Cria um futuro para a chamada de serviço
+    // Create a future for the service call
     auto future = client->async_send_request(request);
 
     try
     {
-        // Espera pelo resultado do serviço
+        // Wait for the service result
         auto result = future.get();
         if (result->mode_sent)
         {
@@ -267,61 +264,36 @@ void set_auto(const rclcpp::Node::SharedPtr &node)
 
 
 
-void arm(rclcpp::Node::SharedPtr &node)
+void set_waypoint_current(const int waypoint, const rclcpp::Node::SharedPtr &node)
 {
-    auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
-    auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
-    request->value = true;
-
-    if (arming_client->wait_for_service(std::chrono::seconds(10)))
-    {
-        auto result = arming_client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            RCLCPP_INFO(node->get_logger(), "ARM send ok %d", result.get()->success);
-        }
-        else
-        {
-            RCLCPP_ERROR(node->get_logger(), "Failed arming or disarming");
-        }
-    }
-}
-
-
-void takeoff(const std::shared_ptr<rclcpp::Node> &node, const Drone &drone)
-{
-    // Cria um cliente para o serviço /mavros/cmd/takeoff
-    auto takeoff_client = node->create_client<mavros_msgs::srv::CommandTOL>("/mavros/cmd/takeoff");
+    // Create a client for the /mavros/mission/set_current service
+    auto client = node->create_client<mavros_msgs::srv::WaypointSetCurrent>("/mavros/mission/set_current");
     
-    // Cria um pedido para o serviço
-    auto request = std::make_shared<mavros_msgs::srv::CommandTOL::Request>();
-    request->altitude = 15;
-    request->latitude = drone.position.latitude;
-    request->longitude = drone.position.longitude;
-    request->min_pitch = 0;
-    request->yaw = 0;
+    // Create a request for the service
+    auto request = std::make_shared<mavros_msgs::srv::WaypointSetCurrent::Request>();
+    request->wp_seq = waypoint;
     
-    // Espera até o cliente estar disponível
-    if (!takeoff_client->wait_for_service(std::chrono::seconds(10)))
+    // Wait until the client is available
+    if (!client->wait_for_service(std::chrono::seconds(10)))
     {
-        RCLCPP_ERROR(node->get_logger(), "Service /mavros/cmd/takeoff not available");
+        RCLCPP_ERROR(node->get_logger(), "Service /mavros/mission/set_current not available");
         return;
     }
     
-    // Cria um futuro para a chamada de serviço
-    auto future = takeoff_client->async_send_request(request);
+    // Create a future for the service call
+    auto future = client->async_send_request(request);
 
     try
     {
-        // Espera pelo resultado do serviço
+        // Wait for the service result
         auto result = future.get();
         if (result->success)
         {
-            RCLCPP_INFO(node->get_logger(), "srv_takeoff send ok %d", result->success);
+            RCLCPP_INFO(node->get_logger(), "Waypoint %d set successfully", waypoint);
         }
         else
         {
-            RCLCPP_ERROR(node->get_logger(), "Failed Takeoff");
+            RCLCPP_ERROR(node->get_logger(), "Failed to set waypoint %d", waypoint);
         }
     }
     catch (const std::exception &e)
@@ -331,482 +303,178 @@ void takeoff(const std::shared_ptr<rclcpp::Node> &node, const Drone &drone)
 }
 
 
-interfaces::msg::RegionPoint getGeoPoint(const GeoPoint &geo, const interfaces::msg::Map &mapa, const rclcpp::Logger &logger)
+void send_waypoints(const interfaces::msg::Mission &mission, const rclcpp::Node::SharedPtr &node)
 {
-    int qtd_regions = mapa.roi.size();
+    auto client = node->create_client<mavros_msgs::srv::WaypointPush>("/mavros/mission/push");
     
-    // Procurando nas regiões de interesse (ROI)
-    for (int i = 0; i < qtd_regions; ++i)
+    auto request = std::make_shared<mavros_msgs::srv::WaypointPush::Request>();
+    request->start_index = 0;
+    
+    for (const auto &goal : mission.goals)
     {
-        if (mapa.roi[i].name == geo.name)
-        {
-            RCLCPP_INFO(logger, "%s", mapa.roi[i].name.c_str());
-            return mapa.roi[i].center;
-        }
+        mavros_msgs::msg::Waypoint waypoint;
+        waypoint.frame = mavros_msgs::msg::Waypoint::FRAME_GLOBAL_REL_ALT;
+        waypoint.command = mavros_msgs::msg::CommandCode::NAV_WAYPOINT;
+        waypoint.is_current = false;
+        waypoint.autocontinue = true;
+        waypoint.param1 = 0;
+        waypoint.param2 = 0;
+        waypoint.param3 = 0;
+        waypoint.param4 = 0;
+        waypoint.x_lat = goal.point.latitude;
+        waypoint.y_long = goal.point.longitude;
+        waypoint.z_alt = goal.point.altitude;
+        
+        request->waypoints.push_back(waypoint);
     }
     
-    // Procurando nas bases
-    qtd_regions = mapa.bases.size();
-    for (int i = 0; i < qtd_regions; ++i)
+    if (!client->wait_for_service(std::chrono::seconds(10)))
     {
-        if (mapa.bases[i].name == geo.name)
-        {
-            RCLCPP_INFO(logger, "%s", mapa.bases[i].name.c_str());
-            return mapa.bases[i].center;
-        }
+        RCLCPP_ERROR(node->get_logger(), "Service /mavros/mission/push not available");
+        return;
     }
     
-    // Retorno padrão em caso de não encontrar
-    interfaces::msg::RegionPoint null;
-    return null;
-}
-/*
-int getRadius(string region) // parte do código nao elterada
-{
-	string command = "python3 ~/drone_arch/drone_ws/src/ROSPlan/src/rosplan/rosplan_planning_system/src/ActionInterface/getRadius.py "+region+" >> ~/drone_arch/Data/out.txt";
-	system(command.c_str());
-	// cout << result;
-	string line;
-  	ifstream myfile ((homepath + "/drone_arch/Data/out.txt").c_str());
-  	if (myfile.is_open())
- 	{
- 		cout << "file opened" << endl;
- 		getline (myfile,line);
- 		int radius = stod(line);
-    	myfile.clear();
-    	myfile.close();
+    auto future = client->async_send_request(request);
 
-    	return radius;
-  	}
-  	else
-  		cout << "Unable to open file";
-  		return 10.0;
-}*/
-
-mavros_msgs::msg::WaypointList calcRoute(
-    const interfaces::msg::RegionPoint &from, 
-    const interfaces::msg::RegionPoint &to,
-    const std::string &name_from, 
-    const std::string &name_to,
-    const interfaces::msg::Map &map,
-    const rclcpp::Node::SharedPtr &node)
-{
-    auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
-
-    auto request = std::make_shared<interfaces::srv::PathPlanning::Request>();
-    request->r_from = from;
-    request->r_to = to;
-    request->name_from = name_from;
-    request->name_to = name_to;
-    request->op = 0;
-    request->map = map;
-
-    auto future_result = client->async_send_request(request);
-
-    if (rclcpp::spin_until_future_complete(node, future_result) == rclcpp::FutureReturnCode::SUCCESS)
+    try
     {
-        auto response = future_result.get();
-        return response->waypoints;
-    }
-    else
-    {
-        RCLCPP_ERROR(node->get_logger(), "Failed to call service harpia/path_planning");
-        mavros_msgs::msg::WaypointList null;
-        return null;
-    }
-}
-
-mavros_msgs::msg::WaypointList calcRoute_pulverize(
-    const interfaces::msg::RegionPoint &at,
-    const interfaces::msg::Map &map,
-    const rclcpp::Node::SharedPtr &node)
-{
-    auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
-
-    auto request = std::make_shared<interfaces::srv::PathPlanning::Request>();
-    request->r_from = at;
-    request->r_to = at;
-    request->op = 1;
-    request->name_from = "at";
-    request->name_to = "pulverize_region";
-    request->map = map;
-
-    auto future_result = client->async_send_request(request);
-
-    if (rclcpp::spin_until_future_complete(node, future_result) == rclcpp::FutureReturnCode::SUCCESS)
-    {
-        auto response = future_result.get();
-        return response->waypoints;
-    }
-    else
-    {
-        RCLCPP_ERROR(node->get_logger(), "Failed to call service harpia/path_planning");
-        mavros_msgs::msg::WaypointList null;
-        return null;
-    }
-}
-
- mavros_msgs::msg::WaypointList calcRoute_picture(
-    const interfaces::msg::RegionPoint &at,
-    const interfaces::msg::Map &map,
-    const rclcpp::Node::SharedPtr &node)
-{
-    auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
-
-    auto request = std::make_shared<interfaces::srv::PathPlanning::Request>();
-    request->r_from = at;
-    request->r_to = at;
-    request->op = 2;
-    request->name_from = "at";
-    request->name_to = "take_picture";
-    request->map = map;
-
-    auto future_result = client->async_send_request(request);
-
-    if (rclcpp::spin_until_future_complete(node, future_result) == rclcpp::FutureReturnCode::SUCCESS)
-    {
-        auto response = future_result.get();
-        return response->waypoints;
-    }
-    else
-    {
-        RCLCPP_ERROR(node->get_logger(), "Failed to call service harpia/path_planning");
-        mavros_msgs::msg::WaypointList null;
-        return null;
-    }
-}
-
-
-int sendWPFile(
-    const mavros_msgs::msg::WaypointList &mission_wp,
-    const rclcpp::Node::SharedPtr &node)
-{
-    auto wp_push_client = node->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
-    auto wp_clear_client = node->create_client<mavros_msgs::srv::WaypointClear>("mavros/mission/clear");
-
-    auto wp_clear_request = std::make_shared<mavros_msgs::srv::WaypointClear::Request>();
-    auto wp_push_request = std::make_shared<mavros_msgs::srv::WaypointPush::Request>();
-
-    // Clear existing waypoints
-    if (wp_clear_client->wait_for_service(std::chrono::seconds(10)))
-    {
-        auto wp_clear_future = wp_clear_client->async_send_request(wp_clear_request);
-        if (rclcpp::spin_until_future_complete(node, wp_clear_future) == rclcpp::FutureReturnCode::SUCCESS)
+        auto result = future.get();
+        if (result->success)
         {
-            RCLCPP_INFO(node->get_logger(), "Waypoint list was cleared");
+            RCLCPP_INFO(node->get_logger(), "Waypoints sent successfully");
         }
         else
         {
-            RCLCPP_ERROR(node->get_logger(), "Waypoint list couldn't be cleared");
-            return 0;
+            RCLCPP_ERROR(node->get_logger(), "Failed to send waypoints");
         }
     }
-    else
+    catch (const std::exception &e)
     {
-        RCLCPP_ERROR(node->get_logger(), "Service 'mavros/mission/clear' not available");
-        return 0;
+        RCLCPP_ERROR(node->get_logger(), "Service call failed: %s", e.what());
     }
+}
 
-    // Prepare and send new waypoints
-    wp_push_request->start_index = 0;
-    wp_push_request->waypoints = mission_wp.waypoints;
 
-    if (wp_push_client->wait_for_service(std::chrono::seconds(10)))
+void takeoff(const std::shared_ptr<Drone> &drone, const rclcpp::Node::SharedPtr &node)
+{
+    auto takeoff_client = node->create_client<mavros_msgs::srv::CommandTOL>("/mavros/cmd/takeoff");
+    auto request = std::make_shared<mavros_msgs::srv::CommandTOL::Request>();
+    request->altitude = 5; 
+    request->latitude = drone->position.latitude;
+    request->longitude = drone->position.longitude;
+    request->min_pitch = 0;
+    request->yaw = 0;
+
+    if (takeoff_client->wait_for_service(std::chrono::seconds(10)))
     {
-        auto wp_push_future = wp_push_client->async_send_request(wp_push_request);
-        if (rclcpp::spin_until_future_complete(node, wp_push_future) == rclcpp::FutureReturnCode::SUCCESS)
+        auto result = takeoff_client->async_send_request(request);
+        if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS)
         {
-            auto wp_push_response = wp_push_future.get();
-            RCLCPP_INFO(node->get_logger(), "Success: %d", wp_push_response->success);
-            // Assume 'homepath' is defined elsewhere or passed to the function
-            // remove((homepath + "/drone_arch/Data/route.txt").c_str());
+            RCLCPP_INFO(node->get_logger(), "srv_takeoff send ok %d", result.get()->success);
         }
         else
         {
-            RCLCPP_ERROR(node->get_logger(), "Waypoint couldn't be sent");
-            // Assume 'homepath' is defined elsewhere or passed to the function
-            // remove((homepath + "/drone_arch/Data/route.txt").c_str());
-            return 0;
+            RCLCPP_ERROR(node->get_logger(), "Failed Takeoff");
         }
+    }
+}
+
+bool run_waypoints(const rclcpp::Node::SharedPtr &node)
+{
+    auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
+    auto client = node->create_client<mavros_msgs::srv::CommandBool>("mavros/cmd/arming");
+    auto result = client->async_send_request(request);
+    auto response = result.get();
+
+    if (!response->success)
+    {
+        RCLCPP_INFO(node->get_logger(), "Failed arming");
+        return false;
+    }
+
+    takeoff(drone_ptr, node);
+
+    set_auto(node);
+
+    return true;
+}
+
+void run_mission(const std::shared_ptr<Drone> &drone, const std::shared_ptr<Mission> &mission, const rclcpp::Node::SharedPtr &node)
+{
+    // Upload waypoints
+    send_waypoints(mission->hMission, node);
+
+    // Arm the drone
+    auto arm_client = node->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
+    auto arm_request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
+    arm_request->value = true;
+
+    if (!arm_client->wait_for_service(std::chrono::seconds(10)))
+    {
+        RCLCPP_ERROR(node->get_logger(), "Service /mavros/cmd/arming not available");
+        return;
+    }
+
+    auto arm_future = arm_client->async_send_request(arm_request);
+    if (rclcpp::spin_until_future_complete(node, arm_future) == rclcpp::FutureReturnCode::SUCCESS)
+    {
+        RCLCPP_INFO(node->get_logger(), "Arming command sent successfully");
     }
     else
     {
-        RCLCPP_ERROR(node->get_logger(), "Service 'mavros/mission/push' not available");
-        return 0;
+        RCLCPP_ERROR(node->get_logger(), "Failed to send arming command");
+        return;
     }
 
-    return 1;
-}
+    // Takeoff
+    takeoff(drone, node);
 
- void reset_mission(const rclcpp::Node::SharedPtr &node)
-{
-    auto set_current_client = node->create_client<mavros_msgs::srv::WaypointSetCurrent>("mavros/mission/set_current");
+    // Set auto mode
+    set_auto(node);
 
-    auto set_current_request = std::make_shared<mavros_msgs::srv::WaypointSetCurrent::Request>();
-    set_current_request->wp_seq = 0;
-
-    if (set_current_client->wait_for_service(std::chrono::seconds(10)))
+    // Check if the mission is cancelled or ended
+    while (!mission->Ended && !mission->Cancelled)
     {
-        auto future_result = set_current_client->async_send_request(set_current_request);
-        if (rclcpp::spin_until_future_complete(node, future_result) == rclcpp::FutureReturnCode::SUCCESS)
-        {
-            auto response = future_result.get();
-            RCLCPP_INFO(node->get_logger(), "Reset Mission");
-        }
-        else
-        {
-            RCLCPP_ERROR(node->get_logger(), "Reset couldn't be done");
-        }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
-    else
+
+    if (mission->Cancelled)
     {
-        RCLCPP_ERROR(node->get_logger(), "Service 'mavros/mission/set_current' not available");
+        set_loiter(node);
+        RCLCPP_INFO(node->get_logger(), "Mission cancelled, loiter mode set");
     }
-}
 
-
-void callRoute(const std::string &from_name, const std::string &to_name)
-{
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending WP file for route %s _ %s.wp", from_name.c_str(), to_name.c_str());
-    
-    std::string command = "ros2 run mavros mavwp load ~/drone_arch/Data/Rotas/wp/" + from_name + "_" + to_name + ".wp";
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "%s", command.c_str());
-    
-    int result = std::system(command.c_str());
-    if (result != 0) {
-        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to execute command");
-    }
-}
-
-
-geometry_msgs::msg::Point convert_goe_to_cart(geographic_msgs::msg::GeoPoint p, geographic_msgs::msg::GeoPoint home)
-{
-    geometry_msgs::msg::Point point;
-    double pi = 2 * acos(0.0);
-    point.x = (p.longitude - home.longitude) * (6400000.0 * (cos(home.latitude * pi / 180) * 2 * pi / 360));
-    point.y = (p.latitude - home.latitude) * (10000000.0 / 90);
-
-    return point;
-}
-
-// Função para converter de interfaces::msg::GeoPoint para geographic_msgs::msg::GeoPoint
-geographic_msgs::msg::GeoPoint convert_to_geographic(const interfaces::msg::GeoPoint& geo_point)
-{
-    geographic_msgs::msg::GeoPoint geo;
-    geo.latitude = geo_point.latitude;
-    geo.longitude = geo_point.longitude;
-    geo.altitude = geo_point.altitude;
-    return geo;
-}
-
-interfaces::msg::Point convert_to_interfaces_point(const geometry_msgs::msg::Point& geo_point)
-{
-    interfaces::msg::Point point;
-    point.x = geo_point.x;
-    point.y = geo_point.y;
-    point.z = geo_point.z;
-    return point;
-}
-
-// Função para criar RegionPoint
-interfaces::msg::RegionPoint create_RegionPoint(const geographic_msgs::msg::GeoPoint& geo, const interfaces::msg::Map& map)
-{
-    interfaces::msg::RegionPoint region_point;
-
-    // Definindo a região com valores diretamente
-    region_point.geo.latitude = geo.latitude;
-    region_point.geo.longitude = geo.longitude;
-    region_point.geo.altitude = geo.altitude;
-
-    // Converter map.geo_home para o tipo correto
-    geographic_msgs::msg::GeoPoint geo_home_converted = convert_to_geographic(map.geo_home);
-
-    // Usar a conversão correta
-    geometry_msgs::msg::Point cartesian_point = convert_goe_to_cart(geo, geo_home_converted);
-
-    // Converter o resultado para o tipo esperado
-    region_point.cartesian = convert_to_interfaces_point(cartesian_point);
-
-    return region_point;
-}
-
-
-/*--------------------------------------------*/
-struct SignalHandlerParams
-{
-    rclcpp::Node::SharedPtr node;
-};
-
-SignalHandlerParams params;
-
-void mySigintHandler(int)
-{
-    // Usar params.node que foi inicializado anteriormente
-    if (params.node) {
-        set_loiter(params.node);
-    }
-    rclcpp::shutdown();
-}
-
-/*--------------------------------------------*/
-/*--------------------------------------------*/
-namespace plansys2
-{
-
-    RPHarpiaExecutor::RPHarpiaExecutor()
-       : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
+    if (mission->Ended)
     {
-        mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
-        waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
-        waypoint_clear_client_ = this->create_client<mavros_msgs::srv::WaypointClear>("mavros/mission/clear");
-
-        // Declaração de parâmetros
-        this->declare_parameter<double>("action_duration", 2.0);
-
-        // Inicialização do feedback
-        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
-        feedback->progress = 0.0;
-        send_feedback(feedback);
+        land(drone, node);
+        RCLCPP_INFO(node->get_logger(), "Mission ended, landing");
     }
+}
 
-    void RPHarpiaExecutor::do_work(){
-        auto msg = get_goal();
-
-        auto client = mission_fault_client_;
-        auto request = std::make_shared<interfaces::srv::MissionFaultMitigation::Request>();
-        // Configure a solicitação do serviço usando msg->parameters, conforme necessário
-
-        if (client->wait_for_service(std::chrono::seconds(10)))
-        {
-            auto result = client->async_send_request(request);
-            if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS)
-            {
-                auto response = result.get();
-                int replan = response->replan;
-
-                if (replan != 1)
-                {
-                    // Implementação da ação
-                    std::string str = msg->action;
-                    std::string str1 = "go_to";
-                    auto found = str.find(str1);
-                    RCLCPP_INFO(this->get_logger(), "%s", msg->action.c_str());
-
-                    if (found != std::string::npos)
-                    {
-                        // Implementar a lógica da ação
-                        mission.Ended = false;
-                        GeoPoint from, to;
-                        interfaces::msg::RegionPoint r_from, r_to;
-                        mavros_msgs::msg::WaypointList route;
-
-                        // Obter coordenadas
-                        from.name = msg->arguments[0];
-                        to.name = msg->arguments[1];
-                        RCLCPP_INFO(this->get_logger(), "go_to %s -> %s", from.name.c_str(), to.name.c_str());
-
-                        from.latitude = drone.position.latitude;
-                        from.longitude = drone.position.longitude;
-                        from.altitude = 15;
-
-                        r_from = create_RegionPoint(from, mission.hMission.map);
-                        r_to = getGeoPoint(to, mission.hMission.map);
-
-                        RCLCPP_INFO(this->get_logger(), "GEO GeoPoint %f %f %f -> %f %f %f", r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude, r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
-
-                        // Calcular rota
-                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map);
-
-                        // Verificar se está voando
-                        while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
-                        {
-                            set_loiter();
-                            arm();
-                            takeoff(drone);
-                        }
-                        std::this_thread::sleep_for(std::chrono::seconds(10));
-
-                        // Enviar rota
-                        if (!sendWPFile(route))
-                            callRoute(from, to);
-                        std::this_thread::sleep_for(std::chrono::seconds(20));
-
-                        set_auto();
-
-                        while (!mission.Ended)
-                        {
-                            std::this_thread::sleep_for(std::chrono::seconds(10));
-                        }
-
-                        set_loiter();
-                        std::this_thread::sleep_for(std::chrono::seconds(10));
-
-                        RCLCPP_INFO(this->get_logger(), "KCL: (%s) HarpiaExecutor Action completing.", msg->action.c_str());
-                    }
-                    // Continue com outros casos de `msg->action` como "pulverize_region", "take_image", etc.
-                }
-                else
-                {
-                    RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
-                }
-            }
-            else
-            {
-                RCLCPP_ERROR(this->get_logger(), "Failed to call service harpia/mission_fault_mitigation");
-            }
-        }
-
-        finish(true, 1.0, "Action completed successfully");
-    }
-
-} // namespace plansys2
-
-/*-------------*/
-/* Main method */
-/*-------------*/
 
 int main(int argc, char **argv)
 {
-    // Initialize ROS 2
     rclcpp::init(argc, argv);
-    params.node = std::make_shared<rclcpp::Node>("my_node");
-
-    // Configurar o manipulador de sinal
-    signal(SIGINT, mySigintHandler);
-
-    rclcpp::spin(params.node);
-
-
-    // Create the main node
-    auto node = std::make_shared<rclcpp::Node>("plansys2_interface_harpia");
-
-    // Create instances of Drone and Mission
+    auto node = rclcpp::Node::make_shared("rpharpia_executor");
+    
+    // Create Drone and Mission instances
     auto drone = std::make_shared<Drone>();
     auto mission = std::make_shared<Mission>();
-
-    // Create subscriptions
-    auto gps_sub = node->create_subscription<sensor_msgs::msg::NavSatFix>(
-        "/mavros/global_position/global", 1,
-        [drone](const sensor_msgs::msg::NavSatFix::SharedPtr msg) {
-            drone->chatterCallback_GPS(msg);
-        });
-
-    auto state_sub = node->create_subscription<mavros_msgs::msg::State>(
-        "/mavros/state", 1,
-        [drone](const mavros_msgs::msg::State::SharedPtr msg) {
-            drone->chatterCallback_currentState(msg);
-        });
-
-    auto state_ext_sub = node->create_subscription<mavros_msgs::msg::ExtendedState>(
-        "/mavros/extended_state", 1,
-        [drone](const mavros_msgs::msg::ExtendedState::SharedPtr msg) {
-            drone->chatterCallback_currentStateExtended(msg);
-        });
-
-    // Spin the node
+    
+    // Subscribe to topics
+    auto subscription_GPS = node->create_subscription<sensor_msgs::msg::NavSatFix>("/mavros/global_position/global", 10, std::bind(&Drone::chatterCallback_GPS, drone, std::placeholders::_1));
+    auto subscription_currentState = node->create_subscription<mavros_msgs::msg::State>("/mavros/state", 10, std::bind(&Drone::chatterCallback_currentState, drone, std::placeholders::_1));
+    auto subscription_currentStateExtended = node->create_subscription<mavros_msgs::msg::ExtendedState>("/mavros/extended_state", 10, std::bind(&Drone::chatterCallback_currentStateExtended, drone, std::placeholders::_1));
+    auto subscription_wpqtd = node->create_subscription<mavros_msgs::msg::WaypointList>("/mavros/mission/waypoints", 10, std::bind(&Mission::chatterCallback_wpqtd, mission, std::placeholders::_1));
+    auto subscription_current = node->create_subscription<mavros_msgs::msg::WaypointReached>("/mavros/mission/reached", 10, std::bind(&Mission::chatterCallback_current, mission, std::placeholders::_1));
+    auto subscription_harpiaMission = node->create_subscription<interfaces::msg::Mission>("/harpia/mission", 10, std::bind(&Mission::chatterCallback_harpiaMission, mission, std::placeholders::_1));
+    auto subscription_IDGoal = node->create_subscription<interfaces::msg::IDGoal>("/harpia/IDGoal", 10, std::bind(&Mission::chatterCallback_IDGoal, mission, std::placeholders::_1));
+    
+    // Run mission
+    run_mission(drone, mission, node);
+    
     rclcpp::spin(node);
-
-    // Shutdown ROS 2
     rclcpp::shutdown();
     return 0;
 }
+
