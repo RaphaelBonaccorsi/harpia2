@@ -1,22 +1,19 @@
+import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch_ros.actions import Node
 
 def generate_launch_description():
+    px4_path = LaunchConfiguration('px4_path', default='/home/harpia/PX4-Autopilot/build/px4_sitl_default/bin/px4')
+
     return LaunchDescription([
         # Declare arguments
         DeclareLaunchArgument('px4_path', default_value='/home/harpia/PX4-Autopilot/build/px4_sitl_default/bin/px4', description='Path to the px4 executable'),
 
-        # PX4 Node (if you want to use it in a Node, you would have to create a custom launch file or script)
-        Node(
-            package='px4',
-            executable='px4',
-            name='px4',
-            output='screen',
-            parameters=[{
-                'fcu_url': 'udp://:14540@localhost:14557',
-                'log_output': 'log'
-            }]
+        # Execute PX4 process
+        ExecuteProcess(
+            cmd=[px4_path, 'udp://:14540@localhost:14557'],
+            output='screen'
         ),
         Node(
             package='mission_planning',
