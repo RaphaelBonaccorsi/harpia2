@@ -740,7 +740,7 @@ namespace plansys2{
                                     r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude,
                                     r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
 
-                        route = calcRoute(r_from, r_to, "", "", mission.hMission.map);
+                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map, this->get_logger());
 
                         // Verificar se está voando
                         while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
