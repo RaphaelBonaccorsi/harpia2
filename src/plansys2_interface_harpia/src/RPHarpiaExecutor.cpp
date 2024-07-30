@@ -391,7 +391,7 @@ mavros_msgs::msg::WaypointList calcRoute(
     const std::string &name_from, 
     const std::string &name_to,
     const interfaces::msg::Map &map,
-    const rclcpp::Node::SharedPtr &node)
+    const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> &node)
 {
     auto client = node->create_client<interfaces::srv::PathPlanning>("harpia/path_planning");
 
@@ -581,8 +581,7 @@ void callRoute(const std::string &from_name, const std::string &to_name)
 }
 
 
-geometry_msgs::msg::Point convert_goe_to_cart(geographic_msgs::msg::GeoPoint p, geographic_msgs::msg::GeoPoint home)
-{
+geometry_msgs::msg::Point convert_goe_to_cart(geographic_msgs::msg::GeoPoint p, geographic_msgs::msg::GeoPoint home){
     geometry_msgs::msg::Point point;
     double pi = 2 * acos(0.0);
     point.x = (p.longitude - home.longitude) * (6400000.0 * (cos(home.latitude * pi / 180) * 2 * pi / 360));
@@ -742,14 +741,14 @@ namespace plansys2
                                     r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude,
                                     r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
 
-                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map, std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
+                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map, this->shared_from_this());
 
                         // Verificar se está voando
                         while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
                         {
-                            set_loiter(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
-                            arm(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
-                            takeoff(node, drone);
+                            void set_loiter(const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> &node);
+                            void arm(const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> &node);
+                            void takeoff(const std::shared_ptr<rclcpp_lifecycle::LifecycleNode> &node, const Drone &drone);
                         }
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
