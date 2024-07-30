@@ -650,15 +650,11 @@ void mySigintHandler(int)
 
 /*--------------------------------------------*/
 /*--------------------------------------------*/
-
-
-namespace plansys2 {
-
-class RPHarpiaExecutor : public plansys2::ActionExecutorClient
+namespace plansys2
 {
-public:
-    RPHarpiaExecutor()
-    : plansys2::ActionExecutorClient("rpharpia_executor")
+
+    RPHarpiaExecutor::RPHarpiaExecutor()
+        : plansys2::ActionExecutorClient("rpharpia_executor")
     {
         mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
         waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
@@ -673,7 +669,7 @@ public:
         send_feedback(feedback);
     }
 
- void do_work() override
+    void RPHarpiaExecutor::do_work()
     {
         auto msg = get_goal();
 
@@ -681,20 +677,24 @@ public:
         auto request = std::make_shared<interfaces::srv::MissionFaultMitigation::Request>();
         // Configure a solicitação do serviço usando msg->parameters, conforme necessário
 
-        if (client->wait_for_service(std::chrono::seconds(10))) {
+        if (client->wait_for_service(std::chrono::seconds(10)))
+        {
             auto result = client->async_send_request(request);
-            if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS) {
+            if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS)
+            {
                 auto response = result.get();
                 int replan = response->replan;
 
-                if (replan != 1) {
+                if (replan != 1)
+                {
                     // Implementação da ação
                     std::string str = msg->action;
                     std::string str1 = "go_to";
                     auto found = str.find(str1);
                     RCLCPP_INFO(this->get_logger(), "%s", msg->action.c_str());
 
-                    if (found != std::string::npos) {
+                    if (found != std::string::npos)
+                    {
                         // Implementar a lógica da ação
                         mission.Ended = false;
                         GeoPoint from, to;
@@ -719,7 +719,8 @@ public:
                         route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map);
 
                         // Verificar se está voando
-                        while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2) {
+                        while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
+                        {
                             set_loiter();
                             arm();
                             takeoff(drone);
@@ -733,7 +734,8 @@ public:
 
                         set_auto();
 
-                        while (!mission.Ended) {
+                        while (!mission.Ended)
+                        {
                             std::this_thread::sleep_for(std::chrono::seconds(10));
                         }
 
@@ -744,11 +746,13 @@ public:
                     }
                     // Continue com outros casos de `msg->action` como "pulverize_region", "take_image", etc.
                 }
-                else {
+                else
+                {
                     RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
                 }
             }
-            else {
+            else
+            {
                 RCLCPP_ERROR(this->get_logger(), "Failed to call service harpia/mission_fault_mitigation");
             }
         }
@@ -756,14 +760,7 @@ public:
         finish(true, 1.0, "Action completed successfully");
     }
 
-private:
-    rclcpp::Client<interfaces::srv::MissionFaultMitigation>::SharedPtr mission_fault_client_;
-    rclcpp::Client<interfaces::srv::WaypointPush>::SharedPtr waypoint_push_client_;
-    rclcpp::Client<mavros_msgs::srv::WaypointClear>::SharedPtr waypoint_clear_client_;
-};
-
 } // namespace plansys2
-
 
 /*-------------*/
 /* Main method */
