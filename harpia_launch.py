@@ -1,6 +1,7 @@
 import os
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
@@ -30,7 +31,7 @@ def generate_launch_description():
         Node(
             package='mission_goal_manager',
             executable='mission_goal_manager_server',
-            name='mission_goal_manager_server',
+            name='mission_goal_manager',
             output='screen',
             parameters=[{'respawn': True}]
         ),
