@@ -746,7 +746,7 @@ namespace plansys2{
                         // Verificar se está voando
                         while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
                         {
-                            set_loiter();
+                            set_loiter(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
                             arm();
                             takeoff(drone);
                         }
