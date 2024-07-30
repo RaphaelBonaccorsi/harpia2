@@ -747,7 +747,7 @@ namespace plansys2{
                         while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
                         {
                             set_loiter(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
-                            arm();
+                            arm(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
                             takeoff(drone);
                         }
                         std::this_thread::sleep_for(std::chrono::seconds(10));
