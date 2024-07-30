@@ -740,7 +740,7 @@ namespace plansys2{
                                     r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude,
                                     r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
 
-                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map, this->shared_from_this());
+                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map, std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
 
 
                         // Verificar se está voando
