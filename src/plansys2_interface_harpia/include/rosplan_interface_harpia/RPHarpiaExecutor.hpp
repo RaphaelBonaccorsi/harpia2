@@ -19,17 +19,17 @@ namespace plansys2
 
         void do_work() override
         {
-            // Create a feedback
+            // Crie um feedback
             auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
             feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
             feedback->completion = 0.5;
 
-            // Send feedback using appropriate values
+            // Envie o feedback usando os valores apropriados
             send_feedback(feedback->completion, "Executing");
 
-            // Add your execution logic here
+            // Adicione sua lógica de execução aqui
 
-            // Finish the action successfully
+            // Finalize a ação com sucesso
             finish(true, 1.0, "Action completed successfully");
         }
     };
