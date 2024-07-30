@@ -14,8 +14,6 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include "interfaces/msg/mission.hpp"
 
-#include "drone.hpp"
-#include "mission.hpp"
 
 namespace plansys2 {
 
