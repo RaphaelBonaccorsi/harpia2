@@ -654,7 +654,7 @@ namespace plansys2
 {
 
     RPHarpiaExecutor::RPHarpiaExecutor()
-       : rclcpp::Node("rpharpia_executor", std::chrono::seconds(1))
+        : plansys2::ActionExecutorClient("rpharpia_executor")
     {
         mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
         waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
@@ -669,7 +669,8 @@ namespace plansys2
         send_feedback(feedback);
     }
 
-    void RPHarpiaExecutor::do_work(){
+    void RPHarpiaExecutor::do_work()
+    {
         auto msg = get_goal();
 
         auto client = mission_fault_client_;
