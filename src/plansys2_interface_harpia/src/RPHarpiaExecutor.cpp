@@ -702,6 +702,9 @@ namespace plansys2
                     auto found = str.find(str1);
                     RCLCPP_INFO(this->get_logger(), "%s", msg->action.c_str());
 
+                    // Supondo que `create_RegionPoint` retorne um tipo `interfaces::msg::RegionPoint`
+                    // e `getGeoPoint` retorne um tipo `GeoPoint`.
+
                     if (found != std::string::npos)
                     {
                         // Implementar a lógica da ação
@@ -719,10 +722,13 @@ namespace plansys2
                         from.longitude = drone.position.longitude;
                         from.altitude = 15;
 
+                        // Ajuste para garantir que `r_from` seja do tipo correto
                         r_from = create_RegionPoint(from, mission.hMission.map);
-                        r_to = getGeoPoint(to, mission.hMission.map);
+                        r_to = getGeoPoint(to, mission.hMission.map); // Certifique-se de que `getGeoPoint` retorna o tipo correto
 
-                        RCLCPP_INFO(this->get_logger(), "GEO GeoPoint %f %f %f -> %f %f %f", r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude, r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
+                        RCLCPP_INFO(this->get_logger(), "GEO GeoPoint %f %f %f -> %f %f %f",
+                                    r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude,
+                                    r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
 
                         // Calcular rota
                         route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map);
@@ -751,13 +757,13 @@ namespace plansys2
                         set_loiter();
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
-                        RCLCPP_INFO(this->get_logger(), "KCL: (%s) HarpiaExecutor Action completing.", msg->action.c_str());
+                        RCLCPP_INFO(this->get_logger(), "PLANSYS2: (%s) HarpiaExecutor Action completing.", msg->action.c_str());
                     }
                     // Continue com outros casos de `msg->action` como "pulverize_region", "take_image", etc.
-                }
-                else
-                {
-                    RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
+
+                    else
+                    {
+                        RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
                 }
             }
             else
