@@ -753,8 +753,10 @@ namespace plansys2{
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
                         // Enviar rota
-                        if (!sendWPFile(route, node))
-                            callRoute(r_from.geo.name, r_to.geo.name);
+                        if (!sendWPFile(route, node)) // Pass the `node` as the second argument
+                        {
+                            callRoute("from_name", "to_name"); // Use proper names or identifiers
+                        }
                         std::this_thread::sleep_for(std::chrono::seconds(20));
 
                         set_auto();
