@@ -35,6 +35,8 @@
 #include "geometry_msgs/msg/point.hpp"
 #include "rclcpp/executor.hpp"
 
+#include <plansys2_msgs/msg/action_execution_info.hpp>
+
 #include <chrono>
 #include <thread>
 
@@ -672,6 +674,10 @@ namespace plansys2
 
     void RPHarpiaExecutor::do_work()
     {
+        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
+		feedback->progress = 0.5;
+		send_feedback(feedback);
+
         auto msg = get_goal();
 
         auto client = mission_fault_client_;
