@@ -1,39 +1,33 @@
-#ifndef HARPIA_EXECUTOR
-#define HARPIA_EXECUTOR
+#ifndef RPHARPIAEXECUTOR_H
+#define RPHARPIAEXECUTOR_H
 
 #include <rclcpp/rclcpp.hpp>
-#include <plansys2_executor/ActionExecutorClient.hpp>
-#include <plansys2_msgs/msg/action_execution_info.hpp>
+#include <mavros_msgs/msg/state.hpp>
+#include <mavros_msgs/msg/extended_state.hpp>
+#include <mavros_msgs/msg/waypoint_list.hpp>
+#include <mavros_msgs/msg/waypoint_reached.hpp>
+#include <mavros_msgs/srv/waypoint_set_current.hpp>
+#include <mavros_msgs/srv/waypoint_push.hpp>
+#include <mavros_msgs/srv/command_bool.hpp>
+#include <mavros_msgs/srv/command_tol.hpp>
+#include <mavros_msgs/srv/set_mode.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
+#include "interfaces/msg/mission.hpp"
+#include "interfaces/msg/idgoal.hpp"
+#include "drone.hpp"
+#include "mission.hpp"
 
-namespace plansys2
-{
+namespace plansys2 {
 
-    class RPHarpiaExecutor : public plansys2::ActionExecutorClient
-    {
-    public:
-        RPHarpiaExecutor()
-            : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
-        {
-            this->declare_parameter<double>("action_duration", 2.0);
-        }
+class RPHarpiaExecutor : public rclcpp::Node {
+public:
+    RPHarpiaExecutor();
+    void do_work() override;
 
-        void do_work() override
-        {
-            // Crie um feedback
-            auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
-            feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
-            feedback->completion = 0.5;
+private:
+    // Declarar os membros privados aqui
+};
 
-            // Envie o feedback usando os valores apropriados
-            send_feedback(feedback->completion, "Executing");
+}
 
-            // Adicione sua lógica de execução aqui
-
-            // Finalize a ação com sucesso
-            finish(true, 1.0, "Action completed successfully");
-        }
-    };
-
-} // namespace plansys2
-
-#endif // HARPIA_EXECUTOR
+#endif // RPHARPIAEXECUTOR_H
