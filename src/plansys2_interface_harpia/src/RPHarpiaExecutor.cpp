@@ -748,7 +748,7 @@ namespace plansys2{
                         {
                             set_loiter(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
                             arm(std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
-                            takeoff(drone);
+                            takeoff(node, drone);
                         }
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
