@@ -674,7 +674,7 @@ namespace plansys2
 
     void RPHarpiaExecutor::do_work()
     {
-        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
+        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
 		feedback->progress = 0.5;
 		send_feedback(feedback);
 
