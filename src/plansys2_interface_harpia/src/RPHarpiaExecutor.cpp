@@ -754,7 +754,7 @@ namespace plansys2{
 
                         // Enviar rota
                         if (!sendWPFile(route, node))
-                            callRoute(from, to);
+                            callRoute(r_from.geo.name, r_to.geo.name);
                         std::this_thread::sleep_for(std::chrono::seconds(20));
 
                         set_auto();
