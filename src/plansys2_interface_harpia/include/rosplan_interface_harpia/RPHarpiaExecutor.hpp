@@ -13,7 +13,7 @@
 #include <mavros_msgs/srv/set_mode.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include "interfaces/msg/mission.hpp"
-#include "interfaces/msg/idgoal.hpp"
+#include "interfaces/msg/goalid.hpp"
 #include "drone.hpp"
 #include "mission.hpp"
 
