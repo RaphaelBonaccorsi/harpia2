@@ -25,6 +25,10 @@ namespace plansys2
 
         /* método para executar o trabalho */
         void do_work() override;
+
+    private:
+        /* Método para obter o objetivo atual */
+        std::shared_ptr<plansys2_msgs::msg::ActionExecutionInfo> get_goal();
     };
 
 } // namespace plansys2
