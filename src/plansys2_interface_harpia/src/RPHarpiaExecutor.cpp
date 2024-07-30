@@ -187,7 +187,7 @@ void land(const std::shared_ptr<Drone> &drone, const rclcpp::Node::SharedPtr &no
 
 
 
-void set_loiter(const rclcpp::Node::SharedPtr &node)
+void set_loiter(const std::shared_ptr<rclcpp::Node>& node);
 {
     // Cria um cliente para o serviço /mavros/set_mode
     auto client = node->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
