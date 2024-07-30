@@ -11,7 +11,9 @@ namespace plansys2
     class RPHarpiaExecutor : public plansys2::ActionExecutorClient
     {
     private:
-        // Aqui você pode adicionar membros privados, se necessário
+        rclcpp::Client<interfaces::srv::MissionFaultMitigation>::SharedPtr mission_fault_client_;
+        rclcpp::Client<mavros_msgs::srv::WaypointPush>::SharedPtr waypoint_push_client_;
+        rclcpp::Client<mavros_msgs::srv::WaypointClear>::SharedPtr waypoint_clear_client_;
 
     public:
         /* construtor */

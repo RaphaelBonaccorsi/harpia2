@@ -653,7 +653,7 @@ void mySigintHandler(int)
 namespace plansys2
 {
 
-    RPHarpiaExecutor::RPHarpiaExecutor()
+     RPHarpiaExecutor::RPHarpiaExecutor()
         : plansys2::ActionExecutorClient("rpharpia_executor")
     {
         mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
@@ -664,9 +664,10 @@ namespace plansys2
         this->declare_parameter<double>("action_duration", 2.0);
 
         // Inicialização do feedback
-        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
-        feedback->progress = 0.0;
-        send_feedback(feedback);
+        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
+        feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
+        feedback->completion = 0.0;
+        send_feedback(feedback->completion, "Starting execution");
     }
 
     void RPHarpiaExecutor::do_work()
