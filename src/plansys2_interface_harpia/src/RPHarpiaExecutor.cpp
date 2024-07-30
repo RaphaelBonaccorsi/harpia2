@@ -653,110 +653,112 @@ void mySigintHandler(int)
 namespace plansys2
 {
 
-RPHarpiaExecutor::RPHarpiaExecutor()
-    : plansys2::ActionExecutorClient("rpharpia_executor")
-{
-    mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
-    waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
-    waypoint_clear_client_ = this->create_client<mavros_msgs::srv::WaypointClear>("mavros/mission/clear");
-
-    this->declare_parameter<double>("action_duration", 2.0);
-}
-
-void RPHarpiaExecutor::do_work()
-{
-    auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
-    feedback->progress = 0.0;
-    send_feedback(feedback);
-
-    auto msg = get_goal();
-
-    auto client = mission_fault_client_;
-    auto request = std::make_shared<interfaces::srv::MissionFaultMitigation::Request>();
-    // Configure a solicitação do serviço usando msg->parameters, conforme necessário
-
-    if (client->wait_for_service(std::chrono::seconds(10)))
+    RPHarpiaExecutor::RPHarpiaExecutor()
+        : plansys2::ActionExecutorClient("rpharpia_executor")
     {
-        auto result = client->async_send_request(request);
-        if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS)
+        mission_fault_client_ = this->create_client<interfaces::srv::MissionFaultMitigation>("harpia/mission_fault_mitigation");
+        waypoint_push_client_ = this->create_client<mavros_msgs::srv::WaypointPush>("mavros/mission/push");
+        waypoint_clear_client_ = this->create_client<mavros_msgs::srv::WaypointClear>("mavros/mission/clear");
+
+        // Declaração de parâmetros
+        this->declare_parameter<double>("action_duration", 2.0);
+
+        // Inicialização do feedback
+        auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionFeedback>();
+        feedback->progress = 0.0;
+        send_feedback(feedback);
+    }
+
+    void RPHarpiaExecutor::do_work()
+    {
+        auto msg = get_goal();
+
+        auto client = mission_fault_client_;
+        auto request = std::make_shared<interfaces::srv::MissionFaultMitigation::Request>();
+        // Configure a solicitação do serviço usando msg->parameters, conforme necessário
+
+        if (client->wait_for_service(std::chrono::seconds(10)))
         {
-            auto response = result.get();
-            int replan = response->replan;
-
-            if (replan != 1)
+            auto result = client->async_send_request(request);
+            if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result) == rclcpp::FutureReturnCode::SUCCESS)
             {
-                // Implementação da ação
-                std::string str = msg->action;
-                std::string str1 = "go_to";
-                auto found = str.find(str1);
-                RCLCPP_INFO(this->get_logger(), "%s", msg->action.c_str());
+                auto response = result.get();
+                int replan = response->replan;
 
-                if (found != std::string::npos)
+                if (replan != 1)
                 {
-                    // Implementar a lógica da ação
-                    mission.Ended = false;
-                    GeoPoint from, to;
-                    interfaces::msg::RegionPoint r_from, r_to;
-                    mavros_msgs::msg::WaypointList route;
+                    // Implementação da ação
+                    std::string str = msg->action;
+                    std::string str1 = "go_to";
+                    auto found = str.find(str1);
+                    RCLCPP_INFO(this->get_logger(), "%s", msg->action.c_str());
 
-                    // Obter coordenadas
-                    from.name = msg->arguments[0];
-                    to.name = msg->arguments[1];
-                    RCLCPP_INFO(this->get_logger(), "go_to %s -> %s", from.name.c_str(), to.name.c_str());
-
-                    from.latitude = drone.position.latitude;
-                    from.longitude = drone.position.longitude;
-                    from.altitude = 15;
-
-                    r_from = create_RegionPoint(from, mission.hMission.map);
-                    r_to = getGeoPoint(to, mission.hMission.map);
-
-                    RCLCPP_INFO(this->get_logger(), "GEO GeoPoint %f %f %f -> %f %f %f", r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude, r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
-
-                    // Calcular rota
-                    route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map);
-
-                    // Verificar se está voando
-                    while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
+                    if (found != std::string::npos)
                     {
-                        set_loiter();
-                        arm();
-                        takeoff(drone);
-                    }
-                    std::this_thread::sleep_for(std::chrono::seconds(10));
+                        // Implementar a lógica da ação
+                        mission.Ended = false;
+                        GeoPoint from, to;
+                        interfaces::msg::RegionPoint r_from, r_to;
+                        mavros_msgs::msg::WaypointList route;
 
-                    // Enviar rota
-                    if (!sendWPFile(route))
-                        callRoute(from, to);
-                    std::this_thread::sleep_for(std::chrono::seconds(20));
+                        // Obter coordenadas
+                        from.name = msg->arguments[0];
+                        to.name = msg->arguments[1];
+                        RCLCPP_INFO(this->get_logger(), "go_to %s -> %s", from.name.c_str(), to.name.c_str());
 
-                    set_auto();
+                        from.latitude = drone.position.latitude;
+                        from.longitude = drone.position.longitude;
+                        from.altitude = 15;
 
-                    while (!mission.Ended)
-                    {
+                        r_from = create_RegionPoint(from, mission.hMission.map);
+                        r_to = getGeoPoint(to, mission.hMission.map);
+
+                        RCLCPP_INFO(this->get_logger(), "GEO GeoPoint %f %f %f -> %f %f %f", r_from.geo.latitude, r_from.geo.longitude, r_from.geo.altitude, r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
+
+                        // Calcular rota
+                        route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map);
+
+                        // Verificar se está voando
+                        while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
+                        {
+                            set_loiter();
+                            arm();
+                            takeoff(drone);
+                        }
                         std::this_thread::sleep_for(std::chrono::seconds(10));
+
+                        // Enviar rota
+                        if (!sendWPFile(route))
+                            callRoute(from, to);
+                        std::this_thread::sleep_for(std::chrono::seconds(20));
+
+                        set_auto();
+
+                        while (!mission.Ended)
+                        {
+                            std::this_thread::sleep_for(std::chrono::seconds(10));
+                        }
+
+                        set_loiter();
+                        std::this_thread::sleep_for(std::chrono::seconds(10));
+
+                        RCLCPP_INFO(this->get_logger(), "KCL: (%s) HarpiaExecutor Action completing.", msg->action.c_str());
                     }
-
-                    set_loiter();
-                    std::this_thread::sleep_for(std::chrono::seconds(10));
-
-                    RCLCPP_INFO(this->get_logger(), "KCL: (%s) HarpiaExecutor Action completing.", msg->action.c_str());
+                    // Continue com outros casos de `msg->action` como "pulverize_region", "take_image", etc.
                 }
-                // Continue com outros casos de `msg->action` como "pulverize_region", "take_image", etc.
+                else
+                {
+                    RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
+                }
             }
             else
             {
-                RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
+                RCLCPP_ERROR(this->get_logger(), "Failed to call service harpia/mission_fault_mitigation");
             }
         }
-        else
-        {
-            RCLCPP_ERROR(this->get_logger(), "Failed to call service harpia/mission_fault_mitigation");
-        }
-    }
 
-    finish(true, 1.0, "Action completed successfully");
-}
+        finish(true, 1.0, "Action completed successfully");
+    }
 
 } // namespace plansys2
 
