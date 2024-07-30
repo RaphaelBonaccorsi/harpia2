@@ -25,8 +25,6 @@ namespace plansys2
 
         /* método para executar o trabalho */
         void do_work() override;
-        
-        Goal get_goal();
 
     private:
         /* Método para obter o objetivo atual */
