@@ -269,7 +269,7 @@ void set_auto(const rclcpp::Node::SharedPtr &node)
 
 
 
-void arm(rclcpp::Node::SharedPtr &node)
+void arm(const std::shared_ptr<rclcpp::Node>& node)
 {
     auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
     auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
