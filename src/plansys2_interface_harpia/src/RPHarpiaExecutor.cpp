@@ -671,6 +671,11 @@ namespace plansys2{
         send_feedback(feedback->completion, "Starting execution");
     }
 
+    struct NamedGeoPoint {
+    std::string name;
+    geographic_msgs::msg::GeoPoint geo_point;
+    };
+
     void RPHarpiaExecutor::do_work()
     {
         auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
@@ -709,7 +714,7 @@ namespace plansys2{
                         // Implementar a lógica da ação
                         mission.Ended = false;
                         //GeoPoint from, to;
-                        geographic_msgs::msg::GeoPoint from, to;
+                        NamedGeoPoint from, to;
                         interfaces::msg::RegionPoint r_from, r_to;
                         mavros_msgs::msg::WaypointList route;
 
