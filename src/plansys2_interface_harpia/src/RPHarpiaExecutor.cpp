@@ -652,7 +652,8 @@ void mySigintHandler(int)
 
 /*--------------------------------------------*/
 /*--------------------------------------------*/
-namespace plansys2{
+namespace plansys2
+{
 
     RPHarpiaExecutor::RPHarpiaExecutor()
         : plansys2::ActionExecutorClient("rpharpia_executor", std::chrono::seconds(1))
@@ -671,15 +672,16 @@ namespace plansys2{
         send_feedback(feedback->completion, "Starting execution");
     }
 
-    struct NamedGeoPoint {
-    std::string name;
-    geographic_msgs::msg::GeoPoint geo_point;
+    struct NamedGeoPoint
+    {
+        std::string name;
+        geographic_msgs::msg::GeoPoint geo_point;
     };
 
     void RPHarpiaExecutor::do_work()
     {
         auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
-		send_feedback(0.5, "Executing");
+        send_feedback(0.5, "Executing");
 
         // Finalize a ação com sucesso
         finish(true, 1.0, "Action completed successfully");
@@ -713,7 +715,7 @@ namespace plansys2{
                     {
                         // Implementar a lógica da ação
                         mission.Ended = false;
-                        //GeoPoint from, to;
+                        // GeoPoint from, to;
                         NamedGeoPoint from, to;
                         interfaces::msg::RegionPoint r_from, r_to;
                         mavros_msgs::msg::WaypointList route;
@@ -741,7 +743,6 @@ namespace plansys2{
                                     r_to.geo.latitude, r_to.geo.longitude, r_to.geo.altitude);
 
                         route = calcRoute(r_from, r_to, from.name, to.name, mission.hMission.map, std::static_pointer_cast<rclcpp::Node>(this->shared_from_this()));
-
 
                         // Verificar se está voando
                         while (!drone.current_state.armed && drone.ex_current_state.landed_state != 2)
@@ -776,17 +777,17 @@ namespace plansys2{
                     else
                     {
                         RCLCPP_INFO(this->get_logger(), "NEED TO REPLAN");
+                    }
+                }
+                else
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Failed to call service harpia/mission_fault_mitigation");
                 }
             }
-            else
-            {
-                RCLCPP_ERROR(this->get_logger(), "Failed to call service harpia/mission_fault_mitigation");
-            }
+
+            finish(true, 1.0, "Action completed successfully");
         }
-
-        finish(true, 1.0, "Action completed successfully");
     }
-
 } // namespace plansys2
 
 /*-------------*/
