@@ -3,6 +3,7 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <plansys2_executor/ActionExecutorClient.hpp>
+#include <plansys2_msgs/msg/action_execution_info.hpp>
 
 namespace plansys2
 {
@@ -16,7 +17,21 @@ namespace plansys2
             this->declare_parameter<double>("action_duration", 2.0);
         }
 
-        void do_work() override;
+        void do_work() override
+        {
+            // Crie um feedback
+            auto feedback = std::make_shared<plansys2_msgs::msg::ActionExecutionInfo>();
+            feedback->status = plansys2_msgs::msg::ActionExecutionInfo::EXECUTING;
+            feedback->completion = 0.5;
+
+            // Envie o feedback usando os valores apropriados
+            send_feedback(feedback->completion, "Executing");
+
+            // Adicione sua lógica de execução aqui
+
+            // Finalize a ação com sucesso
+            finish(true, 1.0, "Action completed successfully");
+        }
     };
 
 } // namespace plansys2
