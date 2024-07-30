@@ -759,14 +759,14 @@ namespace plansys2{
                         }
                         std::this_thread::sleep_for(std::chrono::seconds(20));
 
-                        set_auto();
+                        set_auto(node);
 
                         while (!mission.Ended)
                         {
                             std::this_thread::sleep_for(std::chrono::seconds(10));
                         }
 
-                        set_loiter();
+                        set_loiter(node);
                         std::this_thread::sleep_for(std::chrono::seconds(10));
 
                         RCLCPP_INFO(this->get_logger(), "PLANSYS2: (%s) HarpiaExecutor Action completing.", msg->action.c_str());
