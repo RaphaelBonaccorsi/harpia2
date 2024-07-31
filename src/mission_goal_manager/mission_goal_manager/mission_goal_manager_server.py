@@ -20,7 +20,6 @@ from std_srvs.srv import Empty
 
 # Importação para mensagens do PlanSys2
 from plansys2_msgs.srv import GetPlan, AddProblemGoal, GetProblem, ClearProblemKnowledge, RemoveProblemGoal, AddProblem, GetProblemGoal, GetStates
-from plansys2_msgs.msg import Problem
 
 from diagnostic_msgs.msg import KeyValue
 
@@ -674,7 +673,7 @@ def get_knowledge(node, name, service_topic):
 
     result = future.result()
     if result is not None:
-        return result.problem  # Adjust based on actual result structure
+        return result.problem  
     else:
         node.get_logger().info('Failed to retrieve knowledge')
         return None
