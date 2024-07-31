@@ -43,7 +43,7 @@ def generate_launch_description():
         ),
         Node(
             package='plansys2_problem_expert',
-            executable='problem_expert',
+            executable='problem_expert_node',
             name='plansys2_problem_expert',
             output='screen',
             parameters=[{
