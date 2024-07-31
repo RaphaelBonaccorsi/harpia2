@@ -1375,7 +1375,7 @@ def send_route(route):
 
 def main(args=None):
     rclpy.init()
-    node = Node()
+    node = Node("mission_goal_manager_server")
     node.create_subscription(String, '/harpia/control/kill_mission', control_callback)
     server = ActionServer(node)
     server.run()
