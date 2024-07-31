@@ -63,7 +63,7 @@ def generate_launch_description():
         ),
         Node(
             package='plansys2_executor',
-            executable='executor',
+            executable='executor_node',
             name='plansys2_executor',
             output='screen',
             parameters=[{
