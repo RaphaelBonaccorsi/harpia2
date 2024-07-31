@@ -6,6 +6,7 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     px4_path = LaunchConfiguration('px4_path', default='/home/harpia/PX4-Autopilot/build/px4_sitl_default/bin/px4')
+    rcS_path = '/home/harpia/PX4-Autopilot/build/px4_sitl_default/etc/init.d-posix/rcS'
 
     return LaunchDescription([
         # Declare arguments
@@ -13,7 +14,7 @@ def generate_launch_description():
 
         # Execute PX4 process
         ExecuteProcess(
-            cmd=[px4_path, 'udp://:14540@localhost:14557'],
+            cmd=[px4_path, rcS_path, 'udp://:14540@localhost:14557'],
             output='screen'
         ),
         Node(
