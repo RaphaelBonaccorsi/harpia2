@@ -154,171 +154,95 @@ class Drone(object):
 # The actionlib package provides tools to create servers that execute long-running goals that can be preempted. 
 # It also provides a client interface in order to send requests to the server.
 
-class ActionServer():
-    """
-    The main class that runs the action server for mission planning.
-
-    Attributes:
-        a_server (actionlib.SimpleActionServer): ROS action server for handling mission planning goals.
-        uav (Drone): Instance of the Drone class representing the UAV.
-        new_goals (List[Goal] or None): List of new goals received from the ChangeMission topic.
-        Mission_Sub (rospy.Subscriber): ROS subscriber for receiving mission updates.
-        Goals_Sub (rospy.Subscriber): ROS subscriber for receiving new goals from the ChangeMission topic.
-        mission (Mission or None): Current mission received from the MissionPlannerActionGoal topic.
-        change_goals (int): Operation code for changing goals received from the ChangeMission topic.
-
-    Methods:
-        mission_callback(data): Callback function for updating the mission attribute.
-        new_goal_callback(data): Callback function for updating the new_goals and change_goals attributes.
-        run(): Initiates the ROS node and starts the mission goal manager service.
-        register_cancel_callback(cancel_cb): Registers a callback function for handling mission cancellation.
-        abort(): Sets the mission status to aborted.
-        succeed(): Sets the mission status to succeeded.
-        execute_cb(data): Callback function for handling mission planning goals.
-
-    """
-
+class MissionGoalManager(Node):
     def __init__(self):
-        """
-        Initializes the ActionServer object.
-        """
+        super().__init__('mission_goal_manager_server')
+        qos_profile = QoSProfile(depth=10)
         self.a_server = ActionServer(
             self,
-            "harpia/mission_goal_manager",
             MissionPlanner,
-            execute_callback=self.execute_cb,
-            auto_start=False
+            'harpia/mission_goal_manager',
+            execute_callback=self.execute_cb
         )
         self.uav = Drone()
         self.new_goals = None
         self.Mission_Sub = self.create_subscription(
-            MissionPlanner.Goal,  # Use the correct goal message type from the action
+            MissionPlanner.Goal,
             '/harpia/mission_goal_manager/goal',
             self.mission_callback,
-            10
+            qos_profile
         )
         self.Goals_Sub = self.create_subscription(
             ChangeMission,
             '/harpia/ChangeMission',
             self.new_goal_callback,
-            10
+            qos_profile
         )
+        self.feedback_pub = self.create_publisher(String, '/harpia/mission_goal_manager/feedback', qos_profile)
         self.mission = None
         self.change_goals = None
 
     def mission_callback(self, data):
-        """
-        Callback function for updating the mission attribute.
-
-        Args:
-            data (MissionPlannerActionGoal): ROS message containing the mission goal.
-
-        Returns:
-            None
-        """
         self.mission = data.goal.mission
 
     def new_goal_callback(self, data):
-        """
-        Callback function for updating the new_goals and change_goals attributes.
-
-        Args:
-            data (ChangeMission): ROS message containing new goals and the operation code.
-
-        Returns:
-            None
-        """
         try:
             self.change_goals = data.op
             self.new_goals = data.goals
-        except:
+        except Exception as e:
+            self.get_logger().error(f"Error in new_goal_callback: {e}")
             self.change_goals = 0
 
     def run(self):
-        rclpy.init()
-        node = rclpy.create_node("mission_goal_manager_server")
-        self.a_server.start()
-        node.get_logger().info("Mission Goal Manager Service Ready")
-        rclpy.spin(node)
+        self.get_logger().info("Mission Goal Manager Service Ready")
+        rclpy.spin(self)
 
     def register_cancel_callback(self, cancel_cb):
-        """
-        Registers a callback function for handling mission cancellation.
-
-        Args:
-            cancel_cb: Callback function for mission cancellation.
-
-        Returns:
-            None
-        """
-        # Make sure to use the correct result type or remove this if not needed
-        self.a_server.set_aborted(MissionPlanner.Result())  # Use the correct result type
+        self.a_server.set_aborted(MissionPlanner.Result())
 
     def abort(self):
-        """
-        Sets the mission status to aborted.
-
-        Returns:
-            None
-        """
-        # Make sure to use the correct result type or remove this if not needed
-        self.a_server.set_aborted(MissionPlanner.Result())  # Use the correct result type
+        self.a_server.set_aborted(MissionPlanner.Result())
 
     def succeed(self):
-        """
-        Sets the mission status to succeeded.
+        self.a_server.set_succeeded(MissionPlanner.Result())
 
-        Returns:
-            None
-        """
-        # Make sure to use the correct result type or remove this if not needed
-        self.a_server.set_succeeded(MissionPlanner.Result())  # Use the correct result type
+    def execute_cb(self, goal_handle):
+        self.get_logger().info(f"EXECUTE - MissionGoalManager with op {goal_handle.request.op}")
 
-    def execute_cb(self, data):
-        """
-        Callback function for handling mission planning goals.
-
-        Args:
-            data (MissionPlannerAction): ROS message containing the mission planning goal.
-
-        Returns:
-            None
-        """
-        self.get_logger().info(f"EXECUTE - MissionGoalManager with op {data.op}")
-
-        if data.op == OP_UPDATE_KNOWLEDGE_BASE:
-            update_knowledge_base(data.mission.uav, data.mission.map, data.mission.goals, "base_1")
-        elif data.op == OP_REPLAN:
+        if goal_handle.request.op == OP_UPDATE_KNOWLEDGE_BASE:
+            update_knowledge_base(goal_handle.request.mission.uav, goal_handle.request.mission.map, goal_handle.request.mission.goals, "base_1")
+        elif goal_handle.request.op == OP_REPLAN:
             self.get_logger().info("REPLAN - MissionGoalManager")
-            replan(data.mission)
-        elif data.op == OP_ADD_RM_GOALS:
+            replan(goal_handle.request.mission)
+        elif goal_handle.request.op == OP_ADD_RM_GOALS:
             self.get_logger().error("ADD/RM GOALS - MissionGoalManager")
-            replan(data.mission)
+            replan(goal_handle.request.mission)
             return
 
-        feedback_msg = CompletePlan()  # Use the chosen message type for feedback
-        # Populate feedback_msg with relevant information if necessary
+        feedback_msg = String()
+        feedback_msg.data = "Processing mission"
         self.feedback_pub.publish(feedback_msg)
 
         while not call_mission_planning() or self.change_goals:
             if self.change_goals:
-                print('MISSION GOAL Manager CANCEL')
-                feedback_msg.status = 1
-                self.a_server.publish_feedback(feedback_msg)
+                self.get_logger().info('MISSION GOAL Manager CANCEL')
+                feedback_msg.data = 'Canceling mission goal'
+                self.feedback_pub.publish(feedback_msg)
+                goal_handle.publish_feedback(feedback_msg)
                 op = self.change_goals
                 self.change_goals = None
-                replan(self.mission, self.uav, None, self.new_goals, op)
+                replan(goal_handle.request.mission, self.uav, None, self.new_goals, op)
             elif not wait_until(lambda: self.uav.battery is not None, msg="Waiting for UAV battery..."):
                 self.abort()
                 return
 
             if self.uav.battery <= 20:
-                base = go_to_base(data.mission, self.uav)
-                replan(self.mission, self.uav, base, None, 0)
+                base = go_to_base(goal_handle.request.mission, self.uav)
+                replan(goal_handle.request.mission, self.uav, base, None, 0)
             else:
-                replan(self.mission, self.uav, None, None, 0)
-            feedback_msg.status = 0
-            self.a_server.publish_feedback(feedback_msg)
+                replan(goal_handle.request.mission, self.uav, None, None, 0)
+            feedback_msg.data = 'Mission ongoing'
+            goal_handle.publish_feedback(feedback_msg)
             self.change_goals = 0
 
         land()
@@ -1375,11 +1299,8 @@ def send_route(route):
 
 def main(args=None):
     rclpy.init()
-    node = Node("mission_goal_manager_server")
-    node.create_subscription(String, '/harpia/control/kill_mission', control_callback, 10)
-    server = ActionServer(node)
-    server.run()
-    rclpy.spin(node)
+    node = MissionGoalManager()
+    node.run()
     rclpy.shutdown()
 
 if __name__ == "__main__":
