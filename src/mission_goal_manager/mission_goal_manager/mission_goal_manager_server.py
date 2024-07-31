@@ -20,13 +20,15 @@ from std_srvs.srv import Empty
 
 # Importação para mensagens do PlanSys2
 from plansys2_msgs.srv import GetPlan, AddProblemGoal, GetProblem, ClearProblemKnowledge, RemoveProblemGoal, AddProblem, GetProblemGoal, GetStates
+from plansys2_msgs.action import ExecutePlan
 
 from diagnostic_msgs.msg import KeyValue
 
 from std_msgs.msg import String
 
-from interfaces.msg import ChangeMission, MissionPlannerAction, MissionPlannerGoal, MissionPlannerFeedback, MissionPlannerResult, Mission, MissionPlannerActionGoal
+from interfaces.msg import ChangeMission, Mission, CompletePlan
 from interfaces.srv import PathPlanning
+from interfaces.action import MissionPlanner
 
 
 from mavros_msgs.msg import *
@@ -182,14 +184,14 @@ class ActionServer():
         self.a_server = ActionServer(
             self,
             "harpia/mission_goal_manager",
-            MissionPlannerAction,
+            MissionPlanner,
             execute_callback=self.execute_cb,
             auto_start=False
         )
         self.uav = Drone()
         self.new_goals = None
         self.Mission_Sub = self.create_subscription(
-            MissionPlannerActionGoal,
+            MissionPlanner.Goal,  # Use the correct goal message type from the action
             '/harpia/mission_goal_manager/goal',
             self.mission_callback,
             10
@@ -248,7 +250,8 @@ class ActionServer():
         Returns:
             None
         """
-        self.a_server.set_aborted(MissionPlannerResult())
+        # Make sure to use the correct result type or remove this if not needed
+        self.a_server.set_aborted(MissionPlanner.Result())  # Use the correct result type
 
     def abort(self):
         """
@@ -257,7 +260,8 @@ class ActionServer():
         Returns:
             None
         """
-        self.a_server.set_aborted(MissionPlannerResult())
+        # Make sure to use the correct result type or remove this if not needed
+        self.a_server.set_aborted(MissionPlanner.Result())  # Use the correct result type
 
     def succeed(self):
         """
@@ -266,7 +270,8 @@ class ActionServer():
         Returns:
             None
         """
-        self.a_server.set_succeeded(MissionPlannerResult())
+        # Make sure to use the correct result type or remove this if not needed
+        self.a_server.set_succeeded(MissionPlanner.Result())  # Use the correct result type
 
     def execute_cb(self, data):
         """
@@ -290,7 +295,9 @@ class ActionServer():
             replan(data.mission)
             return
 
-        feedback_msg = MissionPlannerFeedback()
+        feedback_msg = CompletePlan()  # Use the chosen message type for feedback
+        # Populate feedback_msg with relevant information if necessary
+        self.feedback_pub.publish(feedback_msg)
 
         while not call_mission_planning() or self.change_goals:
             if self.change_goals:
@@ -433,7 +440,7 @@ def call_dispatch(node) -> bool:
     """
     return try_call_srv(node, 'planner/execute_plan', ExecutePlan)
 
-def cancel_dispatch(node) -> bool:
+#def cancel_dispatch(node) -> bool:
     """
     Calls the ROS2 service to cancel plan execution in PlanSys2.
 
@@ -999,6 +1006,36 @@ def find_at(map, goals, latitude, longitude):
     return None
 
 
+def remove_instance(node, item) -> bool:
+    """
+    Remove an instance from the PlanSys2 knowledge base.
+
+    Args:
+        node (Node): The ROS2 node instance.
+        item: The item to remove.
+
+    Returns:
+        bool: True if the update was successful, False otherwise.
+    """
+    client = node.create_client(ClearProblemKnowledge, 'problem_expert/clear_knowledge')
+    if not client.wait_for_service(timeout_sec=10.0):
+        node.get_logger().error('Service not available')
+        return False
+
+    request = ClearProblemKnowledge.Request()
+    # Adapt request based on service definition, e.g.,
+    # request.knowledge = item
+    # Make sure the service request is constructed correctly
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    response = future.result()
+
+    if response is not None:
+        return True
+    else:
+        node.get_logger().error('Service call failed')
+        return False
+    
 def find_nearest_base(map, latitude, longitude):
     """
     Finds the nearest base to the given latitude and longitude.
@@ -1051,168 +1088,168 @@ def call_path_planning(r_from, r_to, map):
         return None
 
     # Need to test this function
-    def replan(mission, uav, base, goals, op):
-        """
-        Replans the mission based on the given operation.
+def replan(mission, uav, base, goals, op):
+    """
+    Replans the mission based on the given operation.
 
-        Args:
-            mission (Mission): Mission object containing information about the mission.
-            uav (Drone): UAV object containing information about the UAV.
-            base (Base or None): Base object if the operation is to return home, else None.
-            goals (list): List of goals to be added or removed from the mission.
-            op (int): Operation code (0: continue mission, 1: add goals, 2: remove goals).
+    Args:
+        mission (Mission): Mission object containing information about the mission.
+        uav (Drone): UAV object containing information about the UAV.
+        base (Base or None): Base object if the operation is to return home, else None.
+        goals (list): List of goals to be added or removed from the mission.
+        op (int): Operation code (0: continue mission, 1: add goals, 2: remove goals).
 
-        Returns:
-            None
-        """
-        rclpy.logging.get_logger().info("CANCEL DISPATCH - MissionGoalManager")
+    Returns:
+        None
+    """
+    rclpy.logging.get_logger().info("CANCEL DISPATCH - MissionGoalManager")
 
-        if not wait_until(lambda: mission.goals != [], msg="Waiting for Regions..."):
-            return
-        if not wait_until(lambda: uav.latitude is not None, msg="Waiting for position..."):
-            return
+    if not wait_until(lambda: mission.goals != [], msg="Waiting for Regions..."):
+        return
+    if not wait_until(lambda: uav.latitude is not None, msg="Waiting for position..."):
+        return
 
-        if goals != None:
-            pulverize = regions_to_perform_action(goals, 'pulverize')
-            photo = regions_to_perform_action(goals, 'take_picture')
+    if goals != None:
+        pulverize = regions_to_perform_action(goals, 'pulverize')
+        photo = regions_to_perform_action(goals, 'take_picture')
 
-        if base == None:
-            # Here we want to continue the mission.
-            # at_move = get_predicate("at-move")
-            at = get_predicate("at")
+    if base == None:
+        # Here we want to continue the mission.
+        # at_move = get_predicate("at-move")
+        at = get_predicate("at")
 
-            # rospy.loginfo(f"at={at}")
-            # rospy.loginfo(f"len at_={len(at.attributes)}")
+        # rospy.loginfo(f"at={at}")
+        # rospy.loginfo(f"len at_={len(at.attributes)}")
 
-            if len(at.attributes) == 0:
-                # if len(at_move.attributes) > 0:
-                # remove_instance(at_move.attributes[0])
+        if len(at.attributes) == 0:
+            # if len(at_move.attributes) > 0:
+            # remove_instance(at_move.attributes[0])
 
-                # codigo achar at
-                base_or_region_nearby = find_at(mission.map, mission.goals, uav.latitude, uav.longitude)
-                if base_or_region_nearby != None:
-                    # We are at a base or a region.
-                    rclpy.logging.get_logger().info(f'at = {base_or_region_nearby}')
-                    at = create_predicate("at", [KeyValue("region", base_or_region_nearby.name)])
-                else:
-                    # for updates on the mission while on the move, I created a new auxiliar region to start the plan
-                    # add new region to problem
-                    add_instance(create_object("aux", "region"))
-                    add_instance(create_predicate("its-not-base", [KeyValue("region", "aux")]))
-                    set_distances(mission.map, mission.goals, uav.latitude, uav.longitude)
-
-                    at = create_predicate("at", [KeyValue("region", "aux")])
+            # codigo achar at
+            base_or_region_nearby = find_at(mission.map, mission.goals, uav.latitude, uav.longitude)
+            if base_or_region_nearby != None:
+                # We are at a base or a region.
+                rclpy.logging.get_logger().info(f'at = {base_or_region_nearby}')
+                at = create_predicate("at", [KeyValue("region", base_or_region_nearby.name)])
             else:
-                at = at.attributes[0]
+                # for updates on the mission while on the move, I created a new auxiliar region to start the plan
+                # add new region to problem
+                add_instance(create_object("aux", "region"))
+                add_instance(create_predicate("its-not-base", [KeyValue("region", "aux")]))
+                set_distances(mission.map, mission.goals, uav.latitude, uav.longitude)
+
+                at = create_predicate("at", [KeyValue("region", "aux")])
         else:
-            # We want to go home
-            at_move = get_predicate("at-move")
-            if len(at_move.attributes) > 0:
-                remove_instance(at_move.attributes[0])
+            at = at.attributes[0]
+    else:
+        # We want to go home
+        at_move = get_predicate("at-move")
+        if len(at_move.attributes) > 0:
+            remove_instance(at_move.attributes[0])
 
-            at_kb = get_predicate("at")
-            rclpy.logging.get_logger().info(at_kb)
-            if len(at_kb.attributes) > 0:
-                remove_instance(at_kb.attributes[0])
+        at_kb = get_predicate("at")
+        rclpy.logging.get_logger().info(at_kb)
+        if len(at_kb.attributes) > 0:
+            remove_instance(at_kb.attributes[0])
 
-            rclpy.logging.get_logger().info(f"base = {base}")
-            at = create_predicate("at", [KeyValue("base", base.name)])
+        rclpy.logging.get_logger().info(f"base = {base}")
+        at = create_predicate("at", [KeyValue("base", base.name)])
 
-        add_instance(at)
+    add_instance(at)
 
-        # saving the current total goals to manage goals
-        # f = get_function("total-goals")
-        # total_goals = f.attributes[0].function_value
-        # remove_instance(f.attributes[0])
+    # saving the current total goals to manage goals
+    # f = get_function("total-goals")
+    # total_goals = f.attributes[0].function_value
+    # remove_instance(f.attributes[0])
 
-        bat = get_function("battery-amount")
-        remove_instance(bat.attributes[0])
+    bat = get_function("battery-amount")
+    remove_instance(bat.attributes[0])
 
-        if not wait_until(lambda: uav.battery is not None, msg="Waiting for UAV battery..."):
-            return
+    if not wait_until(lambda: uav.battery is not None, msg="Waiting for UAV battery..."):
+        return
 
-        obj = create_function("battery-amount", uav.battery)
+    obj = create_function("battery-amount", uav.battery)
+    add_instance(obj)
+    # has_end is a variable to verify if a mission has already a designed end
+    has_end = False
+    if op == 0:
+        print("Op 0")
+        # getting current goals and verifying if it already done
+        for goal in get_goal('').attributes:
+            if goal.attribute_name != "at":
+                for goal_achived in get_predicate(goal.attribute_name).attributes:
+                    if goal.values[0].value == goal_achived.values[0].value:
+                        # f.attributes[0].function_value = f.attributes[0].function_value - 1
+                        remove_goal(goal)
+            else:
+                has_end = True
+        # add_instance(create_function("total-goals", total_goals))
+
+    elif op == 1:
+        # add
+        print("Op 1")
+        if pulverize:
+            add_instance(create_predicate("has-pulverize-goal"))
+
+        if photo:
+            add_instance(create_predicate("has-picture-goal"))
+
+        for i in pulverize:
+            add_instance(create_predicate("pulverize-goal", [KeyValue("region", i)]))
+            add_instance(create_function("pulverize-path-len", 314, [KeyValue("region", i)]))
+            add_goal(create_predicate("pulverized", [KeyValue("region", i)]))
+            # total_goals = total_goals + 1
+
+        for i in photo:
+            add_instance(create_predicate("picture-goal", [KeyValue("region", i)]))
+            add_instance(create_function("picture-path-len", 1000, [KeyValue("region", i)]))
+            add_goal(create_predicate("taken-image", [KeyValue("region", i)]))
+            # total_goals = total_goals + 1
+
+        # add_instance(create_function("total-goals", total_goals))
+
+        # add_instance(create_function("total-goals", total_goals))
+        for g in goals:
+            mission.goals.append(g)
+        regions = mission.map.roi
+        pulverize = regions_to_perform_action(mission.goals, 'pulverize')
+        photo = regions_to_perform_action(mission.goals, 'take_picture')
+
+        goals_regions = set(pulverize + photo)
+        bases = mission.map.bases
+        regions_obj = [r for r in regions if r.name in goals_regions] + bases
+
+        for fact in calc_distances(regions_obj):
+            add_instance(fact)
+
+    elif op == 2:
+        print("Op 2")
+        # Remove
+        for goal in get_goal('').attributes:
+            # print(goal)
+            # if goal.attribute_name != "at":
+            # testar regiao e objetivo.
+
+            # for goal_toRemove in goals:
+            # 	print(f"{goal.values[0].value} == {goal_toRemove.region}")
+            # 	print(f"{goal.attribute_name} == {goal_toRemove.action}")
+            if goal.attribute_name == 'taken-image':
+                for goal_toRemove in photo:
+                    if goal.values[0].value == goal_toRemove:
+                        # f.attributes[0].function_value = f.attributes[0].function_value - 1
+                        # print(goal)
+                        remove_goal(goal)
+            elif goal.attribute_name == 'pulverized':
+                for goal_toRemove in pulverize:
+                    if goal.values[0].value == goal_toRemove:
+                        # f.attributes[0].function_value = f.attributes[0].function_value - 1
+                        # print(goal)
+                        remove_goal(goal)
+            else:
+                print('not implemented yet')
+
+        # print(obj)
         add_instance(obj)
-        # has_end is a variable to verify if a mission has already a designed end
-        has_end = False
-        if op == 0:
-            print("Op 0")
-            # getting current goals and verifying if it already done
-            for goal in get_goal('').attributes:
-                if goal.attribute_name != "at":
-                    for goal_achived in get_predicate(goal.attribute_name).attributes:
-                        if goal.values[0].value == goal_achived.values[0].value:
-                            # f.attributes[0].function_value = f.attributes[0].function_value - 1
-                            remove_goal(goal)
-                else:
-                    has_end = True
-            # add_instance(create_function("total-goals", total_goals))
-
-        elif op == 1:
-            # add
-            print("Op 1")
-            if pulverize:
-                add_instance(create_predicate("has-pulverize-goal"))
-
-            if photo:
-                add_instance(create_predicate("has-picture-goal"))
-
-            for i in pulverize:
-                add_instance(create_predicate("pulverize-goal", [KeyValue("region", i)]))
-                add_instance(create_function("pulverize-path-len", 314, [KeyValue("region", i)]))
-                add_goal(create_predicate("pulverized", [KeyValue("region", i)]))
-                # total_goals = total_goals + 1
-
-            for i in photo:
-                add_instance(create_predicate("picture-goal", [KeyValue("region", i)]))
-                add_instance(create_function("picture-path-len", 1000, [KeyValue("region", i)]))
-                add_goal(create_predicate("taken-image", [KeyValue("region", i)]))
-                # total_goals = total_goals + 1
-
-            # add_instance(create_function("total-goals", total_goals))
-
-            # add_instance(create_function("total-goals", total_goals))
-            for g in goals:
-                mission.goals.append(g)
-            regions = mission.map.roi
-            pulverize = regions_to_perform_action(mission.goals, 'pulverize')
-            photo = regions_to_perform_action(mission.goals, 'take_picture')
-
-            goals_regions = set(pulverize + photo)
-            bases = mission.map.bases
-            regions_obj = [r for r in regions if r.name in goals_regions] + bases
-
-            for fact in calc_distances(regions_obj):
-                add_instance(fact)
-
-        elif op == 2:
-            print("Op 2")
-            # Remove
-            for goal in get_goal('').attributes:
-                # print(goal)
-                # if goal.attribute_name != "at":
-                # testar regiao e objetivo.
-
-                # for goal_toRemove in goals:
-                # 	print(f"{goal.values[0].value} == {goal_toRemove.region}")
-                # 	print(f"{goal.attribute_name} == {goal_toRemove.action}")
-                if goal.attribute_name == 'taken-image':
-                    for goal_toRemove in photo:
-                        if goal.values[0].value == goal_toRemove:
-                            # f.attributes[0].function_value = f.attributes[0].function_value - 1
-                            # print(goal)
-                            remove_goal(goal)
-                elif goal.attribute_name == 'pulverized':
-                    for goal_toRemove in pulverize:
-                        if goal.values[0].value == goal_toRemove:
-                            # f.attributes[0].function_value = f.attributes[0].function_value - 1
-                            # print(goal)
-                            remove_goal(goal)
-                else:
-                    print('not implemented yet')
-
-            # print(obj)
-            add_instance(obj)
 
 def go_to_base(mission, uav):
     """
