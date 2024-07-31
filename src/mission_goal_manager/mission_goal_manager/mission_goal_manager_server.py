@@ -17,6 +17,7 @@ from rclpy.node import Node
 from rclpy.action import ActionServer
 import psutil
 from std_srvs.srv import Empty
+from rclpy.qos import QoSProfile
 
 # Importação para mensagens do PlanSys2
 from plansys2_msgs.srv import GetPlan, AddProblemGoal, GetProblem, ClearProblemKnowledge, RemoveProblemGoal, AddProblem, GetProblemGoal, GetStates
