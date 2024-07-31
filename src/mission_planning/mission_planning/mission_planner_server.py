@@ -19,7 +19,6 @@ from itertools import count
 from std_srvs.srv import Empty
 
 # Plansys 2 imports
-from plansys2_msgs.msg import CompletePlan
 from plansys2_msgs.srv import GetProblem, GetPlan
 from plansys2_msgs.action import ExecutePlan
 
@@ -128,17 +127,15 @@ class Plan(Node):
         The complete plan received from the 'plansys2/complete_plan' topic.
     """
     def __init__(self):
-        """
-        Initializes the Plan node and creates the subscription.
+    """
+        Initializes the Plan node and creates the action client.
         """
         super().__init__('plan')
-        self.sub = self.create_subscription(
-            CompletePlan,
-            'plansys2/complete_plan',
-            self.plan_callback,
-            10
-        )
-        self.plan = CompletePlan()
+        self.action_client = ActionClient(self, ExecutePlan, 'plansys2/execute_plan')
+        self.current_goal = None
+
+        # Send a request to get the current goal or plan
+        self.send_goal_request()
 
     def plan_callback(self, data):
         """
