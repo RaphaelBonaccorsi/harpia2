@@ -72,7 +72,7 @@ def generate_launch_description():
         ),
         Node(
             package='plansys2_domain_expert',
-            executable='domain_expert',
+            executable='domain_expert_node',
             name='plansys2_domain_expert',
             output='screen',
             parameters=[{
