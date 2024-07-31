@@ -19,10 +19,8 @@ import psutil
 from std_srvs.srv import Empty
 
 # Importação para mensagens do PlanSys2
-from plansys2_msgs.srv import GetPlan, AddProblemGoal, AddProblemInstance, AddProblemPredicate, AddProblemFunction
-from plansys2_msgs.srv import GetProblem, ExecutePlan, CancelExecution, RemoveProblemInstance, RemoveProblemPredicate, RemoveProblemFunction
-
-
+from plansys2_msgs.srv import GetPlan, AddProblemGoal, GetProblem, ClearProblemKnowledge, RemoveProblemGoal, AddProblem, GetProblemGoal, GetStates
+from plansys2_msgs.msg import Problem
 
 from diagnostic_msgs.msg import KeyValue
 
@@ -565,34 +563,39 @@ def call_clear(node) -> bool:
     Returns:
         bool: True if the service call was successful, False otherwise.
     """
-    return try_update_knowledge(node, 'problem_expert/clear', Empty, None)
+    return try_update_knowledge(node, 'problem_expert/clear_problem_knowledge', ClearProblemKnowledge, None)
 
-def add_instance(node, item) -> bool:
+def add_instance(node, instance_name: str, instance_type: str) -> bool:
     """
-    Add an instance to the PlanSys2 knowledge base.
+    Adiciona uma instância ao conhecimento do PlanSys2.
 
     Args:
-        node (Node): The ROS2 node instance.
-        item: The item to add.
+        node (Node): A instância do nó ROS2.
+        instance_name (str): O nome da instância a ser adicionada.
+        instance_type (str): O tipo da instância a ser adicionada.
 
     Returns:
-        bool: True if the update was successful, False otherwise.
+        bool: True se a atualização foi bem-sucedida, False caso contrário.
     """
-    return try_update_knowledge(node, 'problem_expert/add_problem_instance', AddProblemInstance, item)
+    client = node.create_client(AddProblem, 'problem_expert/add_problem')
+    
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
+    
+    request = AddProblem.Request()
+    request.problem_instance.name = instance_name
+    request.problem_instance.type = instance_type
 
-def remove_instance(node, item) -> bool:
-    """
-    Remove an instance from the PlanSys2 knowledge base.
-
-    Args:
-        node (Node): The ROS2 node instance.
-        item: The item to remove.
-
-    Returns:
-        bool: True if the update was successful, False otherwise.
-    """
-    return try_update_knowledge(node, 'problem_expert/remove_problem_instance', RemoveProblemInstance, item)
-
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    
+    if future.result() is not None:
+        node.get_logger().info('Instance added successfully.')
+        return True
+    else:
+        node.get_logger().error('Failed to call service problem_expert/add_problem')
+        return False
+    
 def add_goal(node, item) -> bool:
     """
     Add a goal to the PlanSys2 knowledge base.
@@ -604,7 +607,7 @@ def add_goal(node, item) -> bool:
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(node, 'problem_expert/add_problem_goal', AddProblemPredicate, item)
+    return try_update_knowledge(node, 'problem_expert/add_problem_goal', AddProblemGoal, item)
 
 def remove_goal(node, item) -> bool:
     """
@@ -617,7 +620,7 @@ def remove_goal(node, item) -> bool:
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(node, 'problem_expert/remove_problem_goal', RemoveProblemPredicate, item)
+    return try_update_knowledge(node, 'problem_expert/remove_problem_goal', RemoveProblemGoal, item)
 
 def add_metric(node, item) -> bool:
     """
@@ -625,12 +628,27 @@ def add_metric(node, item) -> bool:
 
     Args:
         node (Node): The ROS2 node instance.
-        item: The item to add.
+        item (Problem): The item to add.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(node, 'problem_expert/add_problem_function', AddProblemFunction, item)
+    client = node.create_client(AddProblem, 'problem_expert/add_problem')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
+
+    request = AddProblem.Request()
+    request.problem = item  # Ensure item is an instance of Problem
+
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    
+    if future.result() is not None:
+        node.get_logger().info('Metric added successfully.')
+        return True
+    else:
+        node.get_logger().error('Failed to call service problem_expert/add_problem')
+        return False
 
 def get_knowledge(node, name, service_topic):
     """
@@ -663,16 +681,31 @@ def get_knowledge(node, name, service_topic):
 
 def get_function(node, function_name):
     """
-    Get a function from the PlanSys2 knowledge base.
+    Get a function-like entity from the PlanSys2 knowledge base.
 
     Args:
         node (Node): The ROS2 node instance.
         function_name: The name of the function to retrieve.
 
     Returns:
-        KnowledgeItem: The function retrieved from the knowledge base.
+        Problem: The function-like entity retrieved from the knowledge base.
     """
-    return get_knowledge(node, function_name, 'problem_expert/get_function')
+    client = node.create_client(GetProblem, 'problem_expert/get_problem')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
+
+    request = GetProblem.Request()
+    request.name = function_name
+
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    
+    if future.result() is not None:
+        node.get_logger().info('Function retrieved successfully.')
+        return future.result().problem
+    else:
+        node.get_logger().error('Failed to call service problem_expert/get_problem')
+        return None
 
 def get_goal(node, goal_name):
     """
@@ -683,10 +716,21 @@ def get_goal(node, goal_name):
         goal_name: The name of the goal to retrieve.
 
     Returns:
-        KnowledgeItem: The goal retrieved from the knowledge base.
+        str: The goal PDDL retrieved from the knowledge base.
     """
-    return get_knowledge(node, goal_name, 'problem_expert/get_goal')
+    client = node.create_client(GetProblemGoal, 'problem_expert/get_problem_goal')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
 
+    request = GetProblemGoal.Request()
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    if future.result() is not None:
+        return future.result().goal
+    else:
+        node.get_logger().error('Failed to call service problem_expert/get_problem_goal')
+        return None
+    
 def get_predicate(node, predicate_name):
     """
     Get a predicate from the PlanSys2 knowledge base.
@@ -696,9 +740,22 @@ def get_predicate(node, predicate_name):
         predicate_name: The name of the predicate to retrieve.
 
     Returns:
-        KnowledgeItem: The predicate retrieved from the knowledge base.
+        list: A list of predicates retrieved from the knowledge base.
     """
-    return get_knowledge(node, predicate_name, 'problem_expert/get_predicate')
+    client = node.create_client(GetStates, 'problem_expert/get_states')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
+
+    request = GetStates.Request()
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    if future.result() is not None:
+        # Filter predicates by name
+        predicates = [state for state in future.result().states if state.name == predicate_name]
+        return predicates
+    else:
+        node.get_logger().error('Failed to call service problem_expert/get_states')
+        return []
 
 def create_object(item_name, item_type):
     """
