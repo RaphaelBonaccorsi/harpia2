@@ -84,67 +84,27 @@ def control_callback(data):
 	Classes to subscribe and publish services
 '''
 
-class Drone(object):
+class Drone(Node):
     def __init__(self):
-        """
-        Initializes a Drone object.
-
-        Subscribes to relevant ROS topics for receiving global position, battery state, and mission reached information.
-
-        Attributes:
-            sub_position (rclpy.Subscription): ROS subscriber for global position updates (sensor_msgs.msg.NavSatFix).
-            sub_battery (rclpy.Subscription): ROS subscriber for battery state updates (sensor_msgs.msg.BatteryState).
-            sub_mission (rclpy.Subscription): ROS subscriber for mission reached updates (interfaces.msg.WaypointReached).
-            latitude (float): Current latitude of the drone.
-            longitude (float): Current longitude of the drone.
-            battery (float): Current battery percentage of the drone.
-            current (int): Current waypoint reached in the mission.
-        """
-        self.sub_position = self.create_subscription(NavSatFix, 'mavros/global_position/global', self.global_position_callback, 10)
-        self.sub_battery = self.create_subscription(BatteryState, 'mavros/battery', self.battery_state_callback, 10)
-        self.sub_mission = self.create_subscription(WaypointReached, 'mavros/mission/reached', self.reached_callback, 10)
+        super().__init__('drone_node')
+        qos_profile = QoSProfile(depth=10)
+        self.sub_position = self.create_subscription(NavSatFix, 'mavros/global_position/global', self.global_position_callback, qos_profile)
+        self.sub_battery = self.create_subscription(BatteryState, 'mavros/battery', self.battery_state_callback, qos_profile)
+        self.sub_mission = self.create_subscription(WaypointReached, 'mavros/mission/reached', self.reached_callback, qos_profile)
         self.latitude = None
         self.longitude = None
         self.battery = None
         self.current = None
 
     def global_position_callback(self, data):
-        """
-        Callback function for updating the drone's global position.
-
-        Args:
-            data (NavSatFix): ROS message containing global position information.
-
-        Returns:
-            None
-        """
         self.latitude = data.latitude
         self.longitude = data.longitude
 
     def battery_state_callback(self, data):
-        """
-        Callback function for updating the drone's battery state.
-
-        Args:
-            data (BatteryState): ROS message containing battery state information.
-
-        Returns:
-            None
-        """
         self.battery = data.percentage * 100
 
     def reached_callback(self, data):
-        """
-        Callback function for updating the drone's current waypoint in the mission.
-
-        Args:
-            data (WaypointReached): ROS message containing information about the reached waypoint.
-
-        Returns:
-            None
-        """
         self.current = data.wp_seq + 1
-
 
 # Faz parte do actionlib: 
 # In any large ROS based system, there are cases when someone would like to send a request to a node to perform some task,
