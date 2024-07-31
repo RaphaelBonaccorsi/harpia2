@@ -26,7 +26,7 @@ from diagnostic_msgs.msg import KeyValue
 
 from std_msgs.msg import String
 
-from interfaces.msg import ChangeMission, Mission, CompletePlan
+from interfaces.msg import ChangeMission, Mission, CompletePlan, GoalID
 from interfaces.srv import PathPlanning
 from interfaces.action import MissionPlanner
 
@@ -38,7 +38,7 @@ from sensor_msgs.msg import *
 from geographic_msgs.msg import *
 from geometry_msgs.msg import *
 
-from action_msgs.msg import GoalStatusArray, GoalID
+from action_msgs.msg import GoalStatusArray
 
 ## ----- Variáveis de controle -----
 
