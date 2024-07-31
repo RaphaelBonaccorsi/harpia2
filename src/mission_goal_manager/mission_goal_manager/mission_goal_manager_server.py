@@ -1373,14 +1373,11 @@ def send_route(route):
     )
 
 def main(args=None):
-    rclpy.init(args=args)
-    
-    node = Node('mission_goal_manager')
-    node.create_subscription(String, '/harpia/control/kill_mission', control_callback, 10)
-    
+    rclpy.init()
+    node = Node()
+    node.create_subscription(String, '/harpia/control/kill_mission', control_callback)
     server = ActionServer(node)
     server.run()
-    
     rclpy.spin(node)
     rclpy.shutdown()
 
