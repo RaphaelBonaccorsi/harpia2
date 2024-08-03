@@ -28,7 +28,7 @@ Harpia 2 is the ROS 2 version of the Harpia system for UAV mission and path plan
 - `sudo apt install git`
 - `sudo pip3 install git+https://github.com/colcon/colcon-common-extensions`
 - `sudo -H pip3 install --upgrade pip`
-- `pip install pyAgrum termcolor toml empy packaging jinja2 rospkg pandas pyproj shapely spicy scikit-learn psutil install future testresources kconfiglib jsonschema sympy==1.7.1 graphviz lxml  seaborn keras tensorflow pyspark plotly cloudpickle jupyter jupyterlab pyros-genmsg`
+- `pip install pyAgrum termcolor toml empy packaging jinja2 rospkg pandas pyproj shapely spicy scikit-learn psutil future testresources kconfiglib jsonschema sympy==1.7.1 graphviz lxml  seaborn keras tensorflow pyspark plotly cloudpickle jupyter jupyterlab pyros-genmsg`
 
 ### ROS 2 Installation
 
