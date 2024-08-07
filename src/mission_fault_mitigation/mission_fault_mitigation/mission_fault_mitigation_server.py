@@ -12,10 +12,7 @@ import math # Probably useless
 # import rosnode, psutil # Probably useless
 # from std_srvs.srv import Empty
 
-#from rosplan_knowledge_msgs.srv import *
-#from rosplan_knowledge_msgs.msg import *
-#from rosplan_dispatch_msgs.msg import *
-#from rosplan_dispatch_msgs.srv import *
+from plansys2_msgs.action import ExecutePlan
 
 #from harpia_msgs.msg import *
 #from harpia_msgs.srv import *
@@ -59,7 +56,7 @@ class Plan(object):
     """
     def __init__(self):
         self.sub = rclpy.create_node("plan_subscriber")
-        self.sub.create_subscription(CompletePlan, "rosplan_parsing_interface/complete_plan", self.plan_callback, 10)
+        self.sub.create_subscription(CompletePlan, "/executor/execute_plan", self.plan_callback, 10)
         self.plan = CompletePlan()
 
     def plan_callback(self, data):
