@@ -8,10 +8,8 @@ from rclpy.exceptions import ROSInterruptException
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.qos import QoSProfile
+from action_msgs.msg import GoalStatus
 
-
-
-from actionlib_msgs.msg import GoalStatus
 import sys, select
 
 import math
@@ -20,8 +18,6 @@ import time
 import os
 import argparse
 from std_srvs.srv import Empty
-#from rosplan_knowledge_msgs.srv import *
-#from rosplan_knowledge_msgs.msg import *
 
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
@@ -32,7 +28,7 @@ from mavros_msgs.srv import CommandHome
 # Brings in the messages used by the fibonacci action, including the
 # goal message and the result message.
 from interfaces.srv import *
-from interfaces.msg import *
+from interfaces.msg import Map, Region, RegionPoint, GeoPoint, UAV, Goal, ChangeMission, Point, Mission
 from interfaces.action import *
 
 feedback = 0
@@ -77,8 +73,11 @@ def geo_to_cart(geo_point, geo_home):
 
     x = calc_x(geo_point.longitude, geo_home.longitude, geo_home.latitude)
     y = calc_y(geo_point.latitude, geo_home.latitude)
-
-    return Point(x, y, geo_point.altitude)
+    point = Point()
+    point.x = x
+    point.y = y
+    point.z = geo_point.altitude
+    return point
 
 def file_check_id(fname):
     """
@@ -211,20 +210,27 @@ def test_client(node, hardware, map, mission, mission_file):
     goal.op = 0
     goal.mission = get_objects(hardware, map, mission)
 
-    client.send_goal_async(goal, feedback_callback=feedback_callback)
-    home_position_setter = HomePositionSetter()
-    home_position_setter.set_home_position(goal.mission.uav.home.latitude, goal.mission.uav.home.longitude, goal.mission.uav.home.altitude)
-    home_position_setter.destroy_node()
+    future = client.send_goal_async(goal, feedback_callback=feedback_callback)
+    rclpy.spin_until_future_complete(node, future)
+    goal_handle = future.result()
+
+    if not goal_handle.accepted:
+        node.get_logger().info('Goal rejected')
+        return
+
+    result_future = goal_handle.get_result_async()
+
+    set_home_position(goal.mission.uav.home.latitude, goal.mission.uav.home.longitude, goal.mission.uav.home.altitude)
 
     print("ADD GOAL   -> 1")
     print("REMOVE GOAL -> 2")
     print("mission_id goal_op")
 
-    while client.get_state() in [GoalStatus.PENDING, GoalStatus.ACTIVE]:
+    while goal_handle.status in [GoalStatus.STATUS_ACCEPTED, GoalStatus.STATUS_EXECUTING]:
         pub.publish(goal.mission)
         pub3.publish(goal.mission.uav)
         i, o, e = select.select([sys.stdin], [], [], 1)
-        if(i):
+        if i:
             mission_id, goal_op = sys.stdin.readline().strip().split()
             msg = ChangeMission()
             msg.op = int(goal_op)
@@ -238,7 +244,7 @@ def test_client(node, hardware, map, mission, mission_file):
             for _ in range(30):
                 pub2.publish(msg)
 
-            print("Mission: " + str(mission_id)+ " Operation: "+str(goal_op))
+            print("Mission: " + str(mission_id) + " Operation: " + str(goal_op))
 
         if rclpy.is_shutdown():
             node.get_logger().warn("Shutting down test_client before mission completion")
@@ -246,7 +252,8 @@ def test_client(node, hardware, map, mission, mission_file):
 
         rclpy.spin_once(node, executor=executor)
 
-    return client.get_result_async()
+    return result_future.result()
+
 
 '''
     Hello again my brave friend,
@@ -261,7 +268,7 @@ def test_client(node, hardware, map, mission, mission_file):
 
 '''
 
-def get_regions(tag, home):
+def get_regions(map, tag, home):
     """
     Converts a list of regions from a map into a list of Region objects.
 
@@ -269,6 +276,8 @@ def get_regions(tag, home):
 
     Parameters
     ----------
+    map : dict
+        The map containing regions.
     tag : str
         The tag of the regions to get from the map.
     home : GeoPoint
@@ -287,18 +296,16 @@ def get_regions(tag, home):
         region.name = r["name"]
         region.center.geo.latitude = r["center"][1]
         region.center.geo.longitude = r["center"][0]
-        region.center.geo.altitude = r["center"][2]
+        region.center.geo.altitude = float(r["center"][2])
 
         region.center.cartesian = geo_to_cart(region.center.geo, home)
-
-
 
         for p in r["geo_points"]:
             point = RegionPoint()
 
             point.geo.latitude = p[1]
-            point.geo.longitude =p[0]
-            point.geo.altitude = p[2]
+            point.geo.longitude = p[0]
+            point.geo.altitude = float(p[2])
 
             point.cartesian = geo_to_cart(point.geo, home)
 
@@ -391,12 +398,12 @@ def get_map(map):
 
     home.latitude = map["geo_home"][1]
     home.longitude = map["geo_home"][0]
-    home.altitude = map["geo_home"][2]
+    home.altitude = float(map["geo_home"][2])
 
     m.geo_home = home
-    m.roi = get_regions("roi", home)
-    m.nfz = get_regions("nfz", home)
-    m.bases = get_regions("bases", home)
+    m.roi = get_regions(map, "roi", home)
+    m.nfz = get_regions(map, "nfz", home)
+    m.bases = get_regions(map, "bases", home)
 
     return m
 
@@ -454,46 +461,46 @@ def get_objects(hardware, map, goals):
     return mission
 
 
-#def set_home_position(latitude, longitude, altitude, current_gps=True, yaw=0):
-class HomePositionSetter(Node):
-    def __init__(self):
-        super().__init__('home_position_setter')
-        self.cli = self.create_client(CommandHome, '/mavros/cmd/set_home')
-        while not self.cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('service not available, waiting again...')
+def set_home_position(latitude, longitude, altitude, current_gps=True, yaw=0.0):
+    """
+    Sets the home position for a drone using the MAVROS set_home service.
 
-    def set_home_position(self, latitude, longitude, altitude, current_gps=True, yaw=0):
-        """
-        Sets the home position for a drone using the MAVROS set_home service.
+    Parameters:
+    latitude (float): The latitude of the home position in degrees.
+    longitude (float): The longitude of the home position in degrees.
+    altitude (float): The altitude of the home position in meters.
+    current_gps (bool, optional): If True, use the current GPS position as home. Defaults to True.
+    yaw (float, optional): The yaw orientation at the home position in degrees. Defaults to 0.
 
-        Parameters:
-        latitude (float): The latitude of the home position in degrees.
-        longitude (float): The longitude of the home position in degrees.
-        altitude (float): The altitude of the home position in meters.
-        current_gps (bool, optional): If True, use the current GPS position as home. Defaults to True.
-        yaw (float, optional): The yaw orientation at the home position in degrees. Defaults to 0.
+    Returns:
+    None
 
-        Returns:
-        None
+    Raises:
+    rclpy.exceptions.ROSInterruptException: If the service call is interrupted.
+    """
 
-        Raises:
-        rclpy.exceptions.ROSInterruptException: If the service call is interrupted.
-        """
-        req = CommandHome.Request()
-        req.current_gps = current_gps
-        req.latitude = latitude
-        req.longitude = longitude
-        req.altitude = altitude
-        req.yaw = yaw
+    node = rclpy.create_node('set_home_position_node')
 
-        future = self.cli.call_async(req)
-        rclpy.spin_until_future_complete(self, future)
-        if future.result() is not None:
-            self.get_logger().info('Home position set successfully!')
-        else:
-            self.get_logger().error('Service call failed %r' % (future.exception(),))
+    cli = node.create_client(CommandHome, '/mavros/cmd/set_home')
 
+    while not cli.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('service not available, waiting again...')
 
+    req = CommandHome.Request()
+    req.current_gps = current_gps
+    req.latitude = latitude
+    req.longitude = longitude
+    req.altitude = altitude
+    req.yaw = yaw
+
+    future = cli.call_async(req)
+    rclpy.spin_until_future_complete(node, future)
+    if future.result() is not None:
+        node.get_logger().info('Home position set successfully!')
+    else:
+        node.get_logger().error('Service call failed %r' % (future.exception(),))
+
+    node.destroy_node()
 
 def parse_args():
     """
@@ -533,8 +540,8 @@ def main():
         mission = mission_file[args.mission_id]
 
     with open(map_filename, "r") as map_file:
-        map_file = json.load(map_file)
-        map = map_file[args.map_id]
+        map_data = json.load(map_file)
+        map = map_data[args.map_id]
 
     with open(hw_filename, "r") as hw_file:
         hw_file = json.load(hw_file)

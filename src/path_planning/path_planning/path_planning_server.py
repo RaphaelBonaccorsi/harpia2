@@ -18,12 +18,7 @@ sys.path.append(libs_path)
 from std_msgs.msg import String
 from geometry_msgs.msg import Point
 from geographic_msgs.msg import GeoPoint
-"""
-from rosplan_knowledge_msgs.srv import *
-from rosplan_knowledge_msgs.msg import *
-from rosplan_dispatch_msgs.msg import *
-from rosplan_dispatch_msgs.srv import *
-"""
+
 from sensor_msgs.msg import BatteryState
 
 

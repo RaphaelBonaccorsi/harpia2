@@ -4,7 +4,7 @@
 # Pega bateria pelo MavROS
 # Controla waypoints
 # Funções de calculo de distancia entre pontos
-# Trabalha com o ROSPlan para replanejar missão
+# Trabalha com o Plansys2 para replanejar missão
 
 import rclpy #ROS2
 #import actionlib
@@ -17,16 +17,19 @@ from rclpy.node import Node
 from rclpy.action import ActionServer
 import psutil
 from std_srvs.srv import Empty
-from rosplan_knowledge_msgs.srv import *
-from rosplan_knowledge_msgs.msg import *
-from rosplan_dispatch_msgs.msg import *
-from rosplan_dispatch_msgs.srv import *
+from rclpy.qos import QoSProfile
+
+# Importação para mensagens do PlanSys2
+from plansys2_msgs.srv import GetPlan, AddProblemGoal, GetProblem, ClearProblemKnowledge, RemoveProblemGoal, AddProblem, GetProblemGoal, GetStates
+from plansys2_msgs.action import ExecutePlan
+
 from diagnostic_msgs.msg import KeyValue
 
 from std_msgs.msg import String
 
-from interfaces.msg import ChangeMission, MissionPlannerAction, MissionPlannerGoal, MissionPlannerFeedback, MissionPlannerResult, Mission, MissionPlannerActionGoal
+from interfaces.msg import ChangeMission, Mission, CompletePlan, GoalID
 from interfaces.srv import PathPlanning
+from interfaces.action import MissionPlanner
 
 
 from mavros_msgs.msg import *
@@ -36,7 +39,7 @@ from sensor_msgs.msg import *
 from geographic_msgs.msg import *
 from geometry_msgs.msg import *
 
-from action_msgs.msg import GoalStatusArray, GoalID
+from action_msgs.msg import GoalStatusArray
 
 ## ----- Variáveis de controle -----
 
@@ -81,67 +84,27 @@ def control_callback(data):
 	Classes to subscribe and publish services
 '''
 
-class Drone(object):
+class Drone(Node):
     def __init__(self):
-        """
-        Initializes a Drone object.
-
-        Subscribes to relevant ROS topics for receiving global position, battery state, and mission reached information.
-
-        Attributes:
-            sub_position (rclpy.Subscription): ROS subscriber for global position updates (sensor_msgs.msg.NavSatFix).
-            sub_battery (rclpy.Subscription): ROS subscriber for battery state updates (sensor_msgs.msg.BatteryState).
-            sub_mission (rclpy.Subscription): ROS subscriber for mission reached updates (interfaces.msg.WaypointReached).
-            latitude (float): Current latitude of the drone.
-            longitude (float): Current longitude of the drone.
-            battery (float): Current battery percentage of the drone.
-            current (int): Current waypoint reached in the mission.
-        """
-        self.sub_position = self.create_subscription(NavSatFix, 'mavros/global_position/global', self.global_position_callback, 10)
-        self.sub_battery = self.create_subscription(BatteryState, 'mavros/battery', self.battery_state_callback, 10)
-        self.sub_mission = self.create_subscription(WaypointReached, 'mavros/mission/reached', self.reached_callback, 10)
+        super().__init__('drone_node')
+        qos_profile = QoSProfile(depth=10)
+        self.sub_position = self.create_subscription(NavSatFix, 'mavros/global_position/global', self.global_position_callback, qos_profile)
+        self.sub_battery = self.create_subscription(BatteryState, 'mavros/battery', self.battery_state_callback, qos_profile)
+        self.sub_mission = self.create_subscription(WaypointReached, 'mavros/mission/reached', self.reached_callback, qos_profile)
         self.latitude = None
         self.longitude = None
         self.battery = None
         self.current = None
 
     def global_position_callback(self, data):
-        """
-        Callback function for updating the drone's global position.
-
-        Args:
-            data (NavSatFix): ROS message containing global position information.
-
-        Returns:
-            None
-        """
         self.latitude = data.latitude
         self.longitude = data.longitude
 
     def battery_state_callback(self, data):
-        """
-        Callback function for updating the drone's battery state.
-
-        Args:
-            data (BatteryState): ROS message containing battery state information.
-
-        Returns:
-            None
-        """
         self.battery = data.percentage * 100
 
     def reached_callback(self, data):
-        """
-        Callback function for updating the drone's current waypoint in the mission.
-
-        Args:
-            data (WaypointReached): ROS message containing information about the reached waypoint.
-
-        Returns:
-            None
-        """
         self.current = data.wp_seq + 1
-
 
 # Faz parte do actionlib: 
 # In any large ROS based system, there are cases when someone would like to send a request to a node to perform some task,
@@ -151,166 +114,95 @@ class Drone(object):
 # The actionlib package provides tools to create servers that execute long-running goals that can be preempted. 
 # It also provides a client interface in order to send requests to the server.
 
-class ActionServer():
-    """
-    The main class that runs the action server for mission planning.
-
-    Attributes:
-        a_server (actionlib.SimpleActionServer): ROS action server for handling mission planning goals.
-        uav (Drone): Instance of the Drone class representing the UAV.
-        new_goals (List[Goal] or None): List of new goals received from the ChangeMission topic.
-        Mission_Sub (rospy.Subscriber): ROS subscriber for receiving mission updates.
-        Goals_Sub (rospy.Subscriber): ROS subscriber for receiving new goals from the ChangeMission topic.
-        mission (Mission or None): Current mission received from the MissionPlannerActionGoal topic.
-        change_goals (int): Operation code for changing goals received from the ChangeMission topic.
-
-    Methods:
-        mission_callback(data): Callback function for updating the mission attribute.
-        new_goal_callback(data): Callback function for updating the new_goals and change_goals attributes.
-        run(): Initiates the ROS node and starts the mission goal manager service.
-        register_cancel_callback(cancel_cb): Registers a callback function for handling mission cancellation.
-        abort(): Sets the mission status to aborted.
-        succeed(): Sets the mission status to succeeded.
-        execute_cb(data): Callback function for handling mission planning goals.
-
-    """
-
+class MissionGoalManager(Node):
     def __init__(self):
-        """
-        Initializes the ActionServer object.
-        """
+        super().__init__('mission_goal_manager_server')
+        qos_profile = QoSProfile(depth=10)
         self.a_server = ActionServer(
             self,
-            "harpia/mission_goal_manager",
-            MissionPlannerAction,
-            execute_callback=self.execute_cb,
-            auto_start=False
+            MissionPlanner,
+            'harpia/mission_goal_manager',
+            execute_callback=self.execute_cb
         )
         self.uav = Drone()
         self.new_goals = None
         self.Mission_Sub = self.create_subscription(
-            MissionPlannerActionGoal,
+            MissionPlanner.Goal,
             '/harpia/mission_goal_manager/goal',
             self.mission_callback,
-            10
+            qos_profile
         )
         self.Goals_Sub = self.create_subscription(
             ChangeMission,
             '/harpia/ChangeMission',
             self.new_goal_callback,
-            10
+            qos_profile
         )
+        self.feedback_pub = self.create_publisher(String, '/harpia/mission_goal_manager/feedback', qos_profile)
         self.mission = None
         self.change_goals = None
 
     def mission_callback(self, data):
-        """
-        Callback function for updating the mission attribute.
-
-        Args:
-            data (MissionPlannerActionGoal): ROS message containing the mission goal.
-
-        Returns:
-            None
-        """
         self.mission = data.goal.mission
 
     def new_goal_callback(self, data):
-        """
-        Callback function for updating the new_goals and change_goals attributes.
-
-        Args:
-            data (ChangeMission): ROS message containing new goals and the operation code.
-
-        Returns:
-            None
-        """
         try:
             self.change_goals = data.op
             self.new_goals = data.goals
-        except:
+        except Exception as e:
+            self.get_logger().error(f"Error in new_goal_callback: {e}")
             self.change_goals = 0
 
     def run(self):
-        rclpy.init()
-        node = rclpy.create_node("mission_goal_manager_server")
-        self.a_server.start()
-        node.get_logger().info("Mission Goal Manager Service Ready")
-        rclpy.spin(node)
+        self.get_logger().info("Mission Goal Manager Service Ready")
+        rclpy.spin(self)
 
     def register_cancel_callback(self, cancel_cb):
-        """
-        Registers a callback function for handling mission cancellation.
-
-        Args:
-            cancel_cb: Callback function for mission cancellation.
-
-        Returns:
-            None
-        """
-        self.a_server.set_aborted(MissionPlannerResult())
+        self.a_server.set_aborted(MissionPlanner.Result())
 
     def abort(self):
-        """
-        Sets the mission status to aborted.
-
-        Returns:
-            None
-        """
-        self.a_server.set_aborted(MissionPlannerResult())
+        self.a_server.set_aborted(MissionPlanner.Result())
 
     def succeed(self):
-        """
-        Sets the mission status to succeeded.
+        self.a_server.set_succeeded(MissionPlanner.Result())
 
-        Returns:
-            None
-        """
-        self.a_server.set_succeeded(MissionPlannerResult())
+    def execute_cb(self, goal_handle):
+        self.get_logger().info(f"EXECUTE - MissionGoalManager with op {goal_handle.request.op}")
 
-    def execute_cb(self, data):
-        """
-        Callback function for handling mission planning goals.
-
-        Args:
-            data (MissionPlannerAction): ROS message containing the mission planning goal.
-
-        Returns:
-            None
-        """
-        self.get_logger().info(f"EXECUTE - MissionGoalManager with op {data.op}")
-
-        if data.op == OP_UPDATE_KNOWLEDGE_BASE:
-            update_knowledge_base(data.mission.uav, data.mission.map, data.mission.goals, "base_1")
-        elif data.op == OP_REPLAN:
+        if goal_handle.request.op == OP_UPDATE_KNOWLEDGE_BASE:
+            update_knowledge_base(goal_handle.request.mission.uav, goal_handle.request.mission.map, goal_handle.request.mission.goals, "base_1")
+        elif goal_handle.request.op == OP_REPLAN:
             self.get_logger().info("REPLAN - MissionGoalManager")
-            replan(data.mission)
-        elif data.op == OP_ADD_RM_GOALS:
+            replan(goal_handle.request.mission)
+        elif goal_handle.request.op == OP_ADD_RM_GOALS:
             self.get_logger().error("ADD/RM GOALS - MissionGoalManager")
-            replan(data.mission)
+            replan(goal_handle.request.mission)
             return
 
-        feedback_msg = MissionPlannerFeedback()
+        feedback_msg = String()
+        feedback_msg.data = "Processing mission"
+        self.feedback_pub.publish(feedback_msg)
 
         while not call_mission_planning() or self.change_goals:
             if self.change_goals:
-                print('MISSION GOAL Manager CANCEL')
-                feedback_msg.status = 1
-                self.a_server.publish_feedback(feedback_msg)
+                self.get_logger().info('MISSION GOAL Manager CANCEL')
+                feedback_msg.data = 'Canceling mission goal'
+                self.feedback_pub.publish(feedback_msg)
+                goal_handle.publish_feedback(feedback_msg)
                 op = self.change_goals
                 self.change_goals = None
-                replan(self.mission, self.uav, None, self.new_goals, op)
+                replan(goal_handle.request.mission, self.uav, None, self.new_goals, op)
             elif not wait_until(lambda: self.uav.battery is not None, msg="Waiting for UAV battery..."):
                 self.abort()
                 return
 
             if self.uav.battery <= 20:
-                base = go_to_base(data.mission, self.uav)
-                replan(self.mission, self.uav, base, None, 0)
+                base = go_to_base(goal_handle.request.mission, self.uav)
+                replan(goal_handle.request.mission, self.uav, base, None, 0)
             else:
-                replan(self.mission, self.uav, None, None, 0)
-            feedback_msg.status = 0
-            self.a_server.publish_feedback(feedback_msg)
+                replan(goal_handle.request.mission, self.uav, None, None, 0)
+            feedback_msg.data = 'Mission ongoing'
+            goal_handle.publish_feedback(feedback_msg)
             self.change_goals = 0
 
         land()
@@ -351,41 +243,27 @@ def wait_until(check, msg=None, rate=1):
     return True
 
 '''
-	Callers for ROSPlan Services
+	Callers for PLANSYS2 Services
     Services are another way that nodes can communicate with each other. 
     Services allow nodes to send a request and receive a response.
 '''
 
-def try_call_srv(topic, msg_ty=Empty):
+def try_call_srv(node, topic, msg_ty=Empty):
     """
-    Attempts to call a ROS service and returns True if successful, False otherwise.
+    Attempts to call a ROS2 service and returns True if successful, False otherwise.
 
     Args:
-        topic (str): The topic of the ROS service.
+        node (Node): The ROS2 node instance.
+        topic (str): The topic of the ROS2 service.
         msg_ty (Message, optional): The message type to be sent to the service. Defaults to Empty.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
-
-    Example:
-        ```python
-        # Try calling a service with default Empty message type
-        result = try_call_srv('/some_service')
-
-        # Try calling a service with a specific message type
-        result = try_call_srv('/another_service', SomeMessageType)
-        ```
-
-    Raises:
-        rospy.ServiceException: If the service call fails.
-
     """
-    rclpy.init()
-    node = rclpy.create_node('service_caller')
     client = node.create_client(msg_ty, topic)
 
     while not client.wait_for_service(timeout_sec=1.0):
-        node.get_logger().info('Service not available, waiting...')
+        node.get_logger().info(f'Service {topic} not available, waiting...')
 
     request = msg_ty()
     future = client.call_async(request)
@@ -399,59 +277,65 @@ def try_call_srv(topic, msg_ty=Empty):
         node.get_logger().info('Service call failed')
         return False
 
-    node.destroy_node()
-    rclpy.shutdown()
-
-
-def call_problem_generator() -> bool:
+def call_problem_generator(node) -> bool:
     """
-    Calls the ROS service for problem generation.
+    Calls the ROS2 service to add a problem goal in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_problem_interface/problem_generation_server', Empty)
+    return try_call_srv(node, 'problem_expert/add_problem_goal', AddProblemGoal)
 
-
-def call_plan_generator() -> bool:
+def call_plan_generator(node) -> bool:
     """
-    Calls the ROS service for planning.
+    Calls the ROS2 service to generate a plan in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_planner_interface/planning_server', Empty)
+    return try_call_srv(node, 'planner/get_plan', Empty)
 
-
-def call_parser() -> bool:
+def call_parser(node) -> bool:
     """
-    Calls the ROS service for plan parsing.
+    Calls the ROS2 service to get the current problem definition in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_parsing_interface/parse_plan', Empty)
+    return try_call_srv(node, 'problem_expert/get_problem', Empty)
 
-
-def call_dispatch() -> bool:
+def call_dispatch(node) -> bool:
     """
-    Calls the ROS service for plan dispatching.
+    Calls the ROS2 service to execute a plan in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_plan_dispatcher/dispatch_plan', Empty)
+    return try_call_srv(node, 'planner/execute_plan', ExecutePlan)
 
-
-def cancel_dispatch() -> bool:
+#def cancel_dispatch(node) -> bool:
     """
-    Calls the ROS service to cancel plan dispatching.
+    Calls the ROS2 service to cancel plan execution in PlanSys2.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call is successful, False otherwise.
     """
-    return try_call_srv('/rosplan_plan_dispatcher/cancel_dispatch', Empty)
-
+    return try_call_srv(node, 'planner/cancel_execution', CancelExecution)
 
 def call_mission_planning() -> bool:
     """
@@ -533,169 +417,241 @@ def geo_to_cart(geo_point, geo_home):
 	Functions to manipulate Knowledge base
 '''
 
-def try_update_knowledge(item, update_type):
+def try_update_knowledge(node, service_topic, service_type, request_data):
     """
-    Try to update knowledge in the ROSPlan knowledge base.
+    Try to update knowledge in the PlanSys2 knowledge base.
 
     Args:
-        item: The item to update.
-        update_type: The type of update.
+        node (Node): The ROS2 node instance.
+        service_topic (str): The service topic to call.
+        service_type (Service): The type of the service.
+        request_data (dict): The data to include in the service request.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    rclpy.init()
-    node = rclpy.create_node('knowledge_updater')
-    client = node.create_client(KnowledgeUpdateService, '/rosplan_knowledge_base/update')
+    if request_data is None:
+        request_data = {}
+
+    client = node.create_client(service_type, service_topic)
 
     while not client.wait_for_service(timeout_sec=1.0):
-        pass
+        node.get_logger().info('Service not available, waiting...')
 
-    request = KnowledgeUpdateService.Request()
-    request.update_type = update_type
-    request.knowledge = item
+    request = service_type.Request()
+    for key, value in request_data.items():
+        setattr(request, key, value)
 
     future = client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
 
-    if future.result() is not None:
-        node.destroy_node()
-        rclpy.shutdown()
-        return True
-    else:
-        node.destroy_node()
-        rclpy.shutdown()
-        return False
+    success = future.result() is not None
+    node.get_logger().info('Service call {}'.format('successful' if success else 'failed'))
+    return success
 
-def call_clear():
+def call_clear(node) -> bool:
     """
-    Call the ROSPlan knowledge base service to clear all knowledge.
+    Call the PlanSys2 service to clear all knowledge.
+
+    Args:
+        node (Node): The ROS2 node instance.
 
     Returns:
         bool: True if the service call was successful, False otherwise.
     """
-    return try_call_srv('/rosplan_knowledge_base/clear', Empty)
+    return try_update_knowledge(node, 'problem_expert/clear_problem_knowledge', ClearProblemKnowledge, None)
 
-def add_instance(item):
+def add_instance(node, instance_name: str, instance_type: str) -> bool:
     """
-    Add an instance to the ROSPlan knowledge base.
+    Adiciona uma instância ao conhecimento do PlanSys2.
 
     Args:
+        node (Node): A instância do nó ROS2.
+        instance_name (str): O nome da instância a ser adicionada.
+        instance_type (str): O tipo da instância a ser adicionada.
+
+    Returns:
+        bool: True se a atualização foi bem-sucedida, False caso contrário.
+    """
+    client = node.create_client(AddProblem, 'problem_expert/add_problem')
+    
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
+    
+    request = AddProblem.Request()
+    request.problem_instance.name = instance_name
+    request.problem_instance.type = instance_type
+
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    
+    if future.result() is not None:
+        node.get_logger().info('Instance added successfully.')
+        return True
+    else:
+        node.get_logger().error('Failed to call service problem_expert/add_problem')
+        return False
+    
+def add_goal(node, item) -> bool:
+    """
+    Add a goal to the PlanSys2 knowledge base.
+
+    Args:
+        node (Node): The ROS2 node instance.
         item: The item to add.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_ADD_KNOWLEDGE)
+    return try_update_knowledge(node, 'problem_expert/add_problem_goal', AddProblemGoal, item)
 
-def remove_instance(item):
+def remove_goal(node, item) -> bool:
     """
-    Remove an instance from the ROSPlan knowledge base.
+    Remove a goal from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         item: The item to remove.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_RM_KNOWLEDGE)
+    return try_update_knowledge(node, 'problem_expert/remove_problem_goal', RemoveProblemGoal, item)
 
-def add_goal(item):
+def add_metric(node, item) -> bool:
     """
-    Add a goal to the ROSPlan knowledge base.
+    Add a metric to the PlanSys2 knowledge base.
 
     Args:
-        item: The item to add.
+        node (Node): The ROS2 node instance.
+        item (Problem): The item to add.
 
     Returns:
         bool: True if the update was successful, False otherwise.
     """
-    return try_update_knowledge(item, KB_UPDATE_ADD_GOAL)
+    client = node.create_client(AddProblem, 'problem_expert/add_problem')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
 
-def remove_goal(item):
+    request = AddProblem.Request()
+    request.problem = item  # Ensure item is an instance of Problem
+
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    
+    if future.result() is not None:
+        node.get_logger().info('Metric added successfully.')
+        return True
+    else:
+        node.get_logger().error('Failed to call service problem_expert/add_problem')
+        return False
+
+def get_knowledge(node, name, service_topic):
     """
-    Remove a goal from the ROSPlan knowledge base.
+    Get knowledge from the PlanSys2 knowledge base.
 
     Args:
-        item: The item to remove.
-
-    Returns:
-        bool: True if the update was successful, False otherwise.
-    """
-    return try_update_knowledge(item, KB_UPDATE_RM_GOAL)
-
-def add_metric(item):
-    """
-    Add a metric to the ROSPlan knowledge base.
-
-    Args:
-        item: The item to add.
-
-    Returns:
-        bool: True if the update was successful, False otherwise.
-    """
-    return try_update_knowledge(item, KB_UPDATE_ADD_METRIC)
-
-def get_knowledge(name, topic):
-    """
-    Get knowledge from the ROSPlan knowledge base.
-
-    Args:
+        node (Node): The ROS2 node instance.
         name: The name of the knowledge item to retrieve.
-        topic: The ROSPlan knowledge base service topic.
+        service_topic (str): The ROS2 service topic to call.
 
     Returns:
         KnowledgeItem: The knowledge item retrieved from the knowledge base.
     """
-    rclpy.init()
-    node = rclpy.create_node('knowledge_query')
-    client = node.create_client(GetAttributeService, topic)
+    client = node.create_client(GetProblem, service_topic)
+    
     while not client.wait_for_service(timeout_sec=1.0):
-        pass
-    request = GetAttributeService.Request()
-    request.attribute_name = name
+        node.get_logger().info('Service not available, waiting...')
+
+    request = GetProblem.Request()
+    request.problem_name = name
     future = client.call_async(request)
     rclpy.spin_until_future_complete(node, future)
-    if future.result() is not None:
-        return future.result().knowledge
-    else:
-        return KnowledgeItem()
 
-def get_function(function_name):
+    result = future.result()
+    if result is not None:
+        return result.problem  
+    else:
+        node.get_logger().info('Failed to retrieve knowledge')
+        return None
+
+def get_function(node, function_name):
     """
-    Get a function from the ROSPlan knowledge base.
+    Get a function-like entity from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         function_name: The name of the function to retrieve.
 
     Returns:
-        KnowledgeItem: The function retrieved from the knowledge base.
+        Problem: The function-like entity retrieved from the knowledge base.
     """
-    return get_knowledge(function_name, '/rosplan_knowledge_base/state/functions')
+    client = node.create_client(GetProblem, 'problem_expert/get_problem')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
 
-def get_goal(goal_name):
+    request = GetProblem.Request()
+    request.name = function_name
+
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    
+    if future.result() is not None:
+        node.get_logger().info('Function retrieved successfully.')
+        return future.result().problem
+    else:
+        node.get_logger().error('Failed to call service problem_expert/get_problem')
+        return None
+
+def get_goal(node, goal_name):
     """
-    Get a goal from the ROSPlan knowledge base.
+    Get a goal from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         goal_name: The name of the goal to retrieve.
 
     Returns:
-        KnowledgeItem: The goal retrieved from the knowledge base.
+        str: The goal PDDL retrieved from the knowledge base.
     """
-    return get_knowledge(goal_name, '/rosplan_knowledge_base/state/goals')
+    client = node.create_client(GetProblemGoal, 'problem_expert/get_problem_goal')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
 
-def get_predicate(predicate_name):
+    request = GetProblemGoal.Request()
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    if future.result() is not None:
+        return future.result().goal
+    else:
+        node.get_logger().error('Failed to call service problem_expert/get_problem_goal')
+        return None
+    
+def get_predicate(node, predicate_name):
     """
-    Get a predicate from the ROSPlan knowledge base.
+    Get a predicate from the PlanSys2 knowledge base.
 
     Args:
+        node (Node): The ROS2 node instance.
         predicate_name: The name of the predicate to retrieve.
 
     Returns:
-        KnowledgeItem: The predicate retrieved from the knowledge base.
+        list: A list of predicates retrieved from the knowledge base.
     """
-    return get_knowledge(predicate_name, '/rosplan_knowledge_base/state/propositions')
+    client = node.create_client(GetStates, 'problem_expert/get_states')
+    while not client.wait_for_service(timeout_sec=1.0):
+        node.get_logger().info('Service not available, waiting again...')
+
+    request = GetStates.Request()
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    if future.result() is not None:
+        # Filter predicates by name
+        predicates = [state for state in future.result().states if state.name == predicate_name]
+        return predicates
+    else:
+        node.get_logger().error('Failed to call service problem_expert/get_states')
+        return []
 
 def create_object(item_name, item_type):
     """
@@ -860,12 +816,12 @@ def update_knowledge_base(uav, map, goals, at):
     regions_obj = [r for r in regions if r.name in goals_regions] + bases
 
     # Clear the knowledge base
-    call_clear()
+    call_clear(node)
 
     # Set drone initial state
 
     # Adding objects to knowledge base
-    add_instance(create_predicate("at", [KeyValue("region", at)]))
+    add_instance(create_predicate("at", [KeyValue(key="region", value=at)]))
     add_instance(create_function("battery-capacity", uav.battery.capacity))
     add_instance(create_function("velocity", uav.frame.efficient_velocity))
     add_instance(create_function("battery-amount", 100))
@@ -940,6 +896,36 @@ def find_at(map, goals, latitude, longitude):
     return None
 
 
+def remove_instance(node, item) -> bool:
+    """
+    Remove an instance from the PlanSys2 knowledge base.
+
+    Args:
+        node (Node): The ROS2 node instance.
+        item: The item to remove.
+
+    Returns:
+        bool: True if the update was successful, False otherwise.
+    """
+    client = node.create_client(ClearProblemKnowledge, 'problem_expert/clear_knowledge')
+    if not client.wait_for_service(timeout_sec=10.0):
+        node.get_logger().error('Service not available')
+        return False
+
+    request = ClearProblemKnowledge.Request()
+    # Adapt request based on service definition, e.g.,
+    # request.knowledge = item
+    # Make sure the service request is constructed correctly
+    future = client.call_async(request)
+    rclpy.spin_until_future_complete(node, future)
+    response = future.result()
+
+    if response is not None:
+        return True
+    else:
+        node.get_logger().error('Service call failed')
+        return False
+    
 def find_nearest_base(map, latitude, longitude):
     """
     Finds the nearest base to the given latitude and longitude.
@@ -992,168 +978,168 @@ def call_path_planning(r_from, r_to, map):
         return None
 
     # Need to test this function
-    def replan(mission, uav, base, goals, op):
-        """
-        Replans the mission based on the given operation.
+def replan(mission, uav, base, goals, op):
+    """
+    Replans the mission based on the given operation.
 
-        Args:
-            mission (Mission): Mission object containing information about the mission.
-            uav (Drone): UAV object containing information about the UAV.
-            base (Base or None): Base object if the operation is to return home, else None.
-            goals (list): List of goals to be added or removed from the mission.
-            op (int): Operation code (0: continue mission, 1: add goals, 2: remove goals).
+    Args:
+        mission (Mission): Mission object containing information about the mission.
+        uav (Drone): UAV object containing information about the UAV.
+        base (Base or None): Base object if the operation is to return home, else None.
+        goals (list): List of goals to be added or removed from the mission.
+        op (int): Operation code (0: continue mission, 1: add goals, 2: remove goals).
 
-        Returns:
-            None
-        """
-        rclpy.logging.get_logger().info("CANCEL DISPATCH - MissionGoalManager")
+    Returns:
+        None
+    """
+    rclpy.logging.get_logger().info("CANCEL DISPATCH - MissionGoalManager")
 
-        if not wait_until(lambda: mission.goals != [], msg="Waiting for Regions..."):
-            return
-        if not wait_until(lambda: uav.latitude is not None, msg="Waiting for position..."):
-            return
+    if not wait_until(lambda: mission.goals != [], msg="Waiting for Regions..."):
+        return
+    if not wait_until(lambda: uav.latitude is not None, msg="Waiting for position..."):
+        return
 
-        if goals != None:
-            pulverize = regions_to_perform_action(goals, 'pulverize')
-            photo = regions_to_perform_action(goals, 'take_picture')
+    if goals != None:
+        pulverize = regions_to_perform_action(goals, 'pulverize')
+        photo = regions_to_perform_action(goals, 'take_picture')
 
-        if base == None:
-            # Here we want to continue the mission.
-            # at_move = get_predicate("at-move")
-            at = get_predicate("at")
+    if base == None:
+        # Here we want to continue the mission.
+        # at_move = get_predicate("at-move")
+        at = get_predicate("at")
 
-            # rospy.loginfo(f"at={at}")
-            # rospy.loginfo(f"len at_={len(at.attributes)}")
+        # rospy.loginfo(f"at={at}")
+        # rospy.loginfo(f"len at_={len(at.attributes)}")
 
-            if len(at.attributes) == 0:
-                # if len(at_move.attributes) > 0:
-                # remove_instance(at_move.attributes[0])
+        if len(at.attributes) == 0:
+            # if len(at_move.attributes) > 0:
+            # remove_instance(at_move.attributes[0])
 
-                # codigo achar at
-                base_or_region_nearby = find_at(mission.map, mission.goals, uav.latitude, uav.longitude)
-                if base_or_region_nearby != None:
-                    # We are at a base or a region.
-                    rclpy.logging.get_logger().info(f'at = {base_or_region_nearby}')
-                    at = create_predicate("at", [KeyValue("region", base_or_region_nearby.name)])
-                else:
-                    # for updates on the mission while on the move, I created a new auxiliar region to start the plan
-                    # add new region to problem
-                    add_instance(create_object("aux", "region"))
-                    add_instance(create_predicate("its-not-base", [KeyValue("region", "aux")]))
-                    set_distances(mission.map, mission.goals, uav.latitude, uav.longitude)
-
-                    at = create_predicate("at", [KeyValue("region", "aux")])
+            # codigo achar at
+            base_or_region_nearby = find_at(mission.map, mission.goals, uav.latitude, uav.longitude)
+            if base_or_region_nearby != None:
+                # We are at a base or a region.
+                rclpy.logging.get_logger().info(f'at = {base_or_region_nearby}')
+                at = create_predicate("at", [KeyValue("region", base_or_region_nearby.name)])
             else:
-                at = at.attributes[0]
+                # for updates on the mission while on the move, I created a new auxiliar region to start the plan
+                # add new region to problem
+                add_instance(create_object("aux", "region"))
+                add_instance(create_predicate("its-not-base", [KeyValue("region", "aux")]))
+                set_distances(mission.map, mission.goals, uav.latitude, uav.longitude)
+
+                at = create_predicate("at", [KeyValue("region", "aux")])
         else:
-            # We want to go home
-            at_move = get_predicate("at-move")
-            if len(at_move.attributes) > 0:
-                remove_instance(at_move.attributes[0])
+            at = at.attributes[0]
+    else:
+        # We want to go home
+        at_move = get_predicate("at-move")
+        if len(at_move.attributes) > 0:
+            remove_instance(at_move.attributes[0])
 
-            at_kb = get_predicate("at")
-            rclpy.logging.get_logger().info(at_kb)
-            if len(at_kb.attributes) > 0:
-                remove_instance(at_kb.attributes[0])
+        at_kb = get_predicate("at")
+        rclpy.logging.get_logger().info(at_kb)
+        if len(at_kb.attributes) > 0:
+            remove_instance(at_kb.attributes[0])
 
-            rclpy.logging.get_logger().info(f"base = {base}")
-            at = create_predicate("at", [KeyValue("base", base.name)])
+        rclpy.logging.get_logger().info(f"base = {base}")
+        at = create_predicate("at", [KeyValue("base", base.name)])
 
-        add_instance(at)
+    add_instance(at)
 
-        # saving the current total goals to manage goals
-        # f = get_function("total-goals")
-        # total_goals = f.attributes[0].function_value
-        # remove_instance(f.attributes[0])
+    # saving the current total goals to manage goals
+    # f = get_function("total-goals")
+    # total_goals = f.attributes[0].function_value
+    # remove_instance(f.attributes[0])
 
-        bat = get_function("battery-amount")
-        remove_instance(bat.attributes[0])
+    bat = get_function("battery-amount")
+    remove_instance(bat.attributes[0])
 
-        if not wait_until(lambda: uav.battery is not None, msg="Waiting for UAV battery..."):
-            return
+    if not wait_until(lambda: uav.battery is not None, msg="Waiting for UAV battery..."):
+        return
 
-        obj = create_function("battery-amount", uav.battery)
+    obj = create_function("battery-amount", uav.battery)
+    add_instance(obj)
+    # has_end is a variable to verify if a mission has already a designed end
+    has_end = False
+    if op == 0:
+        print("Op 0")
+        # getting current goals and verifying if it already done
+        for goal in get_goal('').attributes:
+            if goal.attribute_name != "at":
+                for goal_achived in get_predicate(goal.attribute_name).attributes:
+                    if goal.values[0].value == goal_achived.values[0].value:
+                        # f.attributes[0].function_value = f.attributes[0].function_value - 1
+                        remove_goal(goal)
+            else:
+                has_end = True
+        # add_instance(create_function("total-goals", total_goals))
+
+    elif op == 1:
+        # add
+        print("Op 1")
+        if pulverize:
+            add_instance(create_predicate("has-pulverize-goal"))
+
+        if photo:
+            add_instance(create_predicate("has-picture-goal"))
+
+        for i in pulverize:
+            add_instance(create_predicate("pulverize-goal", [KeyValue("region", i)]))
+            add_instance(create_function("pulverize-path-len", 314, [KeyValue("region", i)]))
+            add_goal(create_predicate("pulverized", [KeyValue("region", i)]))
+            # total_goals = total_goals + 1
+
+        for i in photo:
+            add_instance(create_predicate("picture-goal", [KeyValue("region", i)]))
+            add_instance(create_function("picture-path-len", 1000, [KeyValue("region", i)]))
+            add_goal(create_predicate("taken-image", [KeyValue("region", i)]))
+            # total_goals = total_goals + 1
+
+        # add_instance(create_function("total-goals", total_goals))
+
+        # add_instance(create_function("total-goals", total_goals))
+        for g in goals:
+            mission.goals.append(g)
+        regions = mission.map.roi
+        pulverize = regions_to_perform_action(mission.goals, 'pulverize')
+        photo = regions_to_perform_action(mission.goals, 'take_picture')
+
+        goals_regions = set(pulverize + photo)
+        bases = mission.map.bases
+        regions_obj = [r for r in regions if r.name in goals_regions] + bases
+
+        for fact in calc_distances(regions_obj):
+            add_instance(fact)
+
+    elif op == 2:
+        print("Op 2")
+        # Remove
+        for goal in get_goal('').attributes:
+            # print(goal)
+            # if goal.attribute_name != "at":
+            # testar regiao e objetivo.
+
+            # for goal_toRemove in goals:
+            # 	print(f"{goal.values[0].value} == {goal_toRemove.region}")
+            # 	print(f"{goal.attribute_name} == {goal_toRemove.action}")
+            if goal.attribute_name == 'taken-image':
+                for goal_toRemove in photo:
+                    if goal.values[0].value == goal_toRemove:
+                        # f.attributes[0].function_value = f.attributes[0].function_value - 1
+                        # print(goal)
+                        remove_goal(goal)
+            elif goal.attribute_name == 'pulverized':
+                for goal_toRemove in pulverize:
+                    if goal.values[0].value == goal_toRemove:
+                        # f.attributes[0].function_value = f.attributes[0].function_value - 1
+                        # print(goal)
+                        remove_goal(goal)
+            else:
+                print('not implemented yet')
+
+        # print(obj)
         add_instance(obj)
-        # has_end is a variable to verify if a mission has already a designed end
-        has_end = False
-        if op == 0:
-            print("Op 0")
-            # getting current goals and verifying if it already done
-            for goal in get_goal('').attributes:
-                if goal.attribute_name != "at":
-                    for goal_achived in get_predicate(goal.attribute_name).attributes:
-                        if goal.values[0].value == goal_achived.values[0].value:
-                            # f.attributes[0].function_value = f.attributes[0].function_value - 1
-                            remove_goal(goal)
-                else:
-                    has_end = True
-            # add_instance(create_function("total-goals", total_goals))
-
-        elif op == 1:
-            # add
-            print("Op 1")
-            if pulverize:
-                add_instance(create_predicate("has-pulverize-goal"))
-
-            if photo:
-                add_instance(create_predicate("has-picture-goal"))
-
-            for i in pulverize:
-                add_instance(create_predicate("pulverize-goal", [KeyValue("region", i)]))
-                add_instance(create_function("pulverize-path-len", 314, [KeyValue("region", i)]))
-                add_goal(create_predicate("pulverized", [KeyValue("region", i)]))
-                # total_goals = total_goals + 1
-
-            for i in photo:
-                add_instance(create_predicate("picture-goal", [KeyValue("region", i)]))
-                add_instance(create_function("picture-path-len", 1000, [KeyValue("region", i)]))
-                add_goal(create_predicate("taken-image", [KeyValue("region", i)]))
-                # total_goals = total_goals + 1
-
-            # add_instance(create_function("total-goals", total_goals))
-
-            # add_instance(create_function("total-goals", total_goals))
-            for g in goals:
-                mission.goals.append(g)
-            regions = mission.map.roi
-            pulverize = regions_to_perform_action(mission.goals, 'pulverize')
-            photo = regions_to_perform_action(mission.goals, 'take_picture')
-
-            goals_regions = set(pulverize + photo)
-            bases = mission.map.bases
-            regions_obj = [r for r in regions if r.name in goals_regions] + bases
-
-            for fact in calc_distances(regions_obj):
-                add_instance(fact)
-
-        elif op == 2:
-            print("Op 2")
-            # Remove
-            for goal in get_goal('').attributes:
-                # print(goal)
-                # if goal.attribute_name != "at":
-                # testar regiao e objetivo.
-
-                # for goal_toRemove in goals:
-                # 	print(f"{goal.values[0].value} == {goal_toRemove.region}")
-                # 	print(f"{goal.attribute_name} == {goal_toRemove.action}")
-                if goal.attribute_name == 'taken-image':
-                    for goal_toRemove in photo:
-                        if goal.values[0].value == goal_toRemove:
-                            # f.attributes[0].function_value = f.attributes[0].function_value - 1
-                            # print(goal)
-                            remove_goal(goal)
-                elif goal.attribute_name == 'pulverized':
-                    for goal_toRemove in pulverize:
-                        if goal.values[0].value == goal_toRemove:
-                            # f.attributes[0].function_value = f.attributes[0].function_value - 1
-                            # print(goal)
-                            remove_goal(goal)
-                else:
-                    print('not implemented yet')
-
-            # print(obj)
-            add_instance(obj)
 
 def go_to_base(mission, uav):
     """
@@ -1276,11 +1262,12 @@ def send_route(route):
         waypoints=route.waypoints
     )
 
-if __name__ == "__main__":
+def main(args=None):
     rclpy.init()
-    node = Node()
-    node.create_subscription(String, '/harpia/control/kill_mission', control_callback)
-    server = ActionServer(node)
-    server.run()
-    rclpy.spin(node)
+    global node
+    node = MissionGoalManager()
+    node.run()
     rclpy.shutdown()
+
+if __name__ == "__main__":
+    main()

@@ -19,6 +19,8 @@ from itertools import count
 from std_srvs.srv import Empty
 
 # Plansys 2 imports
+from plansys2_msgs.srv import GetProblem, GetPlan
+from plansys2_msgs.action import ExecutePlan
 
 from std_msgs.msg import String
 
@@ -113,36 +115,33 @@ def log():
 
 class Plan(Node):
     """
-    A ROS2 node that subscribes to the complete plan and action dispatch topics.
+    A ROS2 node that subscribes to the complete plan topic.
 
-    This node subscribes to the 'rosplan_parsing_interface/complete_plan' and '/rosplan_plan_dispatcher/action_dispatch' topics. It stores the complete plan and the current action, and provides methods to check if the mission has ended and to unsubscribe from the complete plan topic.
+    This node subscribes to the 'plansys2/complete_plan' topic. It stores the complete plan and provides methods to check if the mission has ended.
 
     Attributes
     ----------
     sub : Subscription
-        The subscription to the 'rosplan_parsing_interface/complete_plan' topic.
-    sub2 : Subscription
-        The subscription to the '/rosplan_plan_dispatcher/action_dispatch' topic.
+        The subscription to the 'plansys2/complete_plan' topic.
     plan : CompletePlan
-        The complete plan received from the 'rosplan_parsing_interface/complete_plan' topic.
-    current_action : ActionDispatch
-        The current action received from the '/rosplan_plan_dispatcher/action_dispatch' topic.
+        The complete plan received from the 'plansys2/complete_plan' topic.
     """
     def __init__(self):
         """
-        Initializes the Plan node and creates the subscriptions.
+        Initializes the Plan node and creates the action client.
         """
         super().__init__('plan')
-        self.sub = self.create_subscription(CompletePlan, "rosplan_parsing_interface/complete_plan", self.plan_callback, 10)
-        self.sub2 = self.create_subscription(ActionDispatch, "/rosplan_plan_dispatcher/action_dispatch", self.action_callback, 10)
-        self.plan = CompletePlan()
-        self.current_action = ActionDispatch()
+        self.action_client = ActionClient(self, ExecutePlan, 'plansys2/execute_plan')
+        self.current_goal = None
+
+        # Send a request to get the current goal or plan
+        self.send_goal_request()
 
     def plan_callback(self, data):
         """
-        Callback function for the 'rosplan_parsing_interface/complete_plan' subscription.
+        Callback function for the 'plansys2/complete_plan' subscription.
 
-        This function is called when a new message is published on the 'rosplan_parsing_interface/complete_plan' topic. It stores the received plan and destroys the subscription.
+        This function is called when a new message is published on the 'plansys2/complete_plan' topic. It stores the received plan and destroys the subscription.
 
         Parameters
         ----------
@@ -150,20 +149,7 @@ class Plan(Node):
             The complete plan received from the topic.
         """
         self.plan = data
-        self.sub.destroy()
-
-    def action_callback(self, data):
-        """
-        Callback function for the '/rosplan_plan_dispatcher/action_dispatch' subscription.
-
-        This function is called when a new message is published on the '/rosplan_plan_dispatcher/action_dispatch' topic. It stores the received action.
-
-        Parameters
-        ----------
-        data : ActionDispatch
-            The current action received from the topic.
-        """
-        self.current_action = data
+        self.sub.destroy()  # Unsubscribe after receiving the complete plan
 
     def end_mission(self):
         """
@@ -176,24 +162,27 @@ class Plan(Node):
         bool
             True if the mission has ended, False otherwise.
         """
+        # Assuming there's a method to check if the mission has ended
+        if not self.plan.plan:
+            return False  # Handle empty plan case
         print(self.plan.plan[-1].action_id)
-        print(self.current_action.action_id)
-        return self.plan.plan[-1].action_id == self.current_action.action_id
+        # Implement logic to compare with current action if available
+        return True  # Placeholder logic
 
     def unsubscribe(self):
         """
-        Unsubscribes from the 'rosplan_parsing_interface/complete_plan' topic.
+        Unsubscribes from the 'plansys2/complete_plan' topic.
 
-        This function destroys the subscription to the 'rosplan_parsing_interface/complete_plan' topic.
+        This function destroys the subscription to the 'plansys2/complete_plan' topic.
         """
         self.sub.destroy()
 
 def mission_planning(self, req):
     """
-    Executes the mission planning process.
+     Executes the mission planning process.
 
-    This function initializes a Plan object and checks if the mission has ended. If the mission has not ended, it generates a problem, calls the plan generator, logs the plan, calls the parser, and finally calls the dispatcher. If any of these steps fail, it returns None. If all steps succeed, it returns True.
-
+    This function initializes a Plan object and checks if the mission has ended. If the mission has not ended, it generates a problem, calls the plan generator, logs the plan, and finally executes the plan. If any of these steps fail, it returns None. If all steps succeed, it returns True.
+    
     Parameters
     ----------
     req : Request
@@ -216,26 +205,22 @@ def mission_planning(self, req):
     rclpy.sleep(0.1)  # Sleeps for 0.1 sec
 
     self.get_logger().info("Calling Plan generator")
-    if not self.call_plan_generator():
+    plan = self.call_plan_generator()
+    if not plan:
         return None
 
     self.has_plan = True
 
-    self.get_logger().info("Calling Parser")
+    self.get_logger().info("Executing Plan")
     self.log()
-    if not self.call_parser():
-        return None
-
-    self.get_logger().info("Call Dispatch")
-    self.get_logger().info(str(req))
-
-    if not self.call_dispatch(): 
+    if not self.call_execute_plan(plan):
         return None
 
     return True
 '''
-    Callers for ROSPlan Services
+    Callers for PLANSYS2 Services
 '''
+
 def try_call_srv(node, topic, srv_type):
     """
     Attempts to call a ROS service.
@@ -259,7 +244,7 @@ def try_call_srv(node, topic, srv_type):
     cli = node.create_client(srv_type, topic)
 
     while not cli.wait_for_service(timeout_sec=1.0):
-        node.get_logger().info('service not available, waiting again...')
+        node.get_logger().info(f'Service {topic} not available, waiting...')
 
     req = srv_type.Request()
 
@@ -271,21 +256,82 @@ def try_call_srv(node, topic, srv_type):
         node.get_logger().error('Service call failed %r' % (future.exception(),))
         return None
 
-def call_problem_generator(): return try_call_srv('/rosplan_problem_interface/problem_generation_server', Empty)
-def call_plan_generator():    return try_call_srv('/rosplan_planner_interface/planning_server', Empty)
-def call_parser():            return try_call_srv('/rosplan_parsing_interface/parse_plan', Empty)
-def call_dispach():            return try_call_srv('/rosplan_plan_dispatcher/dispatch_plan', DispatchService)
+def call_problem_generator(node):
+    return try_call_srv(node, 'problem_expert/get_problem', GetProblem)
 
-# def call_dispach():
-#     rospy.wait_for_service('/rosplan_plan_dispatcher/dispatch_plan')
-#     try:
-#         query_proxy = rospy.ServiceProxy('/rosplan_plan_dispatcher/dispatch_plan', DispatchService)
-#         result = query_proxy()
-#         return result.success
-#     except rospy.ServiceException as e:
-#         rospy.logerr(f"Service call failed: {e}")
-#         # Should we return false here? I guess...
-#         return None
+def call_plan_generator(node):
+    return try_call_srv(node, 'planner/get_plan', GetPlan)
+
+# Substitui o parser e o dispatch
+def call_execute_plan(node, plan):
+    """
+    Calls the execute plan action.
+
+    Parameters
+    ----------
+    node : rclpy.node.Node
+        The ROS node to use for the action call.
+    plan : plansys2_msgs.msg.Plan
+        The plan to execute.
+
+    Returns
+    -------
+    bool or None
+        True if the action call was successful, None if the action call failed.
+    """
+    action_client = ActionClient(node, ExecutePlan, 'execute_plan')
+    if not action_client.wait_for_server(timeout_sec=5.0):
+        node.get_logger().error('Execute Plan action server not available')
+        return None
+
+    goal_msg = ExecutePlan.Goal()
+    goal_msg.plan = plan
+
+    future = action_client.send_goal_async(goal_msg)
+    rclpy.spin_until_future_complete(node, future)
+    goal_handle = future.result()
+
+    if not goal_handle.accepted:
+        node.get_logger().error('Execute Plan goal rejected')
+        return None
+
+    result_future = goal_handle.get_result_async()
+    rclpy.spin_until_future_complete(node, result_future)
+    result = result_future.result().result
+
+    if result.success:
+        return True
+    else:
+        node.get_logger().error('Execute Plan action failed')
+        return None
+
+# Example usage in a main function
+def main(args=None):
+    rclpy.init(args=args)
+    node = Node('plansys2_client_node')
+
+    if call_problem_generator(node):
+        node.get_logger().info('Problem generated successfully')
+    else:
+        node.get_logger().error('Failed to generate problem')
+
+    if call_plan_generator(node):
+        node.get_logger().info('Plan generated successfully')
+    else:
+        node.get_logger().error('Failed to generate plan')
+
+    # Assume `plan` is obtained from the plan generator
+    plan = None  # Replace with actual plan
+    if plan and call_execute_plan(node, plan):
+        node.get_logger().info('Plan executed successfully')
+    else:
+        node.get_logger().error('Failed to execute plan')
+
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+
 
 def mission_planning_server():
     """

@@ -7,19 +7,37 @@
   <maintainer email="raphaelbonaccorsi@usp.br">Raphael M. C. Bonaccorsi</maintainer>
   <license>TODO: License declaration</license>
 
+  <build_depend>ament_cmake</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+  <build_depend>plansys2_msgs</build_depend>
+  <build_depend>plansys2_problem_expert</build_depend>
+  <build_depend>plansys2_planner</build_depend>
+  <build_depend>plansys2_executor</build_depend>
+  <build_depend>plansys2_domain_expert</build_depend>
+  <build_depend>rclpy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>interfaces</build_depend>
+  <build_depend>action_msgs</build_depend>  
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <exec_depend>plansys2_msgs</exec_depend>
+  <exec_depend>plansys2_problem_expert</exec_depend>
+  <exec_depend>plansys2_planner</exec_depend>
+  <exec_depend>plansys2_executor</exec_depend>
+  <exec_depend>plansys2_domain_expert</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>interfaces</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
-  <build_depend>rosidl_default_generators</build_depend>
-  <exec_depend>rclpy</exec_depend>
-  <exec_depend>rosidl_default_runtime</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
-  <exec_depend>interfaces</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>
   </export>
-
 </package>

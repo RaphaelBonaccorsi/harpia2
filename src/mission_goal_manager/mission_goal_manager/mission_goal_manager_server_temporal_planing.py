@@ -14,9 +14,8 @@ from diagnostic_msgs.msg import KeyValue
 
 from std_msgs.msg import String
 
-from interfaces.msg import ChangeMission, MissionPlannerGoal, MissionPlannerFeedback, MissionPlannerResult, Mission, MissionPlannerActionGoal
+from interfaces.msg import ChangeMission, MissionPlannerAction, MissionPlannerGoal, MissionPlannerFeedback, MissionPlannerResult, Mission, MissionPlannerActionGoal
 from interfaces.srv import PathPlanning
-from interfaces.action import MissionPlanner
 
 from mavros_msgs.msg import *
 from mavros_msgs.srv import *
@@ -369,7 +368,6 @@ def try_call_srv(topic, msg_ty=Empty):
 
 def call_problem_generator(): return try_call_srv('/problem_expert/get_problem'                    , Empty) 
 def call_plan_generator():	  return try_call_srv('/planner/get_plan'			                        , Empty)
-##def call_parser():			  return try_call_srv('/rosplan_parsing_interface/parse_plan'				, Empty) #####
 def call_mission_planning():  return try_call_srv('/harpia/mission_planning'							, Empty)
 
 def call_dispatch(node):
