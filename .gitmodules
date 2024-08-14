@@ -1,3 +1,6 @@
 [submodule "src/plansys2_ws/src/ros2_planning_system"]
 	path = src/plansys2_ws/src/ros2_planning_system
 	url = https://github.com/PlanSys2/ros2_planning_system.git
+[submodule "src/plansys2_ws/src/ros2_planning_system_examples"]
+	path = src/plansys2_ws/src/ros2_planning_system_examples
+	url = https://github.com/PlanSys2/ros2_planning_system_examples.git
