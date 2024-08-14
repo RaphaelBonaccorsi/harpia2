@@ -134,8 +134,49 @@ class Plan(Node):
         self.action_client = ActionClient(self, ExecutePlan, 'plansys2/execute_plan')
         self.current_goal = None
 
+        # Initialize the subscription
+        self.sub = self.create_subscription(
+            CompletePlan,
+            'plansys2/complete_plan',
+            self.plan_callback,
+            10
+        )
+
         # Send a request to get the current goal or plan
         self.send_goal_request()
+
+    def send_goal_request(self):
+        """
+        Sends a goal request to the action server.
+        """
+        goal_msg = ExecutePlan.Goal()
+        # Aqui você configura a meta, se houver alguma configuração específica.
+
+        self.action_client.wait_for_server()
+
+        self.future = self.action_client.send_goal_async(goal_msg)
+        self.future.add_done_callback(self.goal_response_callback)
+
+    def goal_response_callback(self, future):
+        """
+        Handles the response to the goal request.
+        """
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected :(')
+            return
+
+        self.get_logger().info('Goal accepted :)')
+        self.result_future = goal_handle.get_result_async()
+        self.result_future.add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        """
+        Callback for receiving the result of the action.
+        """
+        result = future.result().result
+        self.get_logger().info(f'Result: {result}')
+        # Aqui você pode manipular o resultado da ação.
 
     def plan_callback(self, data):
         """
@@ -162,7 +203,6 @@ class Plan(Node):
         bool
             True if the mission has ended, False otherwise.
         """
-        # Assuming there's a method to check if the mission has ended
         if not self.plan.plan:
             return False  # Handle empty plan case
         print(self.plan.plan[-1].action_id)
@@ -262,6 +302,8 @@ def call_problem_generator(node):
 def call_plan_generator(node):
     return try_call_srv(node, 'planner/get_plan', GetPlan)
 
+#def call_mission_planning():  return try_call_srv('/harpia/mission_planning'							, Empty)
+
 # Substitui o parser e o dispatch
 def call_execute_plan(node, plan):
     """
@@ -307,33 +349,6 @@ def call_execute_plan(node, plan):
 
 # Example usage in a main function
 def main(args=None):
-    rclpy.init(args=args)
-    node = Node('plansys2_client_node')
-
-    if call_problem_generator(node):
-        node.get_logger().info('Problem generated successfully')
-    else:
-        node.get_logger().error('Failed to generate problem')
-
-    if call_plan_generator(node):
-        node.get_logger().info('Plan generated successfully')
-    else:
-        node.get_logger().error('Failed to generate plan')
-
-    # Assume `plan` is obtained from the plan generator
-    plan = None  # Replace with actual plan
-    if plan and call_execute_plan(node, plan):
-        node.get_logger().info('Plan executed successfully')
-    else:
-        node.get_logger().error('Failed to execute plan')
-
-    rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
-
-
-def mission_planning_server():
     """
     Initializes a server for the mission planning service.
 
@@ -348,4 +363,4 @@ def mission_planning_server():
     rclpy.shutdown()
 
 if __name__ == '__main__':
-    mission_planning_server()
+    main()
