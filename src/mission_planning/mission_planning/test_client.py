@@ -185,15 +185,28 @@ def feedback_callback(feedback_msg):
         # print(feedback_msg)
         global feedback
         feedback = feedback_msg.status
-        # print('Received feedback: {}'.format(feedback))
+        print('Received feedback: {}'.format(feedback))
         # return feedback
+
+def result_callback(future):
+    """
+    Callback function to handle the result from the action server.
+
+    Args:
+        future: Future object containing the result of the action.
+    """
+    result = future.result()
+    if result is not None:
+        print(f"[Result] Action completed with result: {result}")
+    else:
+        print("[Result] Action completed, but no result was returned.")
 
 def test_client(node, hardware, map, mission, mission_file):
     """
     Creates a MissionPlannerGoal message from the hardware, map and mission
     data with op = 0. Sends the message to the action server
     "harpia/mission_goal_manager" and then publishes to "/harpia/mission" while
-    the action server state is < 2.
+    the action server is in active state.
     """
     executor = MultiThreadedExecutor()
 
@@ -218,7 +231,9 @@ def test_client(node, hardware, map, mission, mission_file):
         node.get_logger().info('Goal rejected')
         return
 
+    # Result future to monitor the action status
     result_future = goal_handle.get_result_async()
+    result_future.add_done_callback(result_callback)
 
     set_home_position(goal.mission.uav.home.latitude, goal.mission.uav.home.longitude, goal.mission.uav.home.altitude)
 
@@ -226,32 +241,39 @@ def test_client(node, hardware, map, mission, mission_file):
     print("REMOVE GOAL -> 2")
     print("mission_id goal_op")
 
-    while goal_handle.status in [GoalStatus.STATUS_ACCEPTED, GoalStatus.STATUS_EXECUTING]:
-        pub.publish(goal.mission)
-        pub3.publish(goal.mission.uav)
+    # Loop to monitor the action state and handle inputs
+    while rclpy.ok():
+        status = goal_handle.status
+        
+        if status in [GoalStatus.STATUS_SUCCEEDED, GoalStatus.STATUS_ABORTED, GoalStatus.STATUS_CANCELED]:
+            node.get_logger().info(f'Goal finished with status: {status}')
+            break
+
+        # Publishing mission and UAV messages
+        pub.publish(create_mission_message())
+        pub3.publish(create_uav_message())
+
         i, o, e = select.select([sys.stdin], [], [], 1)
         if i:
             mission_id, goal_op = sys.stdin.readline().strip().split()
             msg = ChangeMission()
             msg.op = int(goal_op)
-            msg.goals = get_goals(mission_file[int(mission_id)])
+            msg.goals = get_goals_from_mission_file(int(mission_id))
 
-            print("feedback", feedback)
-            while feedback == 0:
+            node.get_logger().info(f"Feedback: {feedback_callback}")
+
+            while feedback_callback == 0:
                 pub2.publish(msg)
 
             msg.op = 0
-            for _ in range(30):
-                pub2.publish(msg)
+            publish_multiple_times(msg)
 
-            print("Mission: " + str(mission_id) + " Operation: " + str(goal_op))
+            node.get_logger().info(f"Mission: {mission_id} Operation: {goal_op}")
 
-        if rclpy.is_shutdown():
-            node.get_logger().warn("Shutting down test_client before mission completion")
-            break
+        # Sleep for 1 second
+        node.get_clock().sleep_for(rclpy.duration.Duration(seconds=1))
 
-        rclpy.spin_once(node, executor=executor)
-
+    # Action result will be printed in the result_callback
     return result_future.result()
 
 
@@ -538,14 +560,18 @@ def main():
     with open(mission_filename, "r") as mission_file:
         mission_file = json.load(mission_file)
         mission = mission_file[args.mission_id]
+        print(f"Searching {PATH}, name of map file: {map_filename}")
+        assert mission != None, "Error opening mission file"
 
     with open(map_filename, "r") as map_file:
         map_data = json.load(map_file)
         map = map_data[args.map_id]
+        assert map != None, "Error opening map file"
 
     with open(hw_filename, "r") as hw_file:
         hw_file = json.load(hw_file)
         hardware = hw_file[args.hardware_id]
+        assert hardware != None, "Error opening hardware file"
 
     try:
         result = test_client(node, hardware, map, mission, mission_file)
