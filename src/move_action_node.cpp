@@ -10,6 +10,10 @@
 #include "plansys2_problem_expert/ProblemExpertClient.hpp"
 #include "plansys2_domain_expert/DomainExpertClient.hpp"
 #include "plansys2_planner/PlannerClient.hpp"
+#include "rclcpp/utilities.hpp"
+#include "rclcpp_lifecycle/lifecycle_node.hpp"
+#include "lifecycle_msgs/srv/get_state.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
 
 class WaypointNavigator : public rclcpp::Node
 {
@@ -25,8 +29,11 @@ public:
     problem_client_ = std::make_shared<plansys2::ProblemExpertClient>();
     planner_client_ = std::make_shared<plansys2::PlannerClient>();
 
-    // Carregar o domínio e problema PDDL
-    load_pddl_files("/pddl/domain.pddl", "/pddl/problem.pddl");
+    // Verificar a disponibilidade do Problem Expert antes de continuar
+    wait_for_problem_expert_availability();
+
+    // Carregar o problema PDDL (domínio assume-se corretamente configurado via arquivo de launch)
+    load_pddl_files("/home/harpia/route_executor2/pddl/problem.pddl");
 
     // Gerar o plano
     generate_plan();
@@ -40,28 +47,63 @@ private:
 
   std::vector<int> waypoints_; // Armazena os índices dos waypoints no plano gerado
 
-  // Função para carregar os arquivos PDDL
-  void load_pddl_files(const std::string & domain_file, const std::string & problem_file)
+  // Função para aguardar a disponibilidade dos serviços do Problem Expert
+  void wait_for_problem_expert_availability()
   {
-    // Carregar o domínio
-    std::ifstream domain_stream(domain_file);
-    if (!domain_stream.is_open()) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo de domínio PDDL.");
-      return;
+    auto client = this->create_client<lifecycle_msgs::srv::GetState>("/problem_expert/get_state");
+
+    while (!client->wait_for_service(std::chrono::seconds(1))) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(this->get_logger(), "Interrompido enquanto esperava pelo serviço /problem_expert/get_state");
+        return;
+      }
+      RCLCPP_INFO(this->get_logger(), "Esperando o serviço /problem_expert/get_state ficar disponível...");
     }
-    std::string domain_content((std::istreambuf_iterator<char>(domain_stream)),
-                                std::istreambuf_iterator<char>());
 
-    RCLCPP_INFO(this->get_logger(), "Domínio PDDL carregado.");
+    // Requisição para checar o estado do Problem Expert Node
+    auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
 
+    while (rclcpp::ok()) {
+      // Checar o estado atual
+      auto future_result = client->async_send_request(request);
+      
+      // Esperar pela resposta do serviço
+      if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future_result) !=
+          rclcpp::FutureReturnCode::SUCCESS)
+      {
+        RCLCPP_ERROR(this->get_logger(), "Falha ao chamar o serviço /problem_expert/get_state");
+        continue;
+      }
+
+      auto response = future_result.get();
+      if (response->current_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+        RCLCPP_INFO(this->get_logger(), "Problem Expert está ativo.");
+        break;
+      } else {
+        RCLCPP_INFO(this->get_logger(), "Problem Expert ainda não está ativo, estado atual: %s", response->current_state.label.c_str());
+      }
+
+      rclcpp::sleep_for(std::chrono::seconds(1));
+    }
+  }
+
+  // Função para carregar os arquivos PDDL
+  void load_pddl_files(const std::string & problem_file)
+  {
     // Carregar o problema
     std::ifstream problem_stream(problem_file);
     if (!problem_stream.is_open()) {
       RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo de problema PDDL.");
       return;
     }
+
     std::string problem_content((std::istreambuf_iterator<char>(problem_stream)),
                                  std::istreambuf_iterator<char>());
+
+    // Enviar o problema ao PlanSys2
+    if (!problem_client_->addProblem(problem_content)) {
+      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL.");
+    }
   }
 
   // Função para gerar o plano
@@ -71,6 +113,9 @@ private:
     auto problem = problem_client_->getProblem();
 
     // Verificar se o domínio e o problema estão configurados corretamente
+    std::chrono::nanoseconds duration{10000000000};
+    rclcpp::sleep_for(duration);
+    
     if (problem.empty()) {
       RCLCPP_ERROR(this->get_logger(), "Problema PDDL não está configurado corretamente.");
       return;
@@ -92,7 +137,7 @@ private:
     RCLCPP_INFO(this->get_logger(), "Plano gerado com sucesso.");
 
     // Processar as ações no plano e extrair os índices dos waypoints
-    for (const auto & action : plan.value().items) {  // Acessar 'items' em vez de 'actions'
+    for (const auto & action : plan.value().items) {
       int waypoint_index = extract_waypoint_index(action.action);
       if (waypoint_index != -1) {
         waypoints_.push_back(waypoint_index);

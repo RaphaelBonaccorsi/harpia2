@@ -8,6 +8,7 @@ find_package(rclcpp_action REQUIRED)
 find_package(plansys2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
+find_package(lifecycle_msgs REQUIRED)
 #[[
 find_package(nav2_msgs REQUIRED)
 ]]
@@ -33,6 +34,7 @@ set(dependencies
     plansys2_problem_expert
     plansys2_pddl_parser
     mavros_msgs
+    lifecycle_msgs
 )
 
 add_executable(move_action_node src/move_action_node.cpp)
