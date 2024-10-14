@@ -10,42 +10,41 @@
 #include "plansys2_problem_expert/ProblemExpertClient.hpp"
 #include "plansys2_domain_expert/DomainExpertClient.hpp"
 #include "plansys2_planner/PlannerClient.hpp"
+#include "plansys2_msgs/msg/plan.hpp"
 #include "rclcpp/utilities.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 
-class WaypointNavigator : public rclcpp::Node
+class InterfacePlansys2 : public rclcpp::Node
 {
 public:
-  WaypointNavigator()
-  : Node("waypoint_navigator")
+  InterfacePlansys2(const std::string &problem_file)
+  : Node("interface_plansys2")
   {
-    // Criar o publisher para enviar os índices dos waypoints
-    waypoint_publisher_ = this->create_publisher<std_msgs::msg::Int32>("/drone/waypoint_index", 10);
-
     // Inicializar os clientes do PlanSys2 para trabalhar com PDDL
     domain_client_ = std::make_shared<plansys2::DomainExpertClient>();
     problem_client_ = std::make_shared<plansys2::ProblemExpertClient>();
     planner_client_ = std::make_shared<plansys2::PlannerClient>();
 
+    // Inicializar o publisher para o tópico de planos
+    plan_publisher_ = this->create_publisher<plansys2_msgs::msg::Plan>("plansys2_interface/plan", 10);
+
     // Verificar a disponibilidade do Problem Expert antes de continuar
     wait_for_problem_expert_availability();
 
-    // Carregar o problema PDDL (domínio assume-se corretamente configurado via arquivo de launch)
-    load_pddl_files("/home/harpia/route_executor2/pddl/problem.pddl");
+    // Carregar apenas o arquivo de problema PDDL
+    load_pddl_files(problem_file);
 
     // Gerar o plano
     generate_plan();
   }
 
 private:
-  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr waypoint_publisher_;
   std::shared_ptr<plansys2::DomainExpertClient> domain_client_;
   std::shared_ptr<plansys2::ProblemExpertClient> problem_client_;
   std::shared_ptr<plansys2::PlannerClient> planner_client_;
-
-  std::vector<int> waypoints_; // Armazena os índices dos waypoints no plano gerado
+  rclcpp::Publisher<plansys2_msgs::msg::Plan>::SharedPtr plan_publisher_;  // Publisher para o plano
 
   // Função para aguardar a disponibilidade dos serviços do Problem Expert
   void wait_for_problem_expert_availability()
@@ -87,7 +86,7 @@ private:
     }
   }
 
-  // Função para carregar os arquivos PDDL
+  // Função para carregar o arquivo de problema PDDL
   void load_pddl_files(const std::string & problem_file)
   {
     // Carregar o problema
@@ -113,9 +112,6 @@ private:
     auto problem = problem_client_->getProblem();
 
     // Verificar se o domínio e o problema estão configurados corretamente
-    std::chrono::nanoseconds duration{10000000000};
-    rclcpp::sleep_for(duration);
-    
     if (problem.empty()) {
       RCLCPP_ERROR(this->get_logger(), "Problema PDDL não está configurado corretamente.");
       return;
@@ -136,62 +132,28 @@ private:
 
     RCLCPP_INFO(this->get_logger(), "Plano gerado com sucesso.");
 
-    // Ler e exibir o plano gerado
-    read_and_print_plan(plan.value());
-
-    // Processar as ações no plano e extrair os índices dos waypoints
-    for (const auto & action : plan.value().items) {
-      int waypoint_index = extract_waypoint_index(action.action);
-      if (waypoint_index != -1) {
-        waypoints_.push_back(waypoint_index);
-      }
-    }
-
-    // Publicar os waypoints sequencialmente
-    publish_waypoints_sequentially();
+    // Ler, exibir e publicar o plano gerado
+    read_print_and_publish_plan(plan.value());
   }
 
-  // Função para ler e exibir o plano gerado
-  void read_and_print_plan(const plansys2_msgs::msg::Plan & plan)
+  // Função para ler, exibir e publicar o plano gerado
+  void read_print_and_publish_plan(const plansys2_msgs::msg::Plan & plan)
   {
     RCLCPP_INFO(this->get_logger(), "Plano:");
     for (const auto & action : plan.items) {
       RCLCPP_INFO(this->get_logger(), "Ação: %s, Tempo inicial: %.2f", action.action.c_str(), action.time);
     }
-  }
 
-  // Função para extrair o índice do waypoint a partir da ação no plano
-  int extract_waypoint_index(const std::string & action)
-  {
-    // Supondo que o plano contenha ações do tipo (move drone wp1 wp2)
-    std::size_t wp_pos = action.find("wp");
-    if (wp_pos != std::string::npos) {
-      return std::stoi(action.substr(wp_pos + 2)); // Extrair o número do waypoint
-    }
-    return -1;
-  }
-
-  // Função para publicar os waypoints sequencialmente de acordo com o plano
-  void publish_waypoints_sequentially()
-  {
-    for (int waypoint_index : waypoints_) {
-      std_msgs::msg::Int32 msg;
-      msg.data = waypoint_index;
-
-      RCLCPP_INFO(this->get_logger(), "Publicando waypoint: %d", waypoint_index);
-      waypoint_publisher_->publish(msg);
-
-      // Simular algum tempo entre cada waypoint (para teste)
-      rclcpp::sleep_for(std::chrono::seconds(1));
-    }
+    // Publicar o plano no tópico "plansys2_interface/plan"
+    plan_publisher_->publish(plan);
   }
 };
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<WaypointNavigator>();
+  auto node = std::make_shared<InterfacePlansys2>("/home/harpia/route_executor2/pddl/problem.pddl");
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
-};
+}

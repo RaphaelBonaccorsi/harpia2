@@ -4,6 +4,7 @@ project(route_executor2)
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rclpy REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(plansys2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -23,6 +24,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(dependencies
     rclcpp
     rclcpp_action
+    rclpy
     plansys2_msgs
     #[[
     nav2_msgs
@@ -40,20 +42,13 @@ set(dependencies
 add_executable(move_action_node src/move_action_node.cpp)
 ament_target_dependencies(move_action_node ${dependencies})
 
-add_executable(get_waypoints_node src/get_waypoints_node.cpp)
-ament_target_dependencies(get_waypoints_node ${dependencies})
-#[[
-add_executable(patrol_action_node src/patrol_action_node.cpp)
-ament_target_dependencies(patrol_action_node ${dependencies})
+add_executable(planning_controller_node src/planning_controller_node.cpp)
+ament_target_dependencies(planning_controller_node ${dependencies})
 
-add_executable(patrolling_controller_node src/patrolling_controller_node.cpp)
-ament_target_dependencies(patrolling_controller_node ${dependencies})
-]]
 install(DIRECTORY launch pddl DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
-  move_action_node
-  get_waypoints_node
+  planning_controller_node
   #[[
   patrol_action_node
   patrolling_controller_node
@@ -62,6 +57,11 @@ install(TARGETS
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
+
+install(PROGRAMS
+  scripts/route_executor.py
+  DESTINATION lib/${PROJECT_NAME})
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

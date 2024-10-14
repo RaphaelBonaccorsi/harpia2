@@ -45,17 +45,17 @@ def generate_launch_description():
         }.items())
     """
     # Specify the actions
-    move_cmd = Node(
+    control_cmd = Node(
         package='route_executor2',
-        executable='move_action_node',
-        name='move_action_node',
+        executable='planning_controller_node',
+        name='planning_controller_node',
         output='screen',
         parameters=[])
 
-    patrol_cmd = Node(
+    route_cmd = Node(
         package='route_executor2',
-        executable='get_waypoints_node',
-        name='get_waypoints_node',
+        executable='route_executor.py',
+        name='route_executor',
         output='screen',
         parameters=[])
 
@@ -66,7 +66,7 @@ def generate_launch_description():
     ld.add_action(plansys2_cmd)
     #ld.add_action(nav2_cmd)
 
-    ld.add_action(move_cmd)
-    #ld.add_action(patrol_cmd)
+    ld.add_action(control_cmd)
+    ld.add_action(route_cmd)
 
     return ld
