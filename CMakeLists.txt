@@ -39,28 +39,21 @@ set(dependencies
     lifecycle_msgs
 )
 
-add_executable(move_action_node src/move_action_node.cpp)
-ament_target_dependencies(move_action_node ${dependencies})
-
 add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
+
+add_executable(move_action_node src/move_action_node.cpp)
+ament_target_dependencies(move_action_node rclcpp plansys2_executor)
 
 install(DIRECTORY launch pddl DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
-  #[[
-  patrol_action_node
-  patrolling_controller_node
-  ]]
+  move_action_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
-
-install(PROGRAMS
-  scripts/route_executor.py
-  DESTINATION lib/${PROJECT_NAME})
 
 
 if(BUILD_TESTING)

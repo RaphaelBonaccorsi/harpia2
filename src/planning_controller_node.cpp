@@ -15,6 +15,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "plansys2_executor/ExecutorClient.hpp" // Added for PlanSys2 Executor
 
 class InterfacePlansys2 : public rclcpp::Node
 {
@@ -26,6 +27,7 @@ public:
     domain_client_ = std::make_shared<plansys2::DomainExpertClient>();
     problem_client_ = std::make_shared<plansys2::ProblemExpertClient>();
     planner_client_ = std::make_shared<plansys2::PlannerClient>();
+    executor_client_ = std::make_shared<plansys2::ExecutorClient>(); // Added Executor Client
 
     // Inicializar o publisher para o tópico de planos
     plan_publisher_ = this->create_publisher<plansys2_msgs::msg::Plan>("plansys2_interface/plan", 10);
@@ -44,6 +46,7 @@ private:
   std::shared_ptr<plansys2::DomainExpertClient> domain_client_;
   std::shared_ptr<plansys2::ProblemExpertClient> problem_client_;
   std::shared_ptr<plansys2::PlannerClient> planner_client_;
+  std::shared_ptr<plansys2::ExecutorClient> executor_client_; // Added Executor Client
   rclcpp::Publisher<plansys2_msgs::msg::Plan>::SharedPtr plan_publisher_;  // Publisher para o plano
 
   // Função para aguardar a disponibilidade dos serviços do Problem Expert
@@ -134,6 +137,13 @@ private:
 
     // Ler, exibir e publicar o plano gerado
     read_print_and_publish_plan(plan.value());
+
+    // Trigger PlanSys2 Executor to execute the plan
+    if (executor_client_->start_plan_execution(plan.value())) { // Added Executor Client Plan Execution
+      RCLCPP_INFO(this->get_logger(), "Plano enviado para execução pelo Executor do PlanSys2.");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "alha ao enviar o plano para execução.");
+    }
   }
 
   // Função para ler, exibir e publicar o plano gerado
@@ -145,14 +155,14 @@ private:
     }
 
     // Publicar o plano no tópico "plansys2_interface/plan"
-    plan_publisher_->publish(plan);
+    // plan_publisher_->publish(plan); // Commented out topic dispatch
   }
 };
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<InterfacePlansys2>("/home/harpia/route_executor2/pddl/problem.pddl");
+  auto node = std::make_shared<InterfacePlansys2>("/home/artur/rafael/route_executor2/pddl/problem.pddl");
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;

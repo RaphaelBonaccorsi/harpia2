@@ -32,41 +32,33 @@ def generate_launch_description():
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={'model_file': example_dir + '/pddl/domain.pddl'}.items()
-        )
-    """
-    nav2_cmd = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('nav2_bringup'),
-            'launch',
-            'tb3_simulation_launch.py')),
-        launch_arguments={
-            'autostart': 'true',
-            'params_file': os.path.join(example_dir, 'params', 'nav2_params.yaml')
-        }.items())
-    """
+    )
+    
     # Specify the actions
     control_cmd = Node(
         package='route_executor2',
         executable='planning_controller_node',
         name='planning_controller_node',
         output='screen',
-        parameters=[])
+        parameters=[]
+    )
 
-    route_cmd = Node(
+
+    # Specify the actions
+    move_cmd = Node(
         package='route_executor2',
-        executable='route_executor.py',
-        name='route_executor',
+        executable='move_action_node',
+        name='move_action_node',
         output='screen',
-        parameters=[])
+        parameters=[]
+    )
 
     # Create the launch description and populate
     ld = LaunchDescription()
 
     # Declare the launch options
     ld.add_action(plansys2_cmd)
-    #ld.add_action(nav2_cmd)
-
     ld.add_action(control_cmd)
-    ld.add_action(route_cmd)
+    ld.add_action(move_cmd)
 
     return ld
