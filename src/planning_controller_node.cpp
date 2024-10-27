@@ -20,7 +20,7 @@
 class InterfacePlansys2 : public rclcpp::Node
 {
 public:
-  InterfacePlansys2(const std::string &problem_file)
+  InterfacePlansys2()
   : Node("interface_plansys2")
   {
     // Inicializar os clientes do PlanSys2 para trabalhar com PDDL
@@ -35,8 +35,11 @@ public:
     // Verificar a disponibilidade do Problem Expert antes de continuar
     wait_for_problem_expert_availability();
 
-    // Carregar apenas o arquivo de problema PDDL
-    load_pddl_files(problem_file);
+    // // Carregar apenas o arquivo de problema PDDL
+    // load_pddl_files(problem_file);
+
+    // Carregar problema pddl via codigo (não via arquivo)
+    add_problem();
 
     // Gerar o plano
     generate_plan();
@@ -89,23 +92,30 @@ private:
     }
   }
 
-  // Função para carregar o arquivo de problema PDDL
-  void load_pddl_files(const std::string & problem_file)
+  void add_problem()
   {
-    // Carregar o problema
-    std::ifstream problem_stream(problem_file);
-    if (!problem_stream.is_open()) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo de problema PDDL.");
-      return;
+    const int n = 3;
+
+    // Adding instances for drone and waypoints
+    problem_client_->addInstance(plansys2::Instance("drone1", "drone"));
+    for (int i = 1; i <= n; i++)
+    {
+      problem_client_->addInstance(plansys2::Instance("waypoint_" + std::to_string(i), "waypoint"));
     }
 
-    std::string problem_content((std::istreambuf_iterator<char>(problem_stream)),
-                                 std::istreambuf_iterator<char>());
-
-    // Enviar o problema ao PlanSys2
-    if (!problem_client_->addProblem(problem_content)) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL.");
+    for (int i = 2; i <= n; i++)
+    {
+      problem_client_->addPredicate(plansys2::Predicate("(connected waypoint_"+std::to_string(i-1)+" waypoint_"+std::to_string(i)+")"));
     }
+    problem_client_->addPredicate(plansys2::Predicate("(drone_at drone1 waypoint_1)"));
+
+    // Defining and setting the goal state
+    plansys2::Goal goal("(and (drone_at drone1 waypoint_"+std::to_string(n)+"))");
+    problem_client_->setGoal(goal);
+
+
+    RCLCPP_INFO(this->get_logger(), "Problem set:");
+    RCLCPP_INFO(this->get_logger(), problem_client_->getProblem().c_str());
   }
 
   // Função para gerar o plano
@@ -162,7 +172,7 @@ private:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<InterfacePlansys2>("/home/artur/rafael/route_executor2/pddl/problem.pddl");
+  auto node = std::make_shared<InterfacePlansys2>();
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
