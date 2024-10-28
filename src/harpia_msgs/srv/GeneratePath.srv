@@ -1,0 +1,7 @@
+# Request
+int32 origin_id
+int32 destination_id
+
+---
+# Response
+geometry_msgs/PoseStamped[] waypoints
