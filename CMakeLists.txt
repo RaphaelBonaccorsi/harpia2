@@ -10,6 +10,8 @@ find_package(plansys2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(harpia_msgs REQUIRED)
 #[[
 find_package(nav2_msgs REQUIRED)
 ]]
@@ -37,6 +39,8 @@ set(dependencies
     plansys2_pddl_parser
     mavros_msgs
     lifecycle_msgs
+    std_srvs
+    harpia_msgs
 )
 
 add_executable(move_action_node src/move_action_node.cpp)
@@ -49,6 +53,7 @@ install(DIRECTORY launch pddl DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
+  move_action_node
   #[[
   patrol_action_node
   patrolling_controller_node
@@ -60,6 +65,7 @@ install(TARGETS
 
 install(PROGRAMS
   scripts/route_executor.py
+  scripts/path_planner.py
   DESTINATION lib/${PROJECT_NAME})
 
 

@@ -51,6 +51,13 @@ def generate_launch_description():
         name='planning_controller_node',
         output='screen',
         parameters=[])
+        
+    move_cmd = Node(
+        package='route_executor2',
+        executable='move_action_node',
+        name='move_action_node',
+        output='screen',
+        parameters=[])
 
     route_cmd = Node(
         package='route_executor2',
@@ -58,6 +65,15 @@ def generate_launch_description():
         name='route_executor',
         output='screen',
         parameters=[])
+
+    path_planner_cmd = Node(
+        package='route_executor2',
+        executable='path_planner.py',
+        name='path_planner',
+        output='screen',
+        parameters=[])
+
+    
 
     # Create the launch description and populate
     ld = LaunchDescription()
@@ -68,5 +84,7 @@ def generate_launch_description():
 
     ld.add_action(control_cmd)
     ld.add_action(route_cmd)
+    ld.add_action(move_cmd)
+    ld.add_action(path_planner_cmd)
 
     return ld
