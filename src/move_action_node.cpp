@@ -1,197 +1,112 @@
 #include <memory>
-#include <string>
-#include <vector>
+#include <algorithm>
 #include <iostream>
-#include <fstream>
+#include <regex>
 
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/int32.hpp"
 #include "plansys2_executor/ActionExecutorClient.hpp"
-#include "plansys2_problem_expert/ProblemExpertClient.hpp"
-#include "plansys2_domain_expert/DomainExpertClient.hpp"
-#include "plansys2_planner/PlannerClient.hpp"
-#include "rclcpp/utilities.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "lifecycle_msgs/srv/get_state.hpp"
-#include "lifecycle_msgs/msg/state.hpp"
+#include "harpia_msgs/srv/generate_path.hpp" // Custom service
 
-class WaypointNavigator : public rclcpp::Node
+using namespace std::chrono_literals;
+
+class MoveAction : public plansys2::ActionExecutorClient
 {
 public:
-  WaypointNavigator()
-  : Node("waypoint_navigator")
+  MoveAction()
+  : plansys2::ActionExecutorClient("move", 100ms)
   {
-    // Criar o publisher para enviar os índices dos waypoints
-    waypoint_publisher_ = this->create_publisher<std_msgs::msg::Int32>("/drone/waypoint_index", 10);
-
-    // Inicializar os clientes do PlanSys2 para trabalhar com PDDL
-    domain_client_ = std::make_shared<plansys2::DomainExpertClient>();
-    problem_client_ = std::make_shared<plansys2::ProblemExpertClient>();
-    planner_client_ = std::make_shared<plansys2::PlannerClient>();
-
-    // Verificar a disponibilidade do Problem Expert antes de continuar
-    wait_for_problem_expert_availability();
-
-    // Carregar o problema PDDL (domínio assume-se corretamente configurado via arquivo de launch)
-    load_pddl_files("/home/harpia/route_executor2/pddl/problem.pddl");
-
-    // Gerar o plano
-    generate_plan();
+    progress_ = 0.0;
   }
-
 private:
-  rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr waypoint_publisher_;
-  std::shared_ptr<plansys2::DomainExpertClient> domain_client_;
-  std::shared_ptr<plansys2::ProblemExpertClient> problem_client_;
-  std::shared_ptr<plansys2::PlannerClient> planner_client_;
+  void do_work(){
+    // Call the path planning service when the node is activated
+    auto arguments = get_arguments();
+    if (arguments.size() >= 3) {
+      std::string origin_waypoint = arguments[1];
+      std::string destination_waypoint = arguments[2];
 
-  std::vector<int> waypoints_; // Armazena os índices dos waypoints no plano gerado
+      int origin_id = extract_waypoint_id(origin_waypoint);
+      int destination_id = extract_waypoint_id(destination_waypoint);
 
-  // Função para aguardar a disponibilidade dos serviços do Problem Expert
-  void wait_for_problem_expert_availability()
-  {
-    auto client = this->create_client<lifecycle_msgs::srv::GetState>("/problem_expert/get_state");
+      if (origin_id != -1 && destination_id != -1) {
+        RCLCPP_INFO(get_logger(), "Origin ID: %d, Destination ID: %d", origin_id, destination_id);
 
-    while (!client->wait_for_service(std::chrono::seconds(1))) {
-      if (!rclcpp::ok()) {
-        RCLCPP_ERROR(this->get_logger(), "Interrompido enquanto esperava pelo serviço /problem_expert/get_state");
+        if (call_generate_path_service(origin_id, destination_id)) {
+          RCLCPP_INFO(get_logger(), "Path generated successfully.");
+        } else {
+          RCLCPP_ERROR(get_logger(), "Failed to generate path.");
+          finish(false, 0.0, "Failed to generate path");
+          return;
+        }
+      } else {
+        RCLCPP_ERROR(get_logger(), "Invalid waypoint IDs.");
         return;
       }
-      RCLCPP_INFO(this->get_logger(), "Esperando o serviço /problem_expert/get_state ficar disponível...");
     }
+  }
+  // Function to extract the integer ID from a waypoint string
+  int extract_waypoint_id(const std::string & waypoint)
+  {
+    std::regex waypoint_regex("waypoint_(\\d+)");
+    std::smatch match;
+    if (std::regex_search(waypoint, match, waypoint_regex)) {
+      return std::stoi(match[1].str());
+    }
+    return -1; // Return -1 if no ID is found
+  }
 
-    // Requisição para checar o estado do Problem Expert Node
-    auto request = std::make_shared<lifecycle_msgs::srv::GetState::Request>();
+  // Function to call the '/path_planner/generate_path' service
+  bool call_generate_path_service(int origin_id, int destination_id)
+  {
+    auto client = this->create_client<harpia_msgs::srv::GeneratePath>("/path_planner/generate_path");
 
-    while (rclcpp::ok()) {
-      // Checar o estado atual
-      auto future_result = client->async_send_request(request);
-      
-      // Esperar pela resposta do serviço
-      if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future_result) !=
-          rclcpp::FutureReturnCode::SUCCESS)
-      {
-        RCLCPP_ERROR(this->get_logger(), "Falha ao chamar o serviço /problem_expert/get_state");
-        continue;
+    // Aguarda o serviço estar disponível
+    while (!client->wait_for_service(1s)) {
+      if (!rclcpp::ok()) {
+        RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
+        return false;
       }
-
-      auto response = future_result.get();
-      if (response->current_state.id == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-        RCLCPP_INFO(this->get_logger(), "Problem Expert está ativo.");
-        break;
-      } else {
-        RCLCPP_INFO(this->get_logger(), "Problem Expert ainda não está ativo, estado atual: %s", response->current_state.label.c_str());
-      }
-
-      rclcpp::sleep_for(std::chrono::seconds(1));
+      RCLCPP_INFO(this->get_logger(), "Service not available, waiting again...");
     }
+
+    auto request = std::make_shared<harpia_msgs::srv::GeneratePath::Request>();
+    request->origin_id = origin_id;
+    request->destination_id = destination_id;
+
+    // Envia a requisição e espera a resposta
+    auto future = client->async_send_request(request);
+
+    // Aguardando a resposta da chamada de serviço
+
+    auto response = future.get();
+    if (response) {
+      RCLCPP_INFO(this->get_logger(), "Received path with %ld waypoints.", response->waypoints.size());
+      finish(true, 1.0, "Path generated successfully.");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Failed to generate path.");
+      finish(false, 0.0, "Failed to generate path");
+    }
+
+
+    return true;
   }
 
-  // Função para carregar os arquivos PDDL
-  void load_pddl_files(const std::string & problem_file)
-  {
-    // Carregar o problema
-    std::ifstream problem_stream(problem_file);
-    if (!problem_stream.is_open()) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo de problema PDDL.");
-      return;
-    }
-
-    std::string problem_content((std::istreambuf_iterator<char>(problem_stream)),
-                                 std::istreambuf_iterator<char>());
-
-    // Enviar o problema ao PlanSys2
-    if (!problem_client_->addProblem(problem_content)) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL.");
-    }
-  }
-
-  // Função para gerar o plano
-  void generate_plan()
-  {
-    auto domain = domain_client_->getDomain();
-    auto problem = problem_client_->getProblem();
-
-    // Verificar se o domínio e o problema estão configurados corretamente
-    std::chrono::nanoseconds duration{10000000000};
-    rclcpp::sleep_for(duration);
-    
-    if (problem.empty()) {
-      RCLCPP_ERROR(this->get_logger(), "Problema PDDL não está configurado corretamente.");
-      return;
-    }
-
-    if (domain.empty()) {
-      RCLCPP_ERROR(this->get_logger(), "Domínio PDDL não está configurado corretamente.");
-      return;
-    }
-
-    // Gerar o plano
-    auto plan = planner_client_->getPlan(domain, problem);
-
-    if (!plan.has_value()) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao gerar o plano.");
-      return;
-    }
-
-    RCLCPP_INFO(this->get_logger(), "Plano gerado com sucesso.");
-
-    // Ler e exibir o plano gerado
-    read_and_print_plan(plan.value());
-
-    // Processar as ações no plano e extrair os índices dos waypoints
-    for (const auto & action : plan.value().items) {
-      int waypoint_index = extract_waypoint_index(action.action);
-      if (waypoint_index != -1) {
-        waypoints_.push_back(waypoint_index);
-      }
-    }
-
-    // Publicar os waypoints sequencialmente
-    publish_waypoints_sequentially();
-  }
-
-  // Função para ler e exibir o plano gerado
-  void read_and_print_plan(const plansys2_msgs::msg::Plan & plan)
-  {
-    RCLCPP_INFO(this->get_logger(), "Plano:");
-    for (const auto & action : plan.items) {
-      RCLCPP_INFO(this->get_logger(), "Ação: %s, Tempo inicial: %.2f", action.action.c_str(), action.time);
-    }
-  }
-
-  // Função para extrair o índice do waypoint a partir da ação no plano
-  int extract_waypoint_index(const std::string & action)
-  {
-    // Supondo que o plano contenha ações do tipo (move drone wp1 wp2)
-    std::size_t wp_pos = action.find("wp");
-    if (wp_pos != std::string::npos) {
-      return std::stoi(action.substr(wp_pos + 2)); // Extrair o número do waypoint
-    }
-    return -1;
-  }
-
-  // Função para publicar os waypoints sequencialmente de acordo com o plano
-  void publish_waypoints_sequentially()
-  {
-    for (int waypoint_index : waypoints_) {
-      std_msgs::msg::Int32 msg;
-      msg.data = waypoint_index;
-
-      RCLCPP_INFO(this->get_logger(), "Publicando waypoint: %d", waypoint_index);
-      waypoint_publisher_->publish(msg);
-
-      // Simular algum tempo entre cada waypoint (para teste)
-      rclcpp::sleep_for(std::chrono::seconds(1));
-    }
-  }
+  float progress_;
 };
 
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<WaypointNavigator>();
-  rclcpp::spin(node);
+  auto node = std::make_shared<MoveAction>();
+
+  node->set_parameter(rclcpp::Parameter("action_name", "move"));
+  node->trigger_transition(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE);
+
+  // Use spin with NodeBaseInterface
+  rclcpp::spin(node->get_node_base_interface());
+
   rclcpp::shutdown();
+
   return 0;
-};
+}

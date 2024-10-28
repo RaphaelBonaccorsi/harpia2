@@ -15,6 +15,7 @@
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
+#include "plansys2_executor/ExecutorClient.hpp" // Added for PlanSys2 Executor
 
 class InterfacePlansys2 : public rclcpp::Node
 {
@@ -26,6 +27,7 @@ public:
     domain_client_ = std::make_shared<plansys2::DomainExpertClient>();
     problem_client_ = std::make_shared<plansys2::ProblemExpertClient>();
     planner_client_ = std::make_shared<plansys2::PlannerClient>();
+    executor_client_ = std::make_shared<plansys2::ExecutorClient>(); // Added Executor Client
 
     // Inicializar o publisher para o tópico de planos
     plan_publisher_ = this->create_publisher<plansys2_msgs::msg::Plan>("plansys2_interface/plan", 10);
@@ -44,6 +46,7 @@ private:
   std::shared_ptr<plansys2::DomainExpertClient> domain_client_;
   std::shared_ptr<plansys2::ProblemExpertClient> problem_client_;
   std::shared_ptr<plansys2::PlannerClient> planner_client_;
+  std::shared_ptr<plansys2::ExecutorClient> executor_client_; // Added Executor Client
   rclcpp::Publisher<plansys2_msgs::msg::Plan>::SharedPtr plan_publisher_;  // Publisher para o plano
 
   // Função para aguardar a disponibilidade dos serviços do Problem Expert
@@ -134,6 +137,20 @@ private:
 
     // Ler, exibir e publicar o plano gerado
     read_print_and_publish_plan(plan.value());
+
+    // Iniciar a execução do plano
+    if (executor_client_->start_plan_execution(plan.value())) {
+      RCLCPP_INFO(this->get_logger(), "Plano enviado para execução.");
+    } else {
+      RCLCPP_ERROR(this->get_logger(), "Falha ao enviar o plano para execução.");
+    }
+
+    // Verificar se a execução foi bem-sucedida
+    if (!executor_client_->execute_and_check_plan()) {
+      RCLCPP_ERROR(this->get_logger(), "Falha durante a execução do plano.");
+    } else {
+      RCLCPP_INFO(this->get_logger(), "Plano executado com sucesso.");
+    }
   }
 
   // Função para ler, exibir e publicar o plano gerado
@@ -145,7 +162,7 @@ private:
     }
 
     // Publicar o plano no tópico "plansys2_interface/plan"
-    plan_publisher_->publish(plan);
+    // plan_publisher_->publish(plan);  // Commented out to avoid redundant dispatch
   }
 };
 
