@@ -35,9 +35,6 @@ public:
     // Verificar a disponibilidade do Problem Expert antes de continuar
     wait_for_problem_expert_availability();
 
-    // // Carregar apenas o arquivo de problema PDDL
-    // load_pddl_files(problem_file);
-
     // Carregar problema pddl via codigo (não via arquivo)
     add_problem();
 
@@ -94,10 +91,13 @@ private:
 
   void add_problem()
   {
-    const int n = 3;
+    const int n = 5;
 
     // Adding instances for drone and waypoints
+
+
     problem_client_->addInstance(plansys2::Instance("drone1", "drone"));
+
     for (int i = 1; i <= n; i++)
     {
       problem_client_->addInstance(plansys2::Instance("waypoint_" + std::to_string(i), "waypoint"));
