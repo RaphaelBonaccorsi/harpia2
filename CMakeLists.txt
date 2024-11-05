@@ -19,6 +19,8 @@ find_package(plansys2_planner REQUIRED)
 find_package(plansys2_problem_expert REQUIRED)
 find_package(plansys2_pddl_parser REQUIRED)
 
+find_package(nlohmann_json REQUIRED) # sudo apt-get install nlohmann-json3-dev
+
 set(CMAKE_CXX_STANDARD 17)
 
 set(dependencies
@@ -41,6 +43,8 @@ set(dependencies
 
 add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
+target_link_libraries(planning_controller_node nlohmann_json::nlohmann_json)
+
 
 add_executable(go_to_action_node src/go_to_action_node.cpp)
 ament_target_dependencies(go_to_action_node rclcpp plansys2_executor)

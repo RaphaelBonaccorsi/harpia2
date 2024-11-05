@@ -12,84 +12,84 @@
     
 
         ;; Variavel q controla bateria em porcentagem
-        (battery-amount)
+        (battery_amount)
         ;; quantidade de insumo
-        (input-amount)
+        (input_amount)
         ;;velocidade de carregar a bateria em porcentagem por segundos
-        (recharge-rate-battery)
+        (recharge_rate_battery)
         ;;velocidade de descarregar a bateria
-        (discharge-rate-battery)
+        (discharge_rate_battery)
         ;;capacidade maxima bateria
-        (battery-capacity)
+        (battery_capacity)
         ;;capacidade maxima de insumo
-        (input-capacity)
+        (input_capacity)
         ;;velocidade de reabastecer o insumo
-        (recharge-rate-input)
+        (recharge_rate_input)
         ;;distancia entre regioes em metros
-        (distance ?from-region - region ?to-region - region)
+        (distance ?from_region - region ?to_region - region)
         ;;velocidade em m/s
         (velocity)
-        (picture-path-len ?region - region)
-        (pulverize-path-len ?region - region)
-        (total-goals)
-        (goals-achived)
-        (mission-length)
+        (picture_path_len ?region - region)
+        (pulverize_path_len ?region - region)
+        (total_goals)
+        (goals_achived)
+        (mission_length)
 
     )
 
      (:predicates
     
-        (been-at ?region - region)
+        (been_at ?region - region)
         ;;se esta carregando um insumo
         (carry)  
         ;;esta em uma regiao
         (at ?region - region)
         ;; se pode pulverizar
-        (can-spray)
+        (can_spray)
         ;;se pode carregar/descarregar
-        (can-recharge)
+        (can_recharge)
         ;se já tirou a foto
-        (taken-image ?region - region)
+        (taken_image ?region - region)
         ;se pulverizou
         (pulverized ?region - region)
         ; (canGo)
-        (can-take-pic)
-        (its-not-base ?region - region)
-        (pulverize-goal ?region - region)
-        (picture-goal ?region - region)
-        (hw-ready ?from - region ?to - region)
+        (can_take_pic)
+        (its_not_base ?region - region)
+        (pulverize_goal ?region - region)
+        (picture_goal ?region - region)
+        (hw_ready ?from - region ?to - region)
 
-        ; (can-go-to-base)
-        ; (has-pulverize-goal)
-        ; (has-picture-goal)
-        ; (at-move)
+        ; (can_go_to_base)
+        ; (has_pulverize_goal)
+        ; (has_picture_goal)
+        ; (at_move)
     
     )
 
 
     (:action go_to
         :parameters (
-             ?from-region - region 
-             ?to-region - region)
+             ?from_region - region 
+             ?to_region - region)
         :precondition (and
-            (at ?from-region)
-            (> (battery-amount) (+ (* (/ (distance ?from-region ?to-region) (velocity)) (discharge-rate-battery)) 15))
+            (at ?from_region)
+            (> (battery_amount) (+ (* (/ (distance ?from_region ?to_region) (velocity)) (discharge_rate_battery)) 15))
         )
         :effect (and 
-                (not (at ?from-region))
-                (been-at ?to-region)
-                (at ?to-region)
-                (decrease (battery-amount ) 
+                (not (at ?from_region))
+                (been_at ?to_region)
+                (at ?to_region)
+                (decrease (battery_amount ) 
                       (*
                           (/
-                              (distance ?from-region ?to-region)
+                              (distance ?from_region ?to_region)
                               (velocity)
                           )
-                          (discharge-rate-battery)
+                          (discharge_rate_battery)
                       )
           
                 )
-                (increase (mission-length) (distance ?from-region ?to-region))
+                (increase (mission_length) (distance ?from_region ?to_region))
                 )
     )
     
@@ -99,27 +99,27 @@
         )
         :precondition(and
             (at ?region)
-            (picture-goal ?region)
-            (> (battery-amount) 
+            (picture_goal ?region)
+            (> (battery_amount) 
                 (*
                     (/
                         1000
                         (velocity)
                     )
-                    (discharge-rate-battery)
+                    (discharge_rate_battery)
                 )
             )
        )
         :effect(and
-            (taken-image ?region)
-            (increase (mission-length) 1000)
-            (decrease (battery-amount) 
+            (taken_image ?region)
+            (increase (mission_length) 1000)
+            (decrease (battery_amount) 
                 (*
                     (/
                         1000
                         (velocity)
                     )
-                    (discharge-rate-battery)
+                    (discharge_rate_battery)
                 )
             )
         )
@@ -129,29 +129,29 @@
             ?region - region)
         :precondition(and
             (at ?region)
-            (pulverize-goal ?region)
-            (> (input-amount) 0)
-            (> (battery-amount) 
+            (pulverize_goal ?region)
+            (> (input_amount) 0)
+            (> (battery_amount) 
                 (*
                     (/
                         314
                         (velocity)
                     )
-                    (discharge-rate-battery)
+                    (discharge_rate_battery)
                 )
             )
        )
         :effect(and
             (pulverized ?region)
-            (increase (mission-length) 314)
-            (decrease (input-amount) 1)
-            (decrease (battery-amount) 
+            (increase (mission_length) 314)
+            (decrease (input_amount) 1)
+            (decrease (battery_amount) 
                 (*
                     (/
                         314
                         (velocity)
                     )
-                    (discharge-rate-battery)
+                    (discharge_rate_battery)
                 )
             )
         )
@@ -160,11 +160,11 @@
         :parameters (?base - base)
         :precondition (and
             (at ?base)
-            ;(< (battery-amount) 60)
+            ;(< (battery_amount) 60)
         )
         :effect 
         (and
-            (assign (battery-amount) (battery-capacity))
+            (assign (battery_amount) (battery_capacity))
         )
     )
 
@@ -172,11 +172,11 @@
         :parameters (?base - base)
         :precondition (and
             (at ?base)
-            (< (input-amount) (/ (input-capacity) 2))
+            (< (input_amount) (/ (input_capacity) 2))
         )
         :effect 
         (and
-            (assign (input-amount) (input-capacity))
+            (assign (input_amount) (input_capacity))
         )
     )
 )

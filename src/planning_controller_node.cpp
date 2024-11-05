@@ -3,6 +3,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
@@ -16,6 +17,9 @@
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "plansys2_executor/ExecutorClient.hpp" // Added for PlanSys2 Executor
+
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <nlohmann/json.hpp>
 
 class InterfacePlansys2 : public rclcpp::Node
 {
@@ -35,8 +39,17 @@ public:
     // Verificar a disponibilidade do Problem Expert antes de continuar
     wait_for_problem_expert_availability();
 
-    // Carregar problema pddl via codigo (não via arquivo)
-    add_problem();
+
+    // RCLCPP_INFO(this->get_logger(), "Domain:");
+    // RCLCPP_INFO(this->get_logger(), "%s", domain_client_->getDomain().c_str());
+
+    // // Carregar problema pddl via codigo (não via arquivo)
+    // add_problem();
+
+    add_mission_problem();
+
+    RCLCPP_INFO(this->get_logger(), "Problem:");
+    RCLCPP_INFO(this->get_logger(), problem_client_->getProblem().c_str());
 
     // Gerar o plano
     generate_plan();
@@ -109,28 +122,257 @@ private:
 
     // problem_client_->setGoal(plansys2::Goal("(and (at base_2))"));
 
-    // problem simple 2
+
+    // problem simple 1.2
+    problem_client_->addInstance(plansys2::Instance("base_1", "base"));
     problem_client_->addInstance(plansys2::Instance("region_1", "region"));
     problem_client_->addInstance(plansys2::Instance("region_2", "region"));
-    problem_client_->addInstance(plansys2::Instance("base_1", "base"));
 
     problem_client_->addPredicate(plansys2::Predicate("(at base_1)"));
-    problem_client_->addPredicate(plansys2::Predicate("(picture-goal region_1)"));
+    problem_client_->addFunction(plansys2::Function("(= (battery_amount) 50)"));
+    problem_client_->addFunction(plansys2::Function("(= (battery_capacity) 100)"));
+    problem_client_->addFunction(plansys2::Function("(= (discharge_rate_battery) 0.02)"));
+    problem_client_->addFunction(plansys2::Function("(= (velocity) 1.0)"));
+    problem_client_->addFunction(plansys2::Function("(= (mission_length) 0.0)"));
+
+    problem_client_->addFunction(plansys2::Function("(= (distance base_1 region_1) 10.0)"));
+    problem_client_->addFunction(plansys2::Function("(= (distance region_1 base_1) 10.0)"));
+
+    problem_client_->addFunction(plansys2::Function("(= (distance base_1 region_2) 10.0)"));
+    problem_client_->addFunction(plansys2::Function("(= (distance region_2 base_1) 10.0)"));
+
+    problem_client_->addFunction(plansys2::Function("(= (distance region_1 region_2) 10.0)"));
+    problem_client_->addFunction(plansys2::Function("(= (distance region_2 region_1) 10.0)"));
+
+    // problem_client_->setGoal(plansys2::Goal("(and (been_at region_1) (at region_2))"));
+    // problem_client_->setGoal(plansys2::Goal("(and (been_at region_1))"));
     
-    problem_client_->addFunction(plansys2::Function("(= (battery-amount) 80)"));
-    problem_client_->addFunction(plansys2::Function("(= (input-amount) 0)"));
-    problem_client_->addFunction(plansys2::Function("(= (battery-capacity) 100)"));
-    problem_client_->addFunction(plansys2::Function("(= (input-capacity) 3)"));
-    problem_client_->addFunction(plansys2::Function("(= (discharge-rate-battery) 0.1)"));
-    problem_client_->addFunction(plansys2::Function("(= (velocity) 2.0)"));
-    problem_client_->addFunction(plansys2::Function("(= (distance base_1 region_1) 100.0)"));
-    problem_client_->addFunction(plansys2::Function("(= (distance region_1 region_2) 50.0)"));
+    problem_client_->addPredicate(plansys2::Predicate("(picture_goal region_1)"));
+    problem_client_->addPredicate(plansys2::Predicate("(picture_goal region_2)"));
+    // problem_client_->setGoal(plansys2::Goal("(and (taken_image region_1) (taken_image region_2))"));
+    problem_client_->setGoal(plansys2::Goal("(and (taken_image region_1) (taken_image region_2) (at base_1))"));
 
-    problem_client_->setGoal(plansys2::Goal("(and (at base_2))"));
+    // // problem simple 2
+    // problem_client_->addInstance(plansys2::Instance("region_1", "region"));
+    // problem_client_->addInstance(plansys2::Instance("region_2", "region"));
+    // problem_client_->addInstance(plansys2::Instance("base_1", "base"));
+
+    // problem_client_->addPredicate(plansys2::Predicate("(at base_1)"));
+    // problem_client_->addPredicate(plansys2::Predicate("(picture-goal region_1)"));
+    
+    // problem_client_->addFunction(plansys2::Function("(= (battery-amount) 80)"));
+    // problem_client_->addFunction(plansys2::Function("(= (input-amount) 0)"));
+    // problem_client_->addFunction(plansys2::Function("(= (battery-capacity) 100)"));
+    // problem_client_->addFunction(plansys2::Function("(= (input-capacity) 3)"));
+    // problem_client_->addFunction(plansys2::Function("(= (discharge-rate-battery) 0.1)"));
+    // problem_client_->addFunction(plansys2::Function("(= (velocity) 2.0)"));
+    // problem_client_->addFunction(plansys2::Function("(= (distance base_1 region_1) 100.0)"));
+    // problem_client_->addFunction(plansys2::Function("(= (distance region_1 region_2) 50.0)"));
+
+    // problem_client_->setGoal(plansys2::Goal("(and (at region_2))"));
+  }
+
+  const double EARTH_RADIUS_M = 6371.0*1000;
+  double to_radians(double degree) {
+    return degree * M_PI / 180.0;
+  }
+  double haversine(double lat1, double lon1, double lat2, double lon2) {
+    // Converte graus para radianos
+    lat1 = to_radians(lat1);
+    lon1 = to_radians(lon1);
+    lat2 = to_radians(lat2);
+    lon2 = to_radians(lon2);
+
+    // Diferenças das coordenadas
+    double dlat = lat2 - lat1;
+    double dlon = lon2 - lon1;
+
+    // Fórmula de Haversine
+    double a = sin(dlat / 2) * sin(dlat / 2) + cos(lat1) * cos(lat2) * sin(dlon / 2) * sin(dlon / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    // Distância em quilômetros
+    return EARTH_RADIUS_M * c;
+  }
+
+  std::string get_package_path()
+  {
+    try
+    {
+      std::string package_path = ament_index_cpp::get_package_share_directory("route_executor2")+"/../../../../";
+      return package_path;
+    }
+    catch (const std::exception &e) {
+      RCLCPP_ERROR(this->get_logger(), "Erro: %s", e.what());
+      return "";
+    }
+  }
+
+  nlohmann::json read_json(std::string json_path)
+  {
+    try {
+
+      // Abrir o arquivo JSON
+      std::ifstream json_file(json_path);
+      if (!json_file.is_open()) {
+          RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo JSON.");
+          return nlohmann::json{};
+      }
+
+      // Carregar o JSON
+      nlohmann::json json_data;
+      json_file >> json_data;
+      json_file.close();
+      return json_data;
+    }
+    catch (const std::exception &e)
+    {
+      RCLCPP_ERROR(this->get_logger(), "Erro: %s", e.what());
+      return nlohmann::json{};
+    }
+  }
+  
+  nlohmann::json region_list;
+  void clear_region_list()
+  {
+    region_list = nlohmann::json::array();
+  }
+  void add_to_region_list(const nlohmann::json &region)
+  {
+    region_list.push_back(region);
+  }
+
+  void add_mission_problem()
+  {
+    int missao_index = 1;
+    int mapa_index = 1;
+    int hardware_index = 1;
 
 
-    RCLCPP_INFO(this->get_logger(), "Problem set:");
-    RCLCPP_INFO(this->get_logger(), problem_client_->getProblem().c_str());
+    std::string package_path = get_package_path();
+    if(package_path == "") return;
+
+
+    nlohmann::json json_mapa = read_json(package_path+"json/mapa.json");
+
+    if (!(json_mapa.is_array() && json_mapa.size() > mapa_index))
+    {
+      RCLCPP_ERROR(this->get_logger(), "Mapa %d não existe", mapa_index);
+      return;
+    }
+
+    clear_region_list();
+
+    const auto& mapa = json_mapa[mapa_index];
+    for (const auto& base : mapa["bases"])
+    {
+      problem_client_->addInstance(plansys2::Instance(base["name"], "base"));
+      add_to_region_list(base);
+    }
+    for (const auto& roi : mapa["roi"])
+    {
+      problem_client_->addInstance(plansys2::Instance(roi["name"], "region"));
+      add_to_region_list(roi);
+    }
+
+    for (const auto& region1 : region_list)
+    {
+      for (const auto& region2 : region_list)
+      { 
+        if(region1["name"].get<std::string>() != region2["name"].get<std::string>())
+        {
+          std::string name1 = region1["name"].get<std::string>();
+          std::string name2 = region2["name"].get<std::string>();
+          double lat1 = region1["center"][0].get<double>();
+          double lon1 = region1["center"][1].get<double>();
+          double lat2 = region2["center"][0].get<double>();
+          double lon2 = region2["center"][1].get<double>();
+          std::string distance_str = std::to_string(haversine(lat1, lon1, lat2, lon2));
+          // RCLCPP_INFO(this->get_logger(), "%20s ~ %20s: %s", name1.c_str(), name2.c_str(), distance_str.c_str());
+          problem_client_->addFunction(plansys2::Function("(= (distance "+name1+" "+name2+") "+distance_str+")"));
+          problem_client_->addFunction(plansys2::Function("(= (distance "+name2+" "+name1+") "+distance_str+")"));
+        }
+      }
+    }
+
+
+
+    nlohmann::json json_missao = read_json(package_path+"json/missao.json");
+    if(json_missao.empty())
+    {
+      RCLCPP_ERROR(this->get_logger(), "JSON está vazio");
+      return;
+    }
+    if (!(json_missao.is_array() && json_missao.size() > missao_index))
+    {
+      RCLCPP_ERROR(this->get_logger(), "Missão %d não existe", missao_index);
+      return;
+    }
+
+    const auto& mission = json_missao[missao_index];
+
+    // Iterando sobre "mission_execution" do segundo objeto
+    if (!(mission.contains("mission_execution") && mission["mission_execution"].is_array()))
+    {
+      RCLCPP_ERROR(this->get_logger(), "\"mission_execution\" não encontrado ou não é um array.");
+      return;
+    }
+
+    std::string goal_str = "(and";
+    for (const auto& mission : mission["mission_execution"])
+    {
+      std::string command = mission["command"];
+      std::string area = mission["instructions"]["area"];
+
+      // RCLCPP_INFO(this->get_logger(), "Comando: %s, Área: %s", command.c_str(), area.c_str());
+      if(command == "take_picture")
+      {
+        problem_client_->addPredicate(plansys2::Predicate("(picture_goal "+area+")"));
+        goal_str += " (taken_image "+area+")";
+      }
+      else if(command == "end")
+      {
+        goal_str += " (at "+area+")";
+      }
+      else {
+        RCLCPP_WARN(this->get_logger(), "Comando '%s' desconhecido", command.c_str());
+      }
+    }
+
+    nlohmann::json json_hardware = read_json(package_path+"json/hardware.json");
+    if(json_hardware.empty())
+    {
+      RCLCPP_ERROR(this->get_logger(), "JSON está vazio");
+      return;
+    }
+    if (!(json_hardware.is_array() && json_hardware.size() > hardware_index))
+    {
+      RCLCPP_ERROR(this->get_logger(), "Missão %d não existe", hardware_index);
+      return;
+    }
+
+    const auto& hardware = json_hardware[hardware_index];
+
+    float discharge_rate_battery = hardware["discharge-rate-battery"].get<float>();
+    float recharge_rate_battery = hardware["recharge-rate-battery"].get<float>();
+    float battery_capacity = hardware["battery-capacity"].get<float>();
+    float efficient_velocity = hardware["efficient_velocity"].get<float>();
+    float input_capacity = hardware["input-capacity"].get<float>();
+    discharge_rate_battery = 0.1;
+
+    problem_client_->addFunction(plansys2::Function("(= (battery_capacity) "+std::to_string(battery_capacity)+")"));
+    problem_client_->addFunction(plansys2::Function("(= (discharge_rate_battery) "+std::to_string(discharge_rate_battery)+")"));
+    problem_client_->addFunction(plansys2::Function("(= (velocity) "+std::to_string(efficient_velocity)+")"));
+    problem_client_->addFunction(plansys2::Function("(= (input_capacity) "+std::to_string(input_capacity)+")"));
+
+    problem_client_->addFunction(plansys2::Function("(= (battery_amount) "+std::to_string(battery_capacity)+")"));
+    problem_client_->addFunction(plansys2::Function("(= (input_amount) "+std::to_string(input_capacity)+")"));
+    problem_client_->addPredicate(plansys2::Predicate("(at base_2)"));
+    
+    problem_client_->addFunction(plansys2::Function("(= (mission_length) 0.0)")); 
+
+    goal_str += ")";
+    problem_client_->setGoal(plansys2::Goal(goal_str));
   }
 
   // Função para gerar o plano
@@ -167,7 +409,7 @@ private:
     if (executor_client_->start_plan_execution(plan.value())) { // Added Executor Client Plan Execution
       RCLCPP_INFO(this->get_logger(), "Plano enviado para execução pelo Executor do PlanSys2.");
     } else {
-      RCLCPP_ERROR(this->get_logger(), "alha ao enviar o plano para execução.");
+      RCLCPP_ERROR(this->get_logger(), "Falha ao enviar o plano para execução.");
     }
   }
 
