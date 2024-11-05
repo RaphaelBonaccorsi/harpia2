@@ -12,6 +12,7 @@
     (= (battery-capacity) 100)
     (= (discharge-rate-battery) 0.1)
     (= (velocity) 1.0)
+    (= (mission-length) 0.0)
     (= (distance base_1 base_2) 10.0)
   )
 

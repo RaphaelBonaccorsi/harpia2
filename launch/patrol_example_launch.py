@@ -31,7 +31,7 @@ def generate_launch_description():
             get_package_share_directory('plansys2_bringup'),
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
-        launch_arguments={'model_file': example_dir + '/pddl/domain.pddl'}.items()
+        launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
     )
     
     # Specify the actions
@@ -45,10 +45,38 @@ def generate_launch_description():
 
 
     # Specify the actions
-    move_cmd = Node(
+    go_to_cmd = Node(
         package='route_executor2',
-        executable='move_action_node',
-        name='move_action_node',
+        executable='go_to_action_node',
+        name='go_to_action_node',
+        output='screen',
+        parameters=[]
+    )
+    take_image_cmd = Node(
+        package='route_executor2',
+        executable='take_image_action_node',
+        name='take_image_action_node',
+        output='screen',
+        parameters=[]
+    )
+    pulverize_region_cmd = Node(
+        package='route_executor2',
+        executable='pulverize_region_action_node',
+        name='pulverize_region_action_node',
+        output='screen',
+        parameters=[]
+    )
+    recharge_battery_cmd = Node(
+        package='route_executor2',
+        executable='recharge_battery_action_node',
+        name='recharge_battery_action_node',
+        output='screen',
+        parameters=[]
+    )
+    recharge_input_cmd = Node(
+        package='route_executor2',
+        executable='recharge_input_action_node',
+        name='recharge_input_action_node',
         output='screen',
         parameters=[]
     )
@@ -59,6 +87,10 @@ def generate_launch_description():
     # Declare the launch options
     ld.add_action(plansys2_cmd)
     ld.add_action(control_cmd)
-    ld.add_action(move_cmd)
+    ld.add_action(go_to_cmd)
+    ld.add_action(take_image_cmd)
+    ld.add_action(pulverize_region_cmd)
+    ld.add_action(recharge_battery_cmd)
+    ld.add_action(recharge_input_cmd)
 
     return ld

@@ -42,14 +42,26 @@ set(dependencies
 add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
 
-add_executable(move_action_node src/move_action_node.cpp)
-ament_target_dependencies(move_action_node rclcpp plansys2_executor)
+add_executable(go_to_action_node src/go_to_action_node.cpp)
+ament_target_dependencies(go_to_action_node rclcpp plansys2_executor)
+add_executable(take_image_action_node src/take_image_action_node.cpp)
+ament_target_dependencies(take_image_action_node rclcpp plansys2_executor)
+add_executable(pulverize_region_action_node src/pulverize_region_action_node.cpp)
+ament_target_dependencies(pulverize_region_action_node rclcpp plansys2_executor)
+add_executable(recharge_battery_action_node src/recharge_battery_action_node.cpp)
+ament_target_dependencies(recharge_battery_action_node rclcpp plansys2_executor)
+add_executable(recharge_input_action_node src/recharge_input_action_node.cpp)
+ament_target_dependencies(recharge_input_action_node rclcpp plansys2_executor)
 
 install(DIRECTORY launch pddl DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
-  move_action_node
+  go_to_action_node
+  take_image_action_node
+  pulverize_region_action_node
+  recharge_battery_action_node
+  recharge_input_action_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}

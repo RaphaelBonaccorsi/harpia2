@@ -95,23 +95,38 @@ private:
 
     // Adding instances for drone and waypoints
 
+    // // problem simple 1
+    // problem_client_->addInstance(plansys2::Instance("base_1", "base"));
+    // problem_client_->addInstance(plansys2::Instance("base_2", "base"));
 
-    problem_client_->addInstance(plansys2::Instance("drone1", "drone"));
+    // problem_client_->addPredicate(plansys2::Predicate("(at base_1)"));
+    // problem_client_->addFunction(plansys2::Function("(= (battery-amount) 100)"));
+    // problem_client_->addFunction(plansys2::Function("(= (battery-capacity) 100)"));
+    // problem_client_->addFunction(plansys2::Function("(= (discharge-rate-battery) 0.1)"));
+    // problem_client_->addFunction(plansys2::Function("(= (velocity) 1.0)"));
+    // problem_client_->addFunction(plansys2::Function("(= (mission-length) 0.0)"));
+    // problem_client_->addFunction(plansys2::Function("(= (distance base_1 base_2) 10.0)"));
 
-    for (int i = 1; i <= n; i++)
-    {
-      problem_client_->addInstance(plansys2::Instance("waypoint_" + std::to_string(i), "waypoint"));
-    }
+    // problem_client_->setGoal(plansys2::Goal("(and (at base_2))"));
 
-    for (int i = 2; i <= n; i++)
-    {
-      problem_client_->addPredicate(plansys2::Predicate("(connected waypoint_"+std::to_string(i-1)+" waypoint_"+std::to_string(i)+")"));
-    }
-    problem_client_->addPredicate(plansys2::Predicate("(drone_at drone1 waypoint_1)"));
+    // problem simple 2
+    problem_client_->addInstance(plansys2::Instance("region_1", "region"));
+    problem_client_->addInstance(plansys2::Instance("region_2", "region"));
+    problem_client_->addInstance(plansys2::Instance("base_1", "base"));
 
-    // Defining and setting the goal state
-    plansys2::Goal goal("(and (drone_at drone1 waypoint_"+std::to_string(n)+"))");
-    problem_client_->setGoal(goal);
+    problem_client_->addPredicate(plansys2::Predicate("(at base_1)"));
+    problem_client_->addPredicate(plansys2::Predicate("(picture-goal region_1)"));
+    
+    problem_client_->addFunction(plansys2::Function("(= (battery-amount) 80)"));
+    problem_client_->addFunction(plansys2::Function("(= (input-amount) 0)"));
+    problem_client_->addFunction(plansys2::Function("(= (battery-capacity) 100)"));
+    problem_client_->addFunction(plansys2::Function("(= (input-capacity) 3)"));
+    problem_client_->addFunction(plansys2::Function("(= (discharge-rate-battery) 0.1)"));
+    problem_client_->addFunction(plansys2::Function("(= (velocity) 2.0)"));
+    problem_client_->addFunction(plansys2::Function("(= (distance base_1 region_1) 100.0)"));
+    problem_client_->addFunction(plansys2::Function("(= (distance region_1 region_2) 50.0)"));
+
+    problem_client_->setGoal(plansys2::Goal("(and (at base_2))"));
 
 
     RCLCPP_INFO(this->get_logger(), "Problem set:");
