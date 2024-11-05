@@ -34,7 +34,7 @@ def generate_launch_description():
         launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
     )
     
-    # Specify the actions
+    # controller node
     control_cmd = Node(
         package='route_executor2',
         executable='planning_controller_node',
@@ -87,6 +87,7 @@ def generate_launch_description():
     # Declare the launch options
     ld.add_action(plansys2_cmd)
     ld.add_action(control_cmd)
+    
     ld.add_action(go_to_cmd)
     ld.add_action(take_image_cmd)
     ld.add_action(pulverize_region_cmd)
