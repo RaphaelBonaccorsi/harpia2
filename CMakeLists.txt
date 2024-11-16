@@ -10,6 +10,8 @@ find_package(plansys2_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(harpia_msgs REQUIRED)
 #[[
 find_package(nav2_msgs REQUIRED)
 ]]
@@ -18,9 +20,7 @@ find_package(plansys2_executor REQUIRED)
 find_package(plansys2_planner REQUIRED)
 find_package(plansys2_problem_expert REQUIRED)
 find_package(plansys2_pddl_parser REQUIRED)
-
-find_package(nlohmann_json REQUIRED) # sudo apt-get install nlohmann-json3-dev
-
+find_package(nlohmann_json REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 
 set(dependencies
@@ -39,12 +39,13 @@ set(dependencies
     plansys2_pddl_parser
     mavros_msgs
     lifecycle_msgs
+    std_srvs
+    harpia_msgs
 )
 
 add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
 target_link_libraries(planning_controller_node nlohmann_json::nlohmann_json)
-
 
 add_executable(go_to_action_node src/go_to_action_node.cpp)
 ament_target_dependencies(go_to_action_node rclcpp plansys2_executor)
@@ -70,6 +71,11 @@ install(TARGETS
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
+
+install(PROGRAMS
+  scripts/route_executor.py
+  scripts/path_planner.py
+  DESTINATION lib/${PROJECT_NAME})
 
 
 if(BUILD_TESTING)

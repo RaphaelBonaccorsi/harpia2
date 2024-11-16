@@ -40,8 +40,8 @@ public:
     wait_for_problem_expert_availability();
 
 
-    // RCLCPP_INFO(this->get_logger(), "Domain:");
-    // RCLCPP_INFO(this->get_logger(), "%s", domain_client_->getDomain().c_str());
+    RCLCPP_INFO(this->get_logger(), "Domain:");
+    RCLCPP_INFO(this->get_logger(), "%s", domain_client_->getDomain().c_str());
 
     // // Carregar problema pddl via codigo (não via arquivo)
     // add_problem();

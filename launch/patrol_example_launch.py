@@ -33,7 +33,6 @@ def generate_launch_description():
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
     )
-    
     # controller node
     control_cmd = Node(
         package='route_executor2',
@@ -81,6 +80,24 @@ def generate_launch_description():
         parameters=[]
     )
 
+    route_cmd = Node(
+        package='route_executor2',
+        executable='route_executor.py',
+        name='route_executor',
+        output='screen',
+        parameters=[]
+    )
+
+    path_planner_cmd = Node(
+        package='route_executor2',
+        executable='path_planner.py',
+        name='path_planner',
+        output='screen',
+        parameters=[]
+    )
+
+    
+
     # Create the launch description and populate
     ld = LaunchDescription()
 
@@ -93,5 +110,7 @@ def generate_launch_description():
     ld.add_action(pulverize_region_cmd)
     ld.add_action(recharge_battery_cmd)
     ld.add_action(recharge_input_cmd)
+    ld.add_action(route_cmd)
+    ld.add_action(path_planner_cmd)
 
     return ld
