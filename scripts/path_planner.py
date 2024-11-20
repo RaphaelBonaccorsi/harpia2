@@ -260,7 +260,7 @@ class PathPlanner(Node):
             response = False
             return response
 
-        map_limits = [(-1000, -1000), (1000, 1000)]
+        map_limits = [(-10000, -10000), (10000, 10000)]
         rrt = RRT(start, goal, map_limits)
         path = rrt.build()
 
