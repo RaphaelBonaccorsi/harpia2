@@ -197,7 +197,9 @@ class PathPlanner(Node):
         self.home_lon = -47.934152
 
         self.map = Map(self.home_lat, self.home_lon)
-        self.map.read_route_from_json("/home/harpia/route_executor2/data/map.json")
+        self.get_logger().info("json map start")
+        self.map.read_route_from_json("/home/artur/rafael/route_executor2/data/map.json")
+        self.get_logger().info("json map finish")
 
         self.srv = self.create_service(GeneratePath, 'path_planner/generate_path', self.generate_path_callback)
         self.get_logger().info("Path planner service is ready to generate paths.")
@@ -257,7 +259,7 @@ class PathPlanner(Node):
 
         if start is None or goal is None:
             self.get_logger().error("Invalid origin or destination name.")
-            response = False
+            response.success = False
             return response
 
         map_limits = [(-10000, -10000), (10000, 10000)]
@@ -273,6 +275,7 @@ class PathPlanner(Node):
             self.send_goal(self.waypoints[self.current_waypoint_index])
 
         self.get_logger().info("Path generation complete.")
+        response.success = True
         return response
 
     def create_waypoint_message(self, waypoint):
