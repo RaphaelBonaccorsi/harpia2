@@ -26,17 +26,16 @@ private:
       std::string origin_waypoint = arguments[1];
       std::string destination_waypoint = arguments[2];
 
-      if (!origin_waypoint.empty() && !destination_waypoint.empty()) {
-
-        if (call_generate_path_service(origin_waypoint, destination_waypoint)) {
-          RCLCPP_INFO(get_logger(), "Path generated successfully.");
-        } else {
-          RCLCPP_ERROR(get_logger(), "Failed to generate path.");
-          finish(false, 0.0, "Failed to generate path");
-          return;
-        }
-      } else {
+      if (origin_waypoint.empty() || destination_waypoint.empty()) {
         RCLCPP_ERROR(get_logger(), "Invalid waypoint IDs.");
+        return;
+      }
+
+      if (call_generate_path_service(origin_waypoint, destination_waypoint)) {
+        RCLCPP_INFO(get_logger(), "Path generated successfully.");
+      } else {
+        RCLCPP_ERROR(get_logger(), "Failed to generate path.");
+        finish(false, 0.0, "Failed to generate path");
         return;
       }
     }
@@ -63,23 +62,21 @@ private:
     // Envia a requisição e espera a resposta
     auto future_result = client->async_send_request(request);
 
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future_result) == 
-        rclcpp::FutureReturnCode::SUCCESS) {
-      auto response = future_result.get();
-      if (response->success) {  // Assumindo que o serviço tem um campo "success"
-        finish(true, 1.0, "Path generated successfully.");
-        return true;
-      } else {
-        RCLCPP_ERROR(this->get_logger(), "Service responded with failure.");
-        finish(false, 0.0, "Failed to generate path.");
-        return false;
-      }
-    } else {
+    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), future_result) != rclcpp::FutureReturnCode::SUCCESS) {
       RCLCPP_ERROR(this->get_logger(), "Failed to call service /path_planner/generate_path.");
       finish(false, 0.0, "Service call failed.");
       return false;
     }
 
+    auto response = future_result.get();
+    if (!response->success) {  // Assumindo que o serviço tem um campo "success"
+      RCLCPP_ERROR(this->get_logger(), "Service responded with failure.");
+      finish(false, 0.0, "Failed to generate path.");
+      return false;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "Path generated successfully.");
+    finish(true, 1.0, "Path generated successfully.");
     return true;
   }
 

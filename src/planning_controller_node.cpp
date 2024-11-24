@@ -16,6 +16,9 @@
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include "plansys2_executor/ExecutorClient.hpp" // Added for PlanSys2 Executor
+#include <ament_index_cpp/get_package_share_directory.hpp>
+
+
 
 class InterfacePlansys2 : public rclcpp::Node
 {
@@ -88,12 +91,16 @@ private:
       rclcpp::sleep_for(std::chrono::seconds(1));
     }
   }
-
+// 
   // Função para carregar o arquivo de problema PDDL
   void load_pddl_files(const std::string & problem_file)
   {
+
+    std::string package_directory = ament_index_cpp::get_package_share_directory("route_executor2");
+    std::string problem_file2 = package_directory + problem_file;
+    RCLCPP_INFO(this->get_logger(), "caminho para pddl: %s", problem_file2.c_str());
     // Carregar o problema
-    std::ifstream problem_stream(problem_file);
+    std::ifstream problem_stream(problem_file2);
     if (!problem_stream.is_open()) {
       RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo de problema PDDL.");
       return;
@@ -169,7 +176,7 @@ private:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<InterfacePlansys2>("/home/harpia/route_executor2/pddl/problem.pddl");
+  auto node = std::make_shared<InterfacePlansys2>("/pddl/problem.pddl");
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
