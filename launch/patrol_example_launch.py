@@ -44,10 +44,18 @@ def generate_launch_description():
 
 
     # Specify the actions
-    move_cmd = Node(
+    # move_cmd = Node(
+    #     package='route_executor2',
+    #     executable='move_action_node',
+    #     name='move_action_node',
+    #     output='screen',
+    #     parameters=[]
+    # )
+
+    go_to_cmd = Node(
         package='route_executor2',
-        executable='move_action_node',
-        name='move_action_node',
+        executable='go_to.py',
+        name='go_to',
         output='screen',
         parameters=[]
     )
@@ -76,7 +84,8 @@ def generate_launch_description():
     # Declare the launch options
     ld.add_action(plansys2_cmd)
     ld.add_action(control_cmd)
-    ld.add_action(move_cmd)
+    # ld.add_action(move_cmd)
+    ld.add_action(go_to_cmd)
     
     ld.add_action(route_cmd)
     ld.add_action(path_planner_cmd)
