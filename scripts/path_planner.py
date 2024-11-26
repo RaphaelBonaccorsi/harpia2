@@ -8,6 +8,7 @@ from harpia_msgs.srv import GeneratePath
 from geometry_msgs.msg import PoseStamped
 from harpia_msgs.action import MoveTo
 from rclpy.action import ActionClient
+from ament_index_python.packages import get_package_share_directory
 
 
 class CoordinateConverter:
@@ -198,7 +199,9 @@ class PathPlanner(Node):
 
         self.map = Map(self.home_lat, self.home_lon)
         try:
-            self.map.read_route_from_json("/home/harpia/route_executor2/data/map.json")
+            package_share_dir = get_package_share_directory('route_executor2')
+            self.map.read_route_from_json(f"{package_share_dir}/data/map.json")
+            # self.map.read_route_from_json("/home/artur/rafael/route_executor2/data/map.json")
         except:
             self.get_logger().error("map.json not found, check the path and permissions.")
 

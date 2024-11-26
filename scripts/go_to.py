@@ -10,14 +10,17 @@ from plansys2_support_py.ActionExecutorClient import ActionExecutorClient
 
 
 class move(ActionExecutorClient):
-
+ 
     def __init__(self):
         super().__init__('move', 0.2)
         self.is_new_action = True
+        self.waypoints = []  # Initialize waypoints as an empty list
+        self.current_waypoint_index = 0  # Initialize the index
         self.cli = self.create_client(GeneratePath, 'path_planner/generate_path')
         while not self.cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('service not available, waiting again...')
         self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
+
 
     # DO NOT USE THIS ↓↓↓ FUNCTIONS TO IMPLEMENT THE ACTION 
     def finish(self, success, completion, status):
@@ -37,11 +40,8 @@ class move(ActionExecutorClient):
         self.get_logger().info('Starting action')
         self.progress_ = 0.0
         self.get_logger().info(f"Current action arguments: {self.current_arguments}")
-        self.waypoints = self.send_path_planner(self.current_arguments[1], self.current_arguments[2]) # Synchronous Call, possible deadlock !!!
-        self.get_logger().info('Received waypoints from path planner')
+        self.send_path_planner(self.current_arguments[1], self.current_arguments[2])  # Now asynchronous
 
-        self.current_waypoint_index = 0
-        self.send_goal(self.waypoints)
     
     def send_goal(self, waypoints):
         """
@@ -52,10 +52,14 @@ class move(ActionExecutorClient):
         waypoints : PoseStamped[]
             Target waypoints messages.
         """
+
+
+        self.get_logger().info("sending waypoints")
         for waypoint in waypoints:
             goal_msg = MoveTo.Goal()
             goal_msg.destination = waypoint
 
+            self.get_logger().info("wait...")
             self.action_client.wait_for_server()
             self.get_logger().info(f"Sending waypoint goal: x={waypoint.pose.position.x}, y={waypoint.pose.position.y}, z={waypoint.pose.position.z}")
 
@@ -114,17 +118,62 @@ class move(ActionExecutorClient):
                 self.get_logger().info('All waypoints reached')
         else:
             self.get_logger().info('Failed to reach waypoint')
-
+            
     def send_path_planner(self, origin, destination):
+        """
+        Sends a request to the path planner asynchronously.
+
+        Parameters
+        ----------
+        origin : str
+            The starting point of the path.
+        destination : str
+            The destination point of the path.
+        """
         self.req = GeneratePath.Request()
         self.req.origin = origin
         self.req.destination = destination
-        return self.cli.call(self.req)
 
+        # Send the request asynchronously
+        self.future = self.cli.call_async(self.req)
+        self.future.add_done_callback(self.path_planner_response_callback)
+
+    def path_planner_response_callback(self, future):
+        """
+        Handles the response from the path planner service.
+
+        Parameters
+        ----------
+        future : Future
+            Future containing the service response.
+        """
+        try:
+            response = future.result()
+            self.get_logger().info('response number of waypoints: ' + str(len(response.waypoints)))
+            # if response.success: # this dont work
+            if len(response.waypoints) > 0:
+                self.get_logger().info('Received waypoints from path planner:')
+                for waypoint in response.waypoints:
+                    self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}")
+                self.waypoints = response.waypoints  # Assuming `waypoints` is part of the response
+                self.current_waypoint_index = 0  # Reset index when waypoints are received
+                self.send_goal(self.waypoints)
+            else:
+                self.get_logger().error('Failed to generate path')
+                self.finish(False, 0.0, 'Failed to generate path')
+        except Exception as e:
+            self.get_logger().error(f'Service call failed: {e}')
+            self.finish(False, 0.0, 'Service call exception')
+            
     def handle_action_loop(self):
+        if not self.waypoints:
+            # Skip processing if waypoints are not yet available
+            self.get_logger().info('Waiting for waypoints from the path planner...')
+            return
+
         self.progress_ = self.current_waypoint_index / len(self.waypoints)
-        self.get_logger().info(f'moveing ... {self.progress_:.2f}')
-        
+        self.get_logger().info(f'Moving... progress: {self.progress_:.2f}')
+
         if self.progress_ < 1.0:
             self.send_feedback(self.progress_, 'move running')
         else:
