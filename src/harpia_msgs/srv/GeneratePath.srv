@@ -4,4 +4,4 @@ string destination
 
 ---
 # Response
-bool success
+geometry_msgs/PoseStamped[] waypoints
