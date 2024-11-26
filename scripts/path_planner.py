@@ -197,16 +197,16 @@ class PathPlanner(Node):
         self.home_lon = -47.934152
 
         self.map = Map(self.home_lat, self.home_lon)
-        self.get_logger().info("json map start")
-        self.map.read_route_from_json("/home/artur/rafael/route_executor2/data/map.json")
-        self.get_logger().info("json map finish")
+        try:
+            self.map.read_route_from_json("/home/harpia/route_executor2/data/map.json")
+        except:
+            self.get_logger().error("map.json not found, check the path and permissions.")
 
         self.srv = self.create_service(GeneratePath, 'path_planner/generate_path', self.generate_path_callback)
         self.get_logger().info("Path planner service is ready to generate paths.")
 
-        self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
-        self.waypoints = []
-        self.current_waypoint_index = 0
+        ## self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
+        
 
     def find_location_by_name(self, name):
         """
@@ -247,36 +247,42 @@ class PathPlanner(Node):
         response : GeneratePath.Response
             Service response to be returned after path generation.
 
-        Returns
-        -------
-        GeneratePath.Response
-            Response object after processing.
+        Modifies
+        --------
+        response : GeneratePath.Response
+            Populates the response object with waypoints.
         """
         self.get_logger().info(f"Received request to generate path from {request.origin} to {request.destination}")
 
+        # Encontrar as coordenadas de início e destino
         start = self.find_location_by_name(request.origin)
         goal = self.find_location_by_name(request.destination)
 
+        # Validar se as localizações existem
         if start is None or goal is None:
             self.get_logger().error("Invalid origin or destination name.")
-            response.success = False
-            return response
+            response.waypoints = []  # Resposta vazia em caso de erro
+            return
 
+        # Gerar o caminho usando RRT
         map_limits = [(-10000, -10000), (10000, 10000)]
         rrt = RRT(start, goal, map_limits)
         path = rrt.build()
 
-        self.waypoints = [
-            self.create_waypoint_message(waypoint) for waypoint in path
-        ]
-        
-        self.current_waypoint_index = 0
-        if self.waypoints:
-            self.send_goal(self.waypoints[self.current_waypoint_index])
+        # Verificar se o caminho foi gerado
+        if not path:
+            self.get_logger().error("Failed to generate a valid path.")
+            response.waypoints = []  # Resposta vazia se o caminho falhar
+            return
+
+        # Criar mensagens de waypoints para o caminho gerado
+        waypoints = [self.create_waypoint_message(waypoint) for waypoint in path]
+        response.waypoints = waypoints
 
         self.get_logger().info("Path generation complete.")
-        response.success = True
         return response
+
+
 
     def create_waypoint_message(self, waypoint):
         """
@@ -296,79 +302,8 @@ class PathPlanner(Node):
         wp_msg.pose.position.x = waypoint[0]
         wp_msg.pose.position.y = waypoint[1]
         wp_msg.pose.position.z = 10.0
+        wp_msg.pose.orientation.w = 1.0  # Garantindo uma orientação válida
         return wp_msg
-
-    def send_goal(self, waypoint):
-        """
-        Sends a waypoint as a goal to the action server.
-
-        Parameters
-        ----------
-        waypoint : PoseStamped
-            Target waypoint message.
-        """
-        goal_msg = MoveTo.Goal()
-        goal_msg.destination = waypoint
-
-        self.action_client.wait_for_server()
-        self.get_logger().info(f"Sending waypoint goal: x={waypoint.pose.position.x}, y={waypoint.pose.position.y}, z={waypoint.pose.position.z}")
-
-        send_goal_future = self.action_client.send_goal_async(
-            goal_msg, feedback_callback=self.feedback_callback
-        )
-        send_goal_future.add_done_callback(self.goal_response_callback)
-
-    def feedback_callback(self, feedback_msg):
-        """
-        Receives feedback from the action server.
-
-        Parameters
-        ----------
-        feedback_msg : MoveTo.FeedbackMessage
-            Feedback message containing the distance to the waypoint.
-        """
-        feedback = feedback_msg.feedback
-        self.get_logger().info(f"Feedback received: Distance to waypoint: {feedback.distance:.2f}m")
-
-    def goal_response_callback(self, future):
-        """
-        Handles the response from the action server after sending a goal.
-
-        Parameters
-        ----------
-        future : Future
-            Future containing the goal handle.
-        """
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().info('Goal rejected')
-            return
-
-        self.get_logger().info('Goal accepted')
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.get_result_callback)
-
-    def get_result_callback(self, future):
-        """
-        Processes the result of a goal after completion.
-
-        Parameters
-        ----------
-        future : Future
-            Future containing the result of the goal.
-        """
-        result = future.result().result
-        if result:
-            self.get_logger().info('Waypoint reached successfully')
-            self.current_waypoint_index += 1
-            if self.current_waypoint_index < len(self.waypoints):
-                next_waypoint = self.waypoints[self.current_waypoint_index]
-                self.send_goal(next_waypoint)
-            else:
-                self.get_logger().info('All waypoints reached')
-        else:
-            self.get_logger().info('Failed to reach waypoint')
-
 
 def main(args=None):
     """

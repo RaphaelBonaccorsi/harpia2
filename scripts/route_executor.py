@@ -97,8 +97,9 @@ class RouteExecutor(Node):
         self.get_logger().info('Started publishing setpoints at 20Hz...')
 
         # Activate offboard mode and arm the drone
-        time.sleep(2)
+        
         self.set_offboard_mode()
+        time.sleep(2)
         self.arm()
 
     def goal_callback(self, goal_request):

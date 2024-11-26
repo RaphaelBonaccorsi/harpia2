@@ -45,8 +45,6 @@ set(dependencies
 
 add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
-add_executable(move_action_node src/move_action_node.cpp)
-ament_target_dependencies(move_action_node ${dependencies})
 target_link_libraries(planning_controller_node nlohmann_json::nlohmann_json)
 #[[
 add_executable(go_to_action_node src/go_to_action_node.cpp)
@@ -64,7 +62,6 @@ install(DIRECTORY launch pddl data json DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
-  move_action_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -73,6 +70,7 @@ install(TARGETS
 install(PROGRAMS
   scripts/route_executor.py
   scripts/path_planner.py
+  scripts/go_to.py
   DESTINATION lib/${PROJECT_NAME})
 
 
