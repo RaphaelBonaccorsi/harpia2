@@ -160,7 +160,7 @@ class RRT:
         path = self.generate_straight_path(self.start, self.goal)
         return path
 
-    def generate_straight_path(self, start, goal, num_points=10):
+    def generate_straight_path(self, start, goal):
         """
         Generates a straight path between start and goal with interpolated points.
 
@@ -179,11 +179,8 @@ class RRT:
             List of points along the straight path.
         """
         path = []
-        for i in range(num_points + 1):
-            t = i / num_points
-            x = (1 - t) * start[0] + t * goal[0]
-            y = (1 - t) * start[1] + t * goal[1]
-            path.append((x, y))
+        path.append((start[0], start[1]))
+        path.append((goal[0], goal[1]))
         return path
 
 

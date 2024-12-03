@@ -81,7 +81,7 @@ class RouteExecutor(Node):
         self.position_subscriber = self.create_subscription(
             PoseStamped, '/mavros/local_position/pose', self.position_callback, qos_profile
         )
-
+        self._timer = None  # Timer para gerenciar a execução assíncrona da ação
         # Set up the action server
         self._action_server = ActionServer(
             self,
@@ -135,7 +135,9 @@ class RouteExecutor(Node):
             Response indicating whether the cancellation is accepted.
         """
         self.get_logger().info('Cancelling goal')
+        self._cancel_requested = True
         return CancelResponse.ACCEPT
+
 
     async def execute_callback(self, goal_handle):
         """
@@ -154,23 +156,51 @@ class RouteExecutor(Node):
         self.get_logger().info('Executing movement action')
 
         feedback_msg = MoveTo.Feedback()
-        
-        while not self.has_reached_waypoint(self.waypoint):
-            if goal_handle.is_cancel_requested:
-                goal_handle.canceled()
-                self.get_logger().info('Action canceled')
-                return MoveTo.Result(success=False)
+        result = MoveTo.Result()
+        self._cancel_requested = False  # Flag para gerenciar cancelamento
 
+        # Future para monitorar a conclusão da meta
+        goal_future = rclpy.task.Future()
+
+        def timer_callback():
+            nonlocal goal_future
+
+            # Atualizar feedback com a distância
             feedback_msg.distance = float(self.get_distance(self.waypoint))
             goal_handle.publish_feedback(feedback_msg)
-            self.get_logger().info(f'Distance to waypoint: {feedback_msg.distance:.2f}m')
-            time.sleep(1)
 
-        goal_handle.succeed()
-        result = MoveTo.Result()
-        result.success = True
-        self.get_logger().info('Movement completed successfully')
+            self.get_logger().info(f'Distance to waypoint: {feedback_msg.distance:.2f}m')
+
+            # Checar se o objetivo foi alcançado
+            if self.has_reached_waypoint(self.waypoint):
+                self._timer.cancel()  # Cancelar o timer
+                goal_handle.succeed()
+                result.success = True
+                self.get_logger().info('Movement completed successfully')
+                goal_future.set_result(result)
+
+            # Checar se o cancelamento foi solicitado
+            elif self._cancel_requested:
+                self._timer.cancel()  # Cancelar o timer
+                goal_handle.canceled()
+                result.success = False
+                self.get_logger().info('Action canceled')
+                goal_future.set_result(result)
+
+            # Publicar o setpoint atual
+            else:
+                self.publish_current_setpoint()
+
+        # Configurar o timer para executar periodicamente
+        self._timer = self.create_timer(0.05, timer_callback)
+
+        # Aguardar a conclusão da meta
+        await goal_future
+
         return result
+
+
+
 
     def position_callback(self, msg):
         """

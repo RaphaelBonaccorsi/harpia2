@@ -42,31 +42,30 @@ class move(ActionExecutorClient):
         self.get_logger().info(f"Current action arguments: {self.current_arguments}")
         self.send_path_planner(self.current_arguments[1], self.current_arguments[2])  # Now asynchronous
 
-    
-    def send_goal(self, waypoints):
+    # Action server go_to
+    def send_goal(self, waypoint):
         """
         Sends a waypoint as a goal to the action server.
 
         Parameters
         ----------
-        waypoints : PoseStamped[]
+        waypoint : PoseStamped
             Target waypoints messages.
         """
 
 
-        self.get_logger().info("sending waypoints")
-        for waypoint in waypoints:
-            goal_msg = MoveTo.Goal()
-            goal_msg.destination = waypoint
+        self.get_logger().info("sending waypoint")
+        goal_msg = MoveTo.Goal()
+        goal_msg.destination = waypoint
 
-            self.get_logger().info("wait...")
-            self.action_client.wait_for_server()
-            self.get_logger().info(f"Sending waypoint goal: x={waypoint.pose.position.x}, y={waypoint.pose.position.y}, z={waypoint.pose.position.z}")
+        self.get_logger().info("wait...")
+        self.action_client.wait_for_server()
+        self.get_logger().info(f"Sending waypoint goal: x={waypoint.pose.position.x}, y={waypoint.pose.position.y}, z={waypoint.pose.position.z}")
 
-            send_goal_future = self.action_client.send_goal_async(
-                goal_msg, feedback_callback=self.feedback_callback
-            )
-            send_goal_future.add_done_callback(self.goal_response_callback)
+        send_goal_future = self.action_client.send_goal_async(
+            goal_msg, feedback_callback=self.feedback_callback
+        )
+        send_goal_future.add_done_callback(self.goal_response_callback)
 
     def feedback_callback(self, feedback_msg):
         """
@@ -118,7 +117,9 @@ class move(ActionExecutorClient):
                 self.get_logger().info('All waypoints reached')
         else:
             self.get_logger().info('Failed to reach waypoint')
-            
+    
+
+    # Path planner
     def send_path_planner(self, origin, destination):
         """
         Sends a request to the path planner asynchronously.
@@ -157,7 +158,7 @@ class move(ActionExecutorClient):
                     self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}")
                 self.waypoints = response.waypoints  # Assuming `waypoints` is part of the response
                 self.current_waypoint_index = 0  # Reset index when waypoints are received
-                self.send_goal(self.waypoints)
+                self.send_goal(self.waypoints[0])
             else:
                 self.get_logger().error('Failed to generate path')
                 self.finish(False, 0.0, 'Failed to generate path')
