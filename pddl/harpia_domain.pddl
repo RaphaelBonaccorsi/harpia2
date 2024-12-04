@@ -73,7 +73,7 @@
              ?to_region - region)
         :precondition (and
             (at ?from_region)
-            (> (battery_amount) (+ (* (/ (distance ?from_region ?to_region) (velocity)) (discharge_rate_battery)) 15))
+            ; (> (battery_amount) (+ (* (/ (distance ?from_region ?to_region) (velocity)) (discharge_rate_battery)) 15))
         )
         :effect (and 
                 (not (at ?from_region))
@@ -100,15 +100,15 @@
         :precondition(and
             (at ?region)
             (picture_goal ?region)
-            (> (battery_amount) 
-                (*
-                    (/
-                        1000
-                        (velocity)
-                    )
-                    (discharge_rate_battery)
-                )
-            )
+            ; (> (battery_amount) 
+            ;     (*
+            ;         (/
+            ;             1000
+            ;             (velocity)
+            ;         )
+            ;         (discharge_rate_battery)
+            ;     )
+            ; )
        )
         :effect(and
             (taken_image ?region)
@@ -131,15 +131,15 @@
             (at ?region)
             (pulverize_goal ?region)
             (> (input_amount) 0)
-            (> (battery_amount) 
-                (*
-                    (/
-                        314
-                        (velocity)
-                    )
-                    (discharge_rate_battery)
-                )
-            )
+            ; (> (battery_amount) 
+            ;     (*
+            ;         (/
+            ;             314
+            ;             (velocity)
+            ;         )
+            ;         (discharge_rate_battery)
+            ;     )
+            ; )
        )
         :effect(and
             (pulverized ?region)

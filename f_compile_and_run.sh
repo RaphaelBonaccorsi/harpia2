@@ -1,9 +1,23 @@
 clear
-# Primeiro comando
-if colcon build --symlink-install; then
-  # Executar esses comandos apenas se o primeiro não der erro
-  source install/setup.bash
-  ros2 launch route_executor2 patrol_example_launch.py
-else
-  echo "Erro durante a build"
+
+echo "Building harpia_msgs:"
+cd src/harpia_msgs
+if ! colcon build; then
+  echo "Error building harpia_msgs"
+  exit 1
 fi
+cd ../..
+source src/harpia_msgs/install/setup.bash
+echo "Builded harpia_msgs successfully"
+
+
+echo "Building main project:"
+if ! colcon build --symlink-install; then
+  echo "Error building main project"
+  exit 1
+fi
+source install/setup.bash
+echo "Builded main project successfully"
+
+echo "Running project:"
+ros2 launch route_executor2 patrol_example_launch.py
