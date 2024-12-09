@@ -1,6 +1,6 @@
 (define (domain harpia)
 
-    (:requirements  :typing  :strips  :disjunctive-preconditions  :equality :fluents )
+    (:requirements  :typing  :strips  :disjunctive-preconditions  :equality :fluents :durative-actions)
 
     (:types
         region - object
@@ -67,19 +67,21 @@
     )
 
 
-    (:action go_to
+    (:durative-action go_to
         :parameters (
              ?from_region - region 
              ?to_region - region)
-        :precondition (and
-            (at ?from_region)
+        :duration
+            (= ?duration 5)
+        :condition (and
+            (at start (at ?from_region))
             ; (> (battery_amount) (+ (* (/ (distance ?from_region ?to_region) (velocity)) (discharge_rate_battery)) 15))
         )
         :effect (and 
-                (not (at ?from_region))
-                (been_at ?to_region)
-                (at ?to_region)
-                (decrease (battery_amount ) 
+                (at start (not (at ?from_region)))
+                (at end (been_at ?to_region))
+                (at end (at ?to_region))
+                (at end (decrease (battery_amount ) 
                       (*
                           (/
                               (distance ?from_region ?to_region)
@@ -88,18 +90,20 @@
                           (discharge_rate_battery)
                       )
           
-                )
-                (increase (mission_length) (distance ?from_region ?to_region))
-                )
+                ))
+                (at end(increase (mission_length) (distance ?from_region ?to_region)))
+        )
     )
     
-    (:action take_image
+    (:durative-action take_image
         :parameters (
             ?region - region
         )
-        :precondition(and
-            (at ?region)
-            (picture_goal ?region)
+        :duration
+            (= ?duration 1)
+        :condition(and
+            (over all(at ?region))
+            (over all(picture_goal ?region))
             ; (> (battery_amount) 
             ;     (*
             ;         (/
@@ -111,9 +115,9 @@
             ; )
        )
         :effect(and
-            (taken_image ?region)
-            (increase (mission_length) 1000)
-            (decrease (battery_amount) 
+            (at end(taken_image ?region))
+            (at end(increase (mission_length) 1000))
+            (at end(decrease (battery_amount) 
                 (*
                     (/
                         1000
@@ -121,16 +125,18 @@
                     )
                     (discharge_rate_battery)
                 )
-            )
+            ))
         )
     )
-    (:action pulverize_region
+    (:durative-action pulverize_region
         :parameters (
             ?region - region)
-        :precondition(and
-            (at ?region)
-            (pulverize_goal ?region)
-            (> (input_amount) 0)
+        :duration
+            (= ?duration 1)
+        :condition(and
+            (over all(at ?region))
+            (over all(pulverize_goal ?region))
+            (at start(> (input_amount) 0))
             ; (> (battery_amount) 
             ;     (*
             ;         (/
@@ -142,10 +148,10 @@
             ; )
        )
         :effect(and
-            (pulverized ?region)
-            (increase (mission_length) 314)
-            (decrease (input_amount) 1)
-            (decrease (battery_amount) 
+            (at end(pulverized ?region))
+            (at end(increase (mission_length) 314))
+            (at end(decrease (input_amount) 1))
+            (at end(decrease (battery_amount)
                 (*
                     (/
                         314
@@ -153,30 +159,34 @@
                     )
                     (discharge_rate_battery)
                 )
-            )
+            ))
         )
     )
-    (:action recharge_battery
+    (:durative-action recharge_battery
         :parameters (?base - base)
-        :precondition (and
-            (at ?base)
+        :duration
+            (= ?duration 1)
+        :condition (and
+            (over all(at ?base))
             ;(< (battery_amount) 60)
         )
         :effect 
         (and
-            (assign (battery_amount) (battery_capacity))
+            (at end (assign (battery_amount) (battery_capacity)))
         )
     )
 
-    (:action recharge_input
+    (:durative-action recharge_input
         :parameters (?base - base)
-        :precondition (and
-            (at ?base)
-            (< (input_amount) (/ (input_capacity) 2))
+        :duration
+            (= ?duration 1)
+        :condition (and
+            (over all(at ?base))
+            (at start(< (input_amount) (/ (input_capacity) 2)))
         )
         :effect 
         (and
-            (assign (input_amount) (input_capacity))
+            (at end(assign (input_amount) (input_capacity)))
         )
     )
 )

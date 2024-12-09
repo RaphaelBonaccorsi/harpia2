@@ -316,7 +316,7 @@ private:
 
     // Enviar o problema ao PlanSys2
     if (!problem_client_->addProblem(problem_content)) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL.");
+      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL: '%s'", problem_file2.c_str());
     }
   }
 
@@ -344,6 +344,36 @@ private:
       RCLCPP_ERROR(this->get_logger(), "Erro ao gerar o plano.");
       return;
     }
+    ////////////////////////
+
+    // // Assuming `plan` is a valid std::optional<plansys2_msgs::msg::Plan>
+    // auto &plan_items = plan.value().items;
+
+    // // Log the initial plan
+    // RCLCPP_INFO(this->get_logger(), "Initial Plan:");
+    // for (const auto &action : plan_items) {
+    //   RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
+    // }
+
+    // auto logger = this->get_logger()
+
+    // // Example: Remove an action by some condition (e.g., action name matches "some_action")
+    // plan_items.erase(
+    //   std::remove_if(plan_items.begin(), plan_items.end(),
+    //                 [](const auto &action) {
+    //     bool result = action.action == "take_image";
+    //     RCLCPP_INFO(logger, "Comparing (%d): %s", result, action.action.c_str());
+    //     return result;
+    //                   }),
+    //   plan_items.end());
+
+    // // Log the modified plan
+    // RCLCPP_INFO(this->get_logger(), "Modified Plan:");
+    // for (const auto &action : plan_items) {
+    //   RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
+    // }
+
+    /////////////////////
 
     RCLCPP_INFO(this->get_logger(), "Plano gerado com sucesso.");
 
