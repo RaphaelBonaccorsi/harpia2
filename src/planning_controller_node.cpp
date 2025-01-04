@@ -23,7 +23,7 @@
 class InterfacePlansys2 : public rclcpp::Node
 {
 public:
-  InterfacePlansys2(const std::string &problem_file)
+  InterfacePlansys2()
   : Node("interface_plansys2")
   {
     // Inicializar os clientes do PlanSys2 para trabalhar com PDDL
@@ -39,7 +39,7 @@ public:
     wait_for_problem_expert_availability();
 
     // // Carregar apenas o arquivo de problema PDDL
-    // load_pddl_files(problem_file);
+    // load_pddl_file("/pddl/harpia_problema_teste.pddl");
 
 
     add_mission_problem();
@@ -214,6 +214,10 @@ private:
           problem_client_->addFunction(plansys2::Function("(= (distance "+name1+" "+name2+") "+distance_str+")"));
           problem_client_->addFunction(plansys2::Function("(= (distance "+name2+" "+name1+") "+distance_str+")"));
         }
+        else
+        {
+          problem_client_->addFunction(plansys2::Function("(= (distance "+region1["name"].get<std::string>()+" "+region1["name"].get<std::string>()+") 0.0)"));
+        }
       }
     }
 
@@ -298,14 +302,14 @@ private:
   }
 
   // Função para carregar o arquivo de problema PDDL
-  void load_pddl_files(const std::string & problem_file)
+  void load_pddl_file(const std::string & problem_file)
   {
 
     std::string package_directory = ament_index_cpp::get_package_share_directory("route_executor2");
-    std::string problem_file2 = package_directory + problem_file;
-    RCLCPP_INFO(this->get_logger(), "caminho para pddl: %s", problem_file2.c_str());
+    std::string problem_file_path = package_directory + problem_file;
+    RCLCPP_INFO(this->get_logger(), "caminho para pddl: %s", problem_file_path.c_str());
     // Carregar o problema
-    std::ifstream problem_stream(problem_file2);
+    std::ifstream problem_stream(problem_file_path);
     if (!problem_stream.is_open()) {
       RCLCPP_ERROR(this->get_logger(), "Erro ao abrir o arquivo de problema PDDL.");
       return;
@@ -316,7 +320,7 @@ private:
 
     // Enviar o problema ao PlanSys2
     if (!problem_client_->addProblem(problem_content)) {
-      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL: '%s'", problem_file2.c_str());
+      RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL: '%s'", problem_file_path.c_str());
     }
   }
 
@@ -336,6 +340,8 @@ private:
       RCLCPP_ERROR(this->get_logger(), "Domínio PDDL não está configurado corretamente.");
       return;
     }
+
+    RCLCPP_INFO(this->get_logger(), "Dominio:\n===========\n%s\n===========\nProblema:\n===========\n%s\n===========\n", domain.c_str(), problem.c_str());
 
     // Gerar o plano
     auto plan = planner_client_->getPlan(domain, problem);
@@ -411,7 +417,7 @@ private:
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<InterfacePlansys2>("/pddl/problem.pddl");
+  auto node = std::make_shared<InterfacePlansys2>();
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
