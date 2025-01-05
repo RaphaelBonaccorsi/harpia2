@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <sstream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
@@ -19,6 +20,30 @@
 #include "plansys2_executor/ExecutorClient.hpp" // Added for PlanSys2 Executor
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <nlohmann/json.hpp>
+#include <typeinfo>
+#include <cxxabi.h>
+#include <memory>
+
+using namespace std;
+
+std::string executeCommand(const std::string& command) {
+  std::string result;
+  char buffer[128];
+  FILE* pipe = popen(command.c_str(), "r"); // Open a pipe to run the command
+  if (!pipe) {
+    throw std::runtime_error("popen() failed!");
+  }
+  try {
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+      result += buffer;  // Capture the output
+    }
+  } catch (...) {
+    pclose(pipe);
+    throw;
+  }
+  pclose(pipe);
+  return result;
+}
 
 class InterfacePlansys2 : public rclcpp::Node
 {
@@ -44,7 +69,8 @@ public:
 
     add_mission_problem();
     // Gerar o plano
-    generate_plan();
+    // generate_plan();
+    generate_plan_custom_solver();
   }
 
 private:
@@ -350,36 +376,6 @@ private:
       RCLCPP_ERROR(this->get_logger(), "Erro ao gerar o plano.");
       return;
     }
-    ////////////////////////
-
-    // // Assuming `plan` is a valid std::optional<plansys2_msgs::msg::Plan>
-    // auto &plan_items = plan.value().items;
-
-    // // Log the initial plan
-    // RCLCPP_INFO(this->get_logger(), "Initial Plan:");
-    // for (const auto &action : plan_items) {
-    //   RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
-    // }
-
-    // auto logger = this->get_logger()
-
-    // // Example: Remove an action by some condition (e.g., action name matches "some_action")
-    // plan_items.erase(
-    //   std::remove_if(plan_items.begin(), plan_items.end(),
-    //                 [](const auto &action) {
-    //     bool result = action.action == "take_image";
-    //     RCLCPP_INFO(logger, "Comparing (%d): %s", result, action.action.c_str());
-    //     return result;
-    //                   }),
-    //   plan_items.end());
-
-    // // Log the modified plan
-    // RCLCPP_INFO(this->get_logger(), "Modified Plan:");
-    // for (const auto &action : plan_items) {
-    //   RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
-    // }
-
-    /////////////////////
 
     RCLCPP_INFO(this->get_logger(), "Plano gerado com sucesso.");
 
@@ -398,6 +394,78 @@ private:
       RCLCPP_ERROR(this->get_logger(), "Falha durante a execução do plano.");
     } else {
       RCLCPP_INFO(this->get_logger(), "Plano executado com sucesso.");
+    }
+  }
+  
+  void generate_plan_custom_solver() {
+    plansys2_msgs::msg::Plan hardcoded_plan;
+
+    // Helper lambda to add actions to the plan
+    auto logger = this->get_logger();
+    auto add_action = [&hardcoded_plan, &logger](std::string action_name, double start_time) {
+
+      // action_name = "a"+action_name+"z";
+      
+      RCLCPP_INFO(logger, "adding: |%s|%f|", action_name.c_str(), start_time);
+      plansys2_msgs::msg::PlanItem plan_item;
+      plan_item.action = action_name;
+      plan_item.time = start_time;
+      hardcoded_plan.items.push_back(plan_item);
+    };
+
+
+    std::string solver_path = ament_index_cpp::get_package_share_directory("route_executor2") + "/solver";
+    std::string domain_file_path = solver_path+"/domain.pddl";
+    std::string problem_file_path = solver_path+"/problem.pddl";
+
+    auto write_to_file = [](std::string file_path, std::string content) -> void {
+      std::ofstream file(file_path);
+      file << content;
+      file.close();
+    };
+
+    write_to_file(domain_file_path,  domain_client_->getDomain());
+    write_to_file(problem_file_path, problem_client_->getProblem());
+  
+
+    std::string command = solver_path + "/TFD/generate_plan_tfd.sh "+ domain_file_path +" "+ problem_file_path;
+    std::string result = executeCommand(command);
+    RCLCPP_INFO(this->get_logger(), "result: %s", result.c_str());
+    
+    std::stringstream ss(result);  
+    std::string line;
+
+    while (std::getline(ss, line)) {
+      size_t colon_pos = line.find(":");
+      size_t open_paren = line.find('(');
+      size_t close_paren = line.find(')');
+      size_t open_bracket = line.find('[');
+      size_t close_bracket = line.find(']');
+
+      if (colon_pos == std::string::npos || open_paren == std::string::npos || close_paren == std::string::npos || open_bracket == std::string::npos || close_bracket == std::string::npos)
+      {
+        RCLCPP_ERROR(this->get_logger(), "Failed to parse line: %s", line.c_str());
+        continue;
+      }
+
+      float start_time = std::stof(line.substr(0, colon_pos));
+      std::string action_name = "("+line.substr(open_paren + 1, close_paren - open_paren - 1)+")";
+      float duration = std::stof(line.substr(open_bracket + 1, close_bracket - open_bracket - 1));
+
+      add_action(action_name, start_time);
+    }
+
+    // Log the created plan
+    RCLCPP_INFO(this->get_logger(), "Hardcoded plan created:");
+    for (const auto &action : hardcoded_plan.items) {
+        RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
+    }
+
+    // Send the hardcoded plan for execution
+    if (executor_client_->start_plan_execution(hardcoded_plan)) {
+        RCLCPP_INFO(this->get_logger(), "Hardcoded plan sent for execution.");
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to send the hardcoded plan for execution.");
     }
   }
 
