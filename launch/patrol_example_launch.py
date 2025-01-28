@@ -31,7 +31,7 @@ def generate_launch_description():
             get_package_share_directory('plansys2_bringup'),
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
-        launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
+        launch_arguments={'model_file': example_dir + '/pddl/domain.pddl'}.items()
     )
     # controller node
     control_cmd = Node(
@@ -60,14 +60,6 @@ def generate_launch_description():
         parameters=[]
     )
 
-    take_image_cmd = Node(
-        package='route_executor2',
-        executable='take_image.py',
-        name='take_image',
-        output='screen',
-        parameters=[]
-    )
-
     route_cmd = Node(
         package='route_executor2',
         executable='route_executor.py',
@@ -91,11 +83,9 @@ def generate_launch_description():
 
     # Declare the launch options
     ld.add_action(plansys2_cmd)
-    
     ld.add_action(control_cmd)
     # ld.add_action(move_cmd)
     ld.add_action(go_to_cmd)
-    ld.add_action(take_image_cmd)
     
     ld.add_action(route_cmd)
     ld.add_action(path_planner_cmd)

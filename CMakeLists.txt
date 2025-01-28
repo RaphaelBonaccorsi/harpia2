@@ -20,7 +20,7 @@ find_package(plansys2_executor REQUIRED)
 find_package(plansys2_planner REQUIRED)
 find_package(plansys2_problem_expert REQUIRED)
 find_package(plansys2_pddl_parser REQUIRED)
-find_package(nlohmann_json REQUIRED) # sudo apt-get install nlohmann-json3-dev
+find_package(nlohmann_json REQUIRED)
 set(CMAKE_CXX_STANDARD 17)
 
 set(dependencies
@@ -51,8 +51,6 @@ add_executable(go_to_action_node src/go_to_action_node.cpp)
 ament_target_dependencies(go_to_action_node rclcpp plansys2_executor)
 add_executable(take_image_action_node src/take_image_action_node.cpp)
 ament_target_dependencies(take_image_action_node rclcpp plansys2_executor)
-add_executable(take_image_action_node src/take_image_action_node.cpp)
-ament_target_dependencies(take_image_action_node rclcpp plansys2_executor)
 add_executable(pulverize_region_action_node src/pulverize_region_action_node.cpp)
 ament_target_dependencies(pulverize_region_action_node rclcpp plansys2_executor)
 add_executable(recharge_battery_action_node src/recharge_battery_action_node.cpp)
@@ -60,7 +58,12 @@ ament_target_dependencies(recharge_battery_action_node rclcpp plansys2_executor)
 add_executable(recharge_input_action_node src/recharge_input_action_node.cpp)
 ament_target_dependencies(recharge_input_action_node rclcpp plansys2_executor)
 ]]
-install(DIRECTORY launch pddl data json solver DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch pddl data json DESTINATION share/${PROJECT_NAME})
+
+install(
+  DIRECTORY libs/
+  DESTINATION lib/${PROJECT_NAME}/libs
+)
 
 install(TARGETS
   planning_controller_node
@@ -73,7 +76,6 @@ install(PROGRAMS
   scripts/route_executor.py
   scripts/path_planner.py
   scripts/go_to.py
-  scripts/take_image.py
   DESTINATION lib/${PROJECT_NAME})
 
 

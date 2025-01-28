@@ -9,8 +9,14 @@ from geometry_msgs.msg import PoseStamped
 from harpia_msgs.action import MoveTo
 from rclpy.action import ActionClient
 from ament_index_python.packages import get_package_share_directory
+import time, os, sys
 
+# Adiciona o diretório base ao sys.path
+libs_path = os.path.join(os.path.dirname(__file__), './libs')
+sys.path.append(os.path.abspath(libs_path))
 
+from libs.RRT.rrt import RRT
+from libs.RayCasting.raycasting import Vector
 class CoordinateConverter:
     """Coordinate conversion utilities."""
 
@@ -121,69 +127,6 @@ class Map:
                     'geo_points': enu_geo_points
                 })
 
-
-class RRT:
-    """Rapidly-exploring Random Tree (RRT) for path planning."""
-
-    def __init__(self, start, goal, map_limits, step_size=1.0, max_iters=5000):
-        """
-        Initializes the RRT with start and goal points and map constraints.
-
-        Parameters
-        ----------
-        start : tuple
-            Starting point for the path (x, y).
-        goal : tuple
-            Goal point for the path (x, y).
-        map_limits : list
-            Boundaries of the map [(x_min, y_min), (x_max, y_max)].
-        step_size : float, optional
-            Step size for RRT expansion (default is 1.0).
-        max_iters : int, optional
-            Maximum iterations for RRT expansion (default is 5000).
-        """
-        self.start = start
-        self.goal = goal
-        self.map_limits = map_limits
-        self.step_size = step_size
-        self.max_iters = max_iters
-
-    def build(self):
-        """
-        Constructs a direct path between start and goal.
-
-        Returns
-        -------
-        list
-            List of points forming the path between start and goal.
-        """
-        path = self.generate_straight_path(self.start, self.goal)
-        return path
-
-    def generate_straight_path(self, start, goal):
-        """
-        Generates a straight path between start and goal with interpolated points.
-
-        Parameters
-        ----------
-        start : tuple
-            Starting point (x, y).
-        goal : tuple
-            Goal point (x, y).
-        num_points : int, optional
-            Number of interpolated points (default is 10).
-
-        Returns
-        -------
-        list
-            List of points along the straight path.
-        """
-        path = []
-        path.append((start[0], start[1]))
-        path.append((goal[0], goal[1]))
-        return path
-
-
 class PathPlanner(Node):
     """Path planning node for generating and executing paths."""
 
@@ -198,6 +141,7 @@ class PathPlanner(Node):
         try:
             package_share_dir = get_package_share_directory('route_executor2')
             self.map.read_route_from_json(f"{package_share_dir}/data/map.json")
+            print(f"ROIs:{self.map.rois}")
             # self.map.read_route_from_json("/home/artur/rafael/route_executor2/data/map.json")
         except:
             self.get_logger().error("map.json not found, check the path and permissions.")
@@ -265,12 +209,42 @@ class PathPlanner(Node):
             return
 
         # Gerar o caminho usando RRT
-        map_limits = [(-10000, -10000), (10000, 10000)]
-        rrt = RRT(start, goal, map_limits)
-        path = rrt.build()
+        
+        # Define the rand_area, based on origin and destination coordinates
+        ps = [start[0], start[1], goal[0], goal[1]]
+        rand_area_x = math.floor(min(ps) * 1.2)
+        rand_area_y = math.ceil(max(ps) * 1.2)
+        rand_area = [rand_area_x, rand_area_y]
+        obstacleList = list()
+        # Iterando pelos NFZs no mapa
+        for nfz in self.map.nfz:
+            # Lista temporária para armazenar os vetores de um único geo_point
+            obstacle = []
 
-        # Verificar se o caminho foi gerado
-        if not path:
+            for geo_point in nfz.get('geo_points', []):  # Certifica-se de que 'geo_points' existe
+                vector = Vector(geo_point[0], geo_point[1])  # Cria um Vector com x e y
+                obstacle.append(vector)  # Adiciona o Vector à lista temporária
+
+            obstacleList.append(obstacle)  # Adiciona o obstáculo completo à lista principal
+            
+        print(f"ObstacleList: {obstacleList}")
+    
+        rrt = RRT(
+        start=start,
+        goal=goal,
+        rand_area=rand_area,
+        obstacle_list=obstacleList,
+        expand_dis=25,  # minumum precision, to consider inside the goal (meters) 100
+        path_resolution=1,
+        goal_sample_rate=50,
+        max_iter=5000,
+        check_collision_mode="ray_casting",
+        )
+
+        path = rrt.planning(animation=False)
+        if path is not None:
+            path = list(reversed(path))
+        else:
             self.get_logger().error("Failed to generate a valid path.")
             response.waypoints = []  # Resposta vazia se o caminho falhar
             return

@@ -169,8 +169,6 @@ class RouteExecutor(Node):
             feedback_msg.distance = float(self.get_distance(self.waypoint))
             goal_handle.publish_feedback(feedback_msg)
 
-            # self.get_logger().info(f'Distance to waypoint: {feedback_msg.distance:.2f}m')
-
             # Checar se o objetivo foi alcançado
             if self.has_reached_waypoint(self.waypoint):
                 self._timer.cancel()  # Cancelar o timer
@@ -237,7 +235,6 @@ class RouteExecutor(Node):
         msg.pose.orientation.w = 1.0
 
         self.publisher_.publish(msg)
-        # self.get_logger().info(f"Published setpoint: ({msg.pose.position.x}, {msg.pose.position.y}, {msg.pose.position.z})")
 
     def set_offboard_mode(self):
         """
