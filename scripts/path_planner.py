@@ -4,7 +4,7 @@ import rclpy
 import math
 import json
 from rclpy.node import Node
-from harpia_msgs.srv import GeneratePath
+from harpia_msgs.srv import GeneratePath, GetMap
 from geometry_msgs.msg import PoseStamped
 from harpia_msgs.action import MoveTo
 from rclpy.action import ActionClient
@@ -79,8 +79,8 @@ class Map:
         map_file : str
             Path to the JSON file containing route data.
         """
-        with open(map_file, 'r') as file:
-            data = json.load(file)
+        
+        data = json.loads(map_file)
 
         for base in data.get('bases', []):
             center = base.get('center')
@@ -136,21 +136,31 @@ class PathPlanner(Node):
 
         self.home_lat = -22.001333
         self.home_lon = -47.934152
-
+        self.map_cli = self.create_client(GetMap, 'data_server/map')
+        while not self.map_cli.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info('data_server/map service not available, waiting again...')
+        
+        self.req = GetMap.Request()
+        self.req.request = True
+        self.future = self.map_cli.call_async(self.req)
+        self.future.add_done_callback(self.map_response_callback)
+        
         self.map = Map(self.home_lat, self.home_lon)
-        try:
-            package_share_dir = get_package_share_directory('route_executor2')
-            self.map.read_route_from_json(f"{package_share_dir}/data/map.json")
-            print(f"ROIs:{self.map.rois}")
-            # self.map.read_route_from_json("/home/artur/rafael/route_executor2/data/map.json")
-        except:
-            self.get_logger().error("map.json not found, check the path and permissions.")
 
         self.srv = self.create_service(GeneratePath, 'path_planner/generate_path', self.generate_path_callback)
         self.get_logger().info("Path planner service is ready to generate paths.")
 
         ## self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
         
+    def map_response_callback(self, future):
+        # Callback for the data_server/map service
+        try:
+            response = future.result()
+            self.get_logger().info('Map response from data_server')
+            self.map.read_route_from_json(response.map_file)
+        except Exception as e:
+            self.get_logger().error(f'Map data_server service call failed: {e}')
+            self.finish(False, 0.0, 'Service call exception')
 
     def find_location_by_name(self, name):
         """
@@ -226,8 +236,6 @@ class PathPlanner(Node):
                 obstacle.append(vector)  # Adiciona o Vector à lista temporária
 
             obstacleList.append(obstacle)  # Adiciona o obstáculo completo à lista principal
-            
-        print(f"ObstacleList: {obstacleList}")
     
         rrt = RRT(
         start=start,

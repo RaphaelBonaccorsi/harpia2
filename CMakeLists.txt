@@ -76,6 +76,7 @@ install(PROGRAMS
   scripts/route_executor.py
   scripts/path_planner.py
   scripts/go_to.py
+  scripts/data_server.py
   DESTINATION lib/${PROJECT_NAME})
 
 

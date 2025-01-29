@@ -76,6 +76,14 @@ def generate_launch_description():
         parameters=[]
     )
 
+    data_server_cmd = Node(
+        package='route_executor2',
+        executable='data_server.py',
+        name='data_server',
+        output='screen',
+        parameters=[]
+    )
+
     
 
     # Create the launch description and populate
@@ -89,5 +97,6 @@ def generate_launch_description():
     
     ld.add_action(route_cmd)
     ld.add_action(path_planner_cmd)
+    ld.add_action(data_server_cmd)
 
     return ld
