@@ -31,7 +31,7 @@ def generate_launch_description():
             get_package_share_directory('plansys2_bringup'),
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
-        launch_arguments={'model_file': example_dir + '/pddl/domain.pddl'}.items()
+        launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
     )
     # controller node
     control_cmd = Node(
@@ -84,6 +84,15 @@ def generate_launch_description():
         parameters=[]
     )
 
+    problem_generator_cmd = Node(
+        package='route_executor2',
+        executable='problem_generator.py',
+        name='problem_generator',
+        output='screen',
+        parameters=[]
+    )
+    
+
     
 
     # Create the launch description and populate
@@ -98,5 +107,6 @@ def generate_launch_description():
     ld.add_action(route_cmd)
     ld.add_action(path_planner_cmd)
     ld.add_action(data_server_cmd)
+    ld.add_action(problem_generator_cmd)
 
     return ld

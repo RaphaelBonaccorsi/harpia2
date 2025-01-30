@@ -5,6 +5,10 @@
 #include <fstream>
 #include <cmath>
 #include <sstream>
+#include <nlohmann/json.hpp>
+#include <typeinfo>
+#include <cxxabi.h>
+#include <memory>
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/int32.hpp"
@@ -19,10 +23,8 @@
 #include "lifecycle_msgs/msg/state.hpp"
 #include "plansys2_executor/ExecutorClient.hpp" // Added for PlanSys2 Executor
 #include <ament_index_cpp/get_package_share_directory.hpp>
-#include <nlohmann/json.hpp>
-#include <typeinfo>
-#include <cxxabi.h>
-#include <memory>
+
+#include "std_srvs/srv/trigger.hpp"
 
 using namespace std;
 
@@ -60,17 +62,28 @@ public:
     // Inicializar o publisher para o tópico de planos
     plan_publisher_ = this->create_publisher<plansys2_msgs::msg::Plan>("plansys2_interface/plan", 10);
 
+    // Cliente para servico do proglem generator
+    problem_generator_client_ = this->create_client<std_srvs::srv::Trigger>("problem_generator/get_problem");
+
     // Verificar a disponibilidade do Problem Expert antes de continuar
     wait_for_problem_expert_availability();
 
     // // Carregar apenas o arquivo de problema PDDL
     // load_pddl_file("/pddl/harpia_problema_teste.pddl");
 
+    // Create a request and send it
+    auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto future = problem_generator_client_->async_send_request(request, std::bind(&InterfacePlansys2::get_problem_callback, this, std::placeholders::_1));
+  
+    
+    // RCLCPP_INFO(this->get_logger(), "@@@ PDDL Domain:\n%s", domain_client_->getDomain().c_str());
 
-    add_mission_problem();
+    // add_mission_problem();
     // Gerar o plano
     // generate_plan();
-    generate_plan_custom_solver();
+
+    // RCLCPP_INFO(this->get_logger(), "@@@ PDDL Problem:\n%s", problem_client_->getProblem().c_str());
+    // generate_plan_custom_solver();
   }
 
 private:
@@ -79,6 +92,7 @@ private:
   std::shared_ptr<plansys2::PlannerClient> planner_client_;
   std::shared_ptr<plansys2::ExecutorClient> executor_client_; // Added Executor Client
   rclcpp::Publisher<plansys2_msgs::msg::Plan>::SharedPtr plan_publisher_;  // Publisher para o plano
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr problem_generator_client_;
 
   // Função para aguardar a disponibilidade dos serviços do Problem Expert
   void wait_for_problem_expert_availability()
@@ -238,7 +252,7 @@ private:
           std::string distance_str = std::to_string(haversine(lat1, lon1, lat2, lon2));
           // RCLCPP_INFO(this->get_logger(), "%20s ~ %20s: %s", name1.c_str(), name2.c_str(), distance_str.c_str());
           problem_client_->addFunction(plansys2::Function("(= (distance "+name1+" "+name2+") "+distance_str+")"));
-          problem_client_->addFunction(plansys2::Function("(= (distance "+name2+" "+name1+") "+distance_str+")"));
+          // problem_client_->addFunction(plansys2::Function("(= (distance "+name2+" "+name1+") "+distance_str+")"));
         }
         else
         {
@@ -367,7 +381,7 @@ private:
       return;
     }
 
-    RCLCPP_INFO(this->get_logger(), "Dominio:\n===========\n%s\n===========\nProblema:\n===========\n%s\n===========\n", domain.c_str(), problem.c_str());
+    // RCLCPP_INFO(this->get_logger(), "Dominio:\n===========\n%s\n===========\nProblema:\n===========\n%s\n===========\n", domain.c_str(), problem.c_str());
 
     // Gerar o plano
     auto plan = planner_client_->getPlan(domain, problem);
@@ -379,8 +393,8 @@ private:
 
     RCLCPP_INFO(this->get_logger(), "Plano gerado com sucesso.");
 
-    // Ler, exibir e publicar o plano gerado
-    read_print_and_publish_plan(plan.value());
+    // // Ler, exibir e publicar o plano gerado
+    // read_print_and_publish_plan(plan.value());
 
     // Iniciar a execução do plano
     if (executor_client_->start_plan_execution(plan.value())) {
@@ -430,7 +444,7 @@ private:
 
     std::string command = solver_path + "/TFD/generate_plan_tfd.sh "+ domain_file_path +" "+ problem_file_path;
     std::string result = executeCommand(command);
-    RCLCPP_INFO(this->get_logger(), "result: %s", result.c_str());
+    // RCLCPP_INFO(this->get_logger(), "plan generated: %s", result.c_str());
     
     std::stringstream ss(result);  
     std::string line;
@@ -456,14 +470,14 @@ private:
     }
 
     // Log the created plan
-    RCLCPP_INFO(this->get_logger(), "Hardcoded plan created:");
+    RCLCPP_INFO(this->get_logger(), "Plan created:");
     for (const auto &action : hardcoded_plan.items) {
         RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
     }
 
     // Send the hardcoded plan for execution
     if (executor_client_->start_plan_execution(hardcoded_plan)) {
-        RCLCPP_INFO(this->get_logger(), "Hardcoded plan sent for execution.");
+        RCLCPP_INFO(this->get_logger(), "plan sent for execution.");
     } else {
         RCLCPP_ERROR(this->get_logger(), "Failed to send the hardcoded plan for execution.");
     }
@@ -479,6 +493,28 @@ private:
 
     // Publicar o plano no tópico "plansys2_interface/plan"
     // plan_publisher_->publish(plan);  // Commented out to avoid redundant dispatch
+  }
+  
+  void get_problem_callback(rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture future)
+  {
+    auto response = future.get();
+    if (response->success)
+    {
+      // RCLCPP_INFO(this->get_logger(), "Service Response: %s", response->message.c_str());
+
+      // Enviar o problema ao PlanSys2
+      if (!problem_client_->addProblem(response->message)) {
+        RCLCPP_ERROR(this->get_logger(), "Erro ao carregar o problema PDDL");
+      }
+
+      // RCLCPP_INFO(this->get_logger(), "@@@ PDDL Problem:\n%s", problem_client_->getProblem().c_str());
+      // RCLCPP_INFO(this->get_logger(), "@@@ starting plan generation:\n");
+      generate_plan_custom_solver();
+    }
+    else 
+    {
+      RCLCPP_ERROR(this->get_logger(), "Service call failed.");
+    }
   }
 };
 

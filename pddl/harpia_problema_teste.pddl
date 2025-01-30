@@ -104,7 +104,8 @@
         ( taken_image region_1 )
         ( taken_image region_2 )
         ( at base_1 )
-   ))
+   )
+)
   
 ;   (:metric minimize (some_variable))
 )

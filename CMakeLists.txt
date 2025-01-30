@@ -58,12 +58,8 @@ ament_target_dependencies(recharge_battery_action_node rclcpp plansys2_executor)
 add_executable(recharge_input_action_node src/recharge_input_action_node.cpp)
 ament_target_dependencies(recharge_input_action_node rclcpp plansys2_executor)
 ]]
-install(DIRECTORY launch pddl data json DESTINATION share/${PROJECT_NAME})
 
-install(
-  DIRECTORY libs/
-  DESTINATION lib/${PROJECT_NAME}/libs
-)
+install(DIRECTORY launch pddl data json solver libs DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
@@ -77,6 +73,7 @@ install(PROGRAMS
   scripts/path_planner.py
   scripts/go_to.py
   scripts/data_server.py
+  scripts/problem_generator.py
   DESTINATION lib/${PROJECT_NAME})
 
 
