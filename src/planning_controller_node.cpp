@@ -442,7 +442,7 @@ private:
     write_to_file(problem_file_path, problem_client_->getProblem());
   
 
-    std::string command = solver_path + "/TFD/generate_plan_tfd.sh "+ domain_file_path +" "+ problem_file_path;
+    std::string command = solver_path + "/OPTIC/generate_plan.sh "+ domain_file_path +" "+ problem_file_path;
     std::string result = executeCommand(command);
     // RCLCPP_INFO(this->get_logger(), "plan generated: %s", result.c_str());
     
