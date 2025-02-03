@@ -2,8 +2,8 @@
     "name" : "take_picture_1",
     "id" : 1,
     "mission_execution" : [
-       {"instructions": {"area": "region_1"},"command" : "take_picture"},
-       {"instructions": {"area": "region_2"},"command" : "take_picture"},
-       {"instructions": {"area": "base_1"},"command" : "end"}
+        {"instructions" : {"area" : "region_2"},"command" : "take_picture"},
+         {"instructions" : {"area" : "region_3"},"command" : "take_picture"},
+         {"instructions" : { "area" : "base_1"},"command" : "end"}
     ]
 }

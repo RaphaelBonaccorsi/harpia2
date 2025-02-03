@@ -46,20 +46,9 @@ set(dependencies
 add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
 target_link_libraries(planning_controller_node nlohmann_json::nlohmann_json)
-#[[
-add_executable(go_to_action_node src/go_to_action_node.cpp)
-ament_target_dependencies(go_to_action_node rclcpp plansys2_executor)
-add_executable(take_image_action_node src/take_image_action_node.cpp)
-ament_target_dependencies(take_image_action_node rclcpp plansys2_executor)
-add_executable(pulverize_region_action_node src/pulverize_region_action_node.cpp)
-ament_target_dependencies(pulverize_region_action_node rclcpp plansys2_executor)
-add_executable(recharge_battery_action_node src/recharge_battery_action_node.cpp)
-ament_target_dependencies(recharge_battery_action_node rclcpp plansys2_executor)
-add_executable(recharge_input_action_node src/recharge_input_action_node.cpp)
-ament_target_dependencies(recharge_input_action_node rclcpp plansys2_executor)
-]]
 
-install(DIRECTORY launch pddl data json solver libs DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch pddl libs data json solver DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY libs DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
@@ -74,6 +63,7 @@ install(PROGRAMS
   scripts/go_to.py
   scripts/data_server.py
   scripts/problem_generator.py
+  scripts/take_image.py
   DESTINATION lib/${PROJECT_NAME})
 
 

@@ -6,11 +6,10 @@ import json
 from rclpy.node import Node
 from harpia_msgs.srv import GeneratePath, GetMap
 from geometry_msgs.msg import PoseStamped
-from harpia_msgs.action import MoveTo
 from rclpy.action import ActionClient
 from ament_index_python.packages import get_package_share_directory
 import time, os, sys
-
+from std_srvs.srv import Trigger
 # Adiciona o diretório base ao sys.path
 libs_path = os.path.join(os.path.dirname(__file__), './libs')
 sys.path.append(os.path.abspath(libs_path))
@@ -132,16 +131,14 @@ class PathPlanner(Node):
 
     def __init__(self):
         """Initializes the path planner node, map, and service."""
-        super().__init__('path_planner')
-
+        super().__init__('path_planner')   
         self.home_lat = -22.001333
         self.home_lon = -47.934152
-        self.map_cli = self.create_client(GetMap, 'data_server/map')
+        self.map_cli = self.create_client(Trigger, 'data_server/map')
         while not self.map_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/map service not available, waiting again...')
         
-        self.req = GetMap.Request()
-        self.req.request = True
+        self.req = Trigger.Request()
         self.future = self.map_cli.call_async(self.req)
         self.future.add_done_callback(self.map_response_callback)
         
@@ -157,7 +154,7 @@ class PathPlanner(Node):
         try:
             response = future.result()
             self.get_logger().info('Map response from data_server')
-            self.map.read_route_from_json(response.map_file)
+            self.map.read_route_from_json(response.message)
         except Exception as e:
             self.get_logger().error(f'Map data_server service call failed: {e}')
             self.finish(False, 0.0, 'Service call exception')

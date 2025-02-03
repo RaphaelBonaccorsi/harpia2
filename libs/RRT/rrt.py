@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 
 Path planning Sample Code with Randomized Rapidly-Exploring Random Trees (RRT)

@@ -40,7 +40,7 @@ class move(ActionExecutorClient):
         self.get_logger().info('Starting action')
         self.progress_ = 0.0
         self.get_logger().info(f"Current action arguments: {self.current_arguments}")
-        self.send_path_planner(self.current_arguments[1], self.current_arguments[2])  # Now asynchronous
+        self.send_path_planner(self.current_arguments[0], self.current_arguments[1])  # Now asynchronous
 
     # Action server go_to
     def send_goal(self, waypoint):
@@ -193,7 +193,7 @@ def main(args=None):
     rclpy.init(args=args)
 
     node = move()
-    node.set_parameters([Parameter(name='action_name', value='move')])
+    node.set_parameters([Parameter(name='action_name', value='go_to')])
 
     node.trigger_configure()
 
