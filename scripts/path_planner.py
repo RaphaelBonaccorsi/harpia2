@@ -3,13 +3,15 @@
 import rclpy
 import math
 import json
+from threading import Thread
 from rclpy.node import Node
-from harpia_msgs.srv import GeneratePath, GetMap
+from harpia_msgs.srv import GeneratePath
 from geometry_msgs.msg import PoseStamped
-from rclpy.action import ActionClient
 from ament_index_python.packages import get_package_share_directory
 import time, os, sys
 from std_srvs.srv import Trigger
+from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 # Adiciona o diretório base ao sys.path
 libs_path = os.path.join(os.path.dirname(__file__), './libs')
 sys.path.append(os.path.abspath(libs_path))
@@ -125,6 +127,18 @@ class Map:
                     'center': (enu_center_x, enu_center_y),
                     'geo_points': enu_geo_points
                 })
+        
+        self.obstacleList = list()
+        # Iterando pelos NFZs no mapa
+        for nfz in self.nfz:
+            # Lista temporária para armazenar os vetores de um único geo_point
+            obstacle = []
+
+            for geo_point in nfz.get('geo_points', []):  # Certifica-se de que 'geo_points' existe
+                vector = Vector(geo_point[0], geo_point[1])  # Cria um Vector com x e y
+                obstacle.append(vector)  # Adiciona o Vector à lista temporária
+
+            self.obstacleList.append(obstacle)  # Adiciona o obstáculo completo à lista principal
 
 class PathPlanner(Node):
     """Path planning node for generating and executing paths."""
@@ -134,13 +148,20 @@ class PathPlanner(Node):
         super().__init__('path_planner')   
         self.home_lat = -22.001333
         self.home_lon = -47.934152
+        self.drone_position = tuple()
+        self.position_cli = self.create_client(Trigger, 'data_server/drone_position',callback_group=ReentrantCallbackGroup())
+        while not self.position_cli.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info('data_server/drone_position service not available, waiting again...')
+
         self.map_cli = self.create_client(Trigger, 'data_server/map')
         while not self.map_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/map service not available, waiting again...')
         
-        self.req = Trigger.Request()
-        self.future = self.map_cli.call_async(self.req)
-        self.future.add_done_callback(self.map_response_callback)
+        self.send_position_req()
+
+        self.map_req = Trigger.Request()
+        self.map_future = self.map_cli.call_async(self.map_req)
+        self.map_future.add_done_callback(self.map_response_callback)
         
         self.map = Map(self.home_lat, self.home_lon)
 
@@ -148,6 +169,23 @@ class PathPlanner(Node):
         self.get_logger().info("Path planner service is ready to generate paths.")
 
         ## self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
+        
+    def position_response_callback(self, future):
+        """Callback para processar a resposta do serviço de posição"""
+        try:
+            response = future.result()
+            position = response.message.split()
+
+            # Garante que a posição recebida tem pelo menos dois valores válidos
+            if len(position) < 2:
+                self.get_logger().error("Received an invalid position response!")
+                return
+
+            self.drone_position = (float(position[0]), float(position[1]))
+            self.get_logger().info(f"Drone position updated: {self.drone_position}")
+        
+        except Exception as e:
+            self.get_logger().error(f'Failed to process position response: {e}')
         
     def map_response_callback(self, future):
         # Callback for the data_server/map service
@@ -187,23 +225,35 @@ class PathPlanner(Node):
 
         return None
 
+    def send_position_req(self):
+        """Envia requisição ao serviço e aguarda resposta"""
+        self.position_req = Trigger.Request()
+        self.position_future = self.position_cli.call_async(self.position_req)
+        self.position_future.add_done_callback(self.position_response_callback)
+
     def generate_path_callback(self, request, response):
         """
-        Handles path generation requests and sets up waypoints.
-
-        Parameters
-        ----------
-        request : GeneratePath.Request
-            Service request containing origin and destination names.
-        response : GeneratePath.Response
-            Service response to be returned after path generation.
-
-        Modifies
-        --------
-        response : GeneratePath.Response
-            Populates the response object with waypoints.
+        Gera um caminho baseado na posição atual do drone e no destino.
         """
         self.get_logger().info(f"Received request to generate path from {request.origin} to {request.destination}")
+
+        self.get_logger().info("Requesting updated drone position...")
+
+        # Armazena a posição antiga antes da atualização
+        old_position = self.drone_position
+        self.send_position_req()
+
+        # Aguarda até que a posição do drone seja atualizada no callback
+        timeout = 5.0  # Tempo máximo de espera em segundos
+        start_time = time.time()
+
+        while old_position == self.drone_position:
+            if time.time() - start_time > timeout:
+                self.get_logger().error("Timeout waiting for updated drone position.")
+                response.waypoints = []
+                return response
+
+            time.sleep(0.1)
 
         # Encontrar as coordenadas de início e destino
         start = self.find_location_by_name(request.origin)
@@ -213,37 +263,36 @@ class PathPlanner(Node):
         if start is None or goal is None:
             self.get_logger().error("Invalid origin or destination name.")
             response.waypoints = []  # Resposta vazia em caso de erro
-            return
+            return response
 
-        # Gerar o caminho usando RRT
-        
+        # Gera o caminho com a posição ATUALIZADA do drone
+        waypointsList = self.generate_path(self.drone_position, start) or []
+        if not waypointsList:
+            self.get_logger().error("Waypoints from the actual position are empty.")
+
+        waypointsList.extend(self.generate_path(start, goal) or [])
+        response.waypoints = waypointsList
+
+        self.get_logger().info("Path generation complete.")
+        return response
+
+    def generate_path(self, start: tuple, goal: tuple ) -> list:
         # Define the rand_area, based on origin and destination coordinates
         ps = [start[0], start[1], goal[0], goal[1]]
         rand_area_x = math.floor(min(ps) * 1.2)
         rand_area_y = math.ceil(max(ps) * 1.2)
         rand_area = [rand_area_x, rand_area_y]
-        obstacleList = list()
-        # Iterando pelos NFZs no mapa
-        for nfz in self.map.nfz:
-            # Lista temporária para armazenar os vetores de um único geo_point
-            obstacle = []
-
-            for geo_point in nfz.get('geo_points', []):  # Certifica-se de que 'geo_points' existe
-                vector = Vector(geo_point[0], geo_point[1])  # Cria um Vector com x e y
-                obstacle.append(vector)  # Adiciona o Vector à lista temporária
-
-            obstacleList.append(obstacle)  # Adiciona o obstáculo completo à lista principal
     
         rrt = RRT(
-        start=start,
-        goal=goal,
-        rand_area=rand_area,
-        obstacle_list=obstacleList,
-        expand_dis=25,  # minumum precision, to consider inside the goal (meters) 100
-        path_resolution=1,
-        goal_sample_rate=50,
-        max_iter=5000,
-        check_collision_mode="ray_casting",
+            start=start,
+            goal=goal,
+            rand_area=rand_area,
+            obstacle_list=self.map.obstacleList,
+            expand_dis=25,  # minumum precision, to consider inside the goal (meters) 100
+            path_resolution=1,
+            goal_sample_rate=50,
+            max_iter=5000,
+            check_collision_mode="ray_casting",
         )
 
         path = rrt.planning(animation=False)
@@ -251,17 +300,11 @@ class PathPlanner(Node):
             path = list(reversed(path))
         else:
             self.get_logger().error("Failed to generate a valid path.")
-            response.waypoints = []  # Resposta vazia se o caminho falhar
-            return
-
+            return list()
+        
         # Criar mensagens de waypoints para o caminho gerado
         waypoints = [self.create_waypoint_message(waypoint) for waypoint in path]
-        response.waypoints = waypoints
-
-        self.get_logger().info("Path generation complete.")
-        return response
-
-
+        return waypoints
 
     def create_waypoint_message(self, waypoint):
         """
@@ -284,16 +327,27 @@ class PathPlanner(Node):
         wp_msg.pose.orientation.w = 1.0  # Garantindo uma orientação válida
         return wp_msg
 
+def spin_srv(executor):
+    try:
+        executor.spin()
+    except rclpy.executors.ExternalShutdownException:
+        pass
+
 def main(args=None):
     """
     Main function to initialize the path planner node and handle spinning.
     """
     rclpy.init(args=args)
     path_planner = PathPlanner()
-    rclpy.spin(path_planner)
+    executor = MultiThreadedExecutor()
+    executor.add_node(path_planner)
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        path_planner.get_logger().info('KeyboardInterrupt, shutting down.\n')
     path_planner.destroy_node()
-    rclpy.shutdown()
 
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

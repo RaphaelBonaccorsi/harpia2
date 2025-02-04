@@ -77,7 +77,6 @@ class move(ActionExecutorClient):
             Feedback message containing the distance to the waypoint.
         """
         feedback = feedback_msg.feedback
-        self.get_logger().info(f"Feedback received: Distance to waypoint: {feedback.distance:.2f}m")
 
     def goal_response_callback(self, future):
         """
@@ -152,13 +151,11 @@ class move(ActionExecutorClient):
             response = future.result()
             self.get_logger().info('response number of waypoints: ' + str(len(response.waypoints)))
             # if response.success: # this dont work
-            file_path = "/home/harpia/route_executor2/output.txt"
             if len(response.waypoints) > 0:
                 self.get_logger().info('Received waypoints from path planner:')
-                with open(file_path, "a") as file:
-                    for waypoint in response.waypoints:
-                        self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}")
-                        file.write(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}\n")
+                for waypoint in response.waypoints:
+                    self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}")
+
                 self.waypoints = response.waypoints  # Assuming `waypoints` is part of the response
                 self.current_waypoint_index = 0  # Reset index when waypoints are received
                 self.send_goal(self.waypoints[0])
@@ -176,7 +173,6 @@ class move(ActionExecutorClient):
             return
 
         self.progress_ = self.current_waypoint_index / len(self.waypoints)
-        self.get_logger().info(f'Moving... progress: {self.progress_:.2f}')
 
         if self.progress_ < 1.0:
             self.send_feedback(self.progress_, 'move running')
