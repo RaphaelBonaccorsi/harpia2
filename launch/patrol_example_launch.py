@@ -67,6 +67,13 @@ def generate_launch_description():
         parameters=[]
     )
 
+    take_image_cmd = Node(
+        package='route_executor2',
+        executable='take_image.py',
+        name='take_image',
+        output='screen',
+        parameters=[]
+    )
     route_cmd = Node(
         package='route_executor2',
         executable='route_executor.py',
@@ -115,5 +122,6 @@ def generate_launch_description():
     ld.add_action(path_planner_cmd)
     ld.add_action(data_server_cmd)
     ld.add_action(problem_generator_cmd)
+    ld.add_action(take_image_cmd)
 
     return ld
