@@ -12,7 +12,7 @@ from plansys2_support_py.ActionExecutorClient import ActionExecutorClient
 class move(ActionExecutorClient):
  
     def __init__(self):
-        super().__init__('move', 0.2)
+        super().__init__('go_to', 0.2)
         self.is_new_action = True
         self.waypoints = []  # Initialize waypoints as an empty list
         self.current_waypoint_index = 0  # Initialize the index
@@ -152,13 +152,13 @@ class move(ActionExecutorClient):
             response = future.result()
             self.get_logger().info('response number of waypoints: ' + str(len(response.waypoints)))
             # if response.success: # this dont work
-            file_path = "/home/harpia/route_executor2/output.txt"
+            # file_path = "/home/harpia/route_executor2/output.txt"
             if len(response.waypoints) > 0:
                 self.get_logger().info('Received waypoints from path planner:')
-                with open(file_path, "a") as file:
-                    for waypoint in response.waypoints:
-                        self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}")
-                        file.write(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}\n")
+                # with open(file_path, "a") as file:
+                #     for waypoint in response.waypoints:
+                #         self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}")
+                #         file.write(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}\n")
                 self.waypoints = response.waypoints  # Assuming `waypoints` is part of the response
                 self.current_waypoint_index = 0  # Reset index when waypoints are received
                 self.send_goal(self.waypoints[0])

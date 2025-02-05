@@ -59,6 +59,13 @@ def generate_launch_description():
         output='screen',
         parameters=[]
     )
+    take_image_cmd = Node(
+        package='route_executor2',
+        executable='take_image.py',
+        name='take_image',
+        output='screen',
+        parameters=[]
+    )
 
     route_cmd = Node(
         package='route_executor2',
