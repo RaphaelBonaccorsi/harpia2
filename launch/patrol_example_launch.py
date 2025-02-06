@@ -20,9 +20,18 @@ from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
+
+    # Declare launch arguments
+    mission_index_arg = DeclareLaunchArgument('mission_index', default_value='1', description='The mission index to execute from the mission file.')
+
+    # Use LaunchConfiguration to get the values of arguments
+    mission_index_value = LaunchConfiguration('mission_index')
+    
     # Get the launch directory
     example_dir = get_package_share_directory('route_executor2')
 
@@ -66,14 +75,6 @@ def generate_launch_description():
         output='screen',
         parameters=[]
     )
-
-    take_image_cmd = Node(
-        package='route_executor2',
-        executable='take_image.py',
-        name='take_image',
-        output='screen',
-        parameters=[]
-    )
     route_cmd = Node(
         package='route_executor2',
         executable='route_executor.py',
@@ -95,7 +96,7 @@ def generate_launch_description():
         executable='data_server.py',
         name='data_server',
         output='screen',
-        parameters=[]
+        parameters=[{'mission_index': mission_index_value}]
     )
 
     problem_generator_cmd = Node(
@@ -111,6 +112,7 @@ def generate_launch_description():
 
     # Create the launch description and populate
     ld = LaunchDescription()
+    ld.add_action(mission_index_arg)
 
     # Declare the launch options
     ld.add_action(plansys2_cmd)

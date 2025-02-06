@@ -2,4 +2,4 @@ rm -rf output
 mkdir output
 
 echo "Running project:"
-ros2 launch route_executor2 patrol_example_launch.py
+ros2 launch route_executor2 patrol_example_launch.py ${1:+mission_index:=$1}
