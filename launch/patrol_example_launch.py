@@ -42,73 +42,58 @@ def generate_launch_description():
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
     )
-    # controller node
-    control_cmd = Node(
-        package='route_executor2',
-        executable='planning_controller_node',
-        name='planning_controller_node',
-        output='screen',
-        parameters=[]
-    )
 
-
-    # Specify the actions
-    # move_cmd = Node(
-    #     package='route_executor2',
-    #     executable='move_action_node',
-    #     name='move_action_node',
-    #     output='screen',
-    #     parameters=[]
-    # )
-
-    go_to_cmd = Node(
-        package='route_executor2',
-        executable='go_to.py',
-        name='go_to',
-        output='screen',
-        parameters=[]
-    )
-    take_image_cmd = Node(
-        package='route_executor2',
-        executable='take_image.py',
-        name='take_image',
-        output='screen',
-        parameters=[]
-    )
-    route_cmd = Node(
-        package='route_executor2',
-        executable='route_executor.py',
-        name='route_executor',
-        output='screen',
-        parameters=[]
-    )
-
-    path_planner_cmd = Node(
-        package='route_executor2',
-        executable='path_planner.py',
-        name='path_planner',
-        output='screen',
-        parameters=[]
-    )
-
-    data_server_cmd = Node(
-        package='route_executor2',
-        executable='data_server.py',
-        name='data_server',
-        output='screen',
-        parameters=[{'mission_index': mission_index_value}]
-    )
-
-    problem_generator_cmd = Node(
-        package='route_executor2',
-        executable='problem_generator.py',
-        name='problem_generator',
-        output='screen',
-        parameters=[]
-    )
-    
-
-    
+    nodes_to_add = [
+        Node(
+            package='route_executor2',
+            executable='planning_controller_node',
+            name='planning_controller_node',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='go_to.py',
+            name='go_to',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='take_image.py',
+            name='take_image',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='route_executor.py',
+            name='route_executor',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='path_planner.py',
+            name='path_planner',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='data_server.py',
+            name='data_server',
+            output='screen',
+            parameters=[{'mission_index': mission_index_value}]
+        ),
+        Node(
+            package='route_executor2',
+            executable='problem_generator.py',
+            name='problem_generator',
+            output='screen',
+            parameters=[]
+        ),
+    ]
 
     # Create the launch description and populate
     ld = LaunchDescription()
@@ -116,14 +101,8 @@ def generate_launch_description():
 
     # Declare the launch options
     ld.add_action(plansys2_cmd)
-    ld.add_action(control_cmd)
-    # ld.add_action(move_cmd)
-    ld.add_action(go_to_cmd)
-    
-    ld.add_action(route_cmd)
-    ld.add_action(path_planner_cmd)
-    ld.add_action(data_server_cmd)
-    ld.add_action(problem_generator_cmd)
-    ld.add_action(take_image_cmd)
+
+    for node in nodes_to_add:
+        ld.add_action(node)
 
     return ld
