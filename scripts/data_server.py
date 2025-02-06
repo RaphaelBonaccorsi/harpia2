@@ -18,7 +18,8 @@ class DataServer(Node):
         package_share_dir = get_package_share_directory('route_executor2')
         self.map_file = f"{package_share_dir}/data/map.json"
         self.hardware_file = f"{package_share_dir}/data/hardware.json"
-        self.mission_file = f"{package_share_dir}/data/mission.json"
+        self.all_missions_file = f"{package_share_dir}/data/all_missions.json"
+        self.mission_index = 1
         # Define QoS profile for the position subscription
         qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
@@ -62,8 +63,9 @@ class DataServer(Node):
 
     def mission_callback(self, request, response):
         self.get_logger().info(f"Received request to send mission")
-        with open(self.mission_file, 'r') as file:
-            response.message = file.read()
+        with open(self.all_missions_file, 'r') as file:
+            missions = json.load(file)
+            response.message = json.dumps(missions[self.mission_index])
         return response
 
     def hardware_callback(self, request, response):

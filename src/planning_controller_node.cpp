@@ -59,6 +59,9 @@ public:
     planner_client_ = std::make_shared<plansys2::PlannerClient>();
     executor_client_ = std::make_shared<plansys2::ExecutorClient>(); // Added Executor Client
 
+    // solver = "TFD";
+    solver = "OPTIC";
+
     // Inicializar o publisher para o tópico de planos
     plan_publisher_ = this->create_publisher<plansys2_msgs::msg::Plan>("plansys2_interface/plan", 10);
 
@@ -93,6 +96,7 @@ private:
   std::shared_ptr<plansys2::ExecutorClient> executor_client_; // Added Executor Client
   rclcpp::Publisher<plansys2_msgs::msg::Plan>::SharedPtr plan_publisher_;  // Publisher para o plano
   rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr problem_generator_client_;
+  std::string solver;
 
   // Função para aguardar a disponibilidade dos serviços do Problem Expert
   void wait_for_problem_expert_availability()
@@ -440,9 +444,12 @@ private:
 
     write_to_file(domain_file_path,  domain_client_->getDomain());
     write_to_file(problem_file_path, problem_client_->getProblem());
+    std::string output_folder = ament_index_cpp::get_package_share_directory("route_executor2") + "/../../../../output";
+    write_to_file(output_folder+"/domain.pddl",  domain_client_->getDomain());
+    write_to_file(output_folder+"/problem.pddl", problem_client_->getProblem());
   
 
-    std::string command = solver_path + "/OPTIC/generate_plan.sh "+ domain_file_path +" "+ problem_file_path;
+    std::string command = solver_path + "/"+solver+"/generate_plan.sh "+ domain_file_path +" "+ problem_file_path;
     std::string result = executeCommand(command);
     // RCLCPP_INFO(this->get_logger(), "plan generated: %s", result.c_str());
     
@@ -469,11 +476,15 @@ private:
       add_action(action_name, start_time);
     }
 
+    std::ofstream output_file(output_folder + "/plan.txt");
+    output_file << "Plan created with solver " << solver << "\n";
     // Log the created plan
     RCLCPP_INFO(this->get_logger(), "Plan created:");
     for (const auto &action : hardcoded_plan.items) {
         RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
+        output_file << "Action: " << action.action << ", Start Time: " << action.time << "\n";
     }
+    output_file.close();
 
     // Send the hardcoded plan for execution
     if (executor_client_->start_plan_execution(hardcoded_plan)) {

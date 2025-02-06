@@ -12,7 +12,7 @@ from plansys2_support_py.ActionExecutorClient import ActionExecutorClient
 class take_image(ActionExecutorClient):
  
     def __init__(self):
-        super().__init__('take_image', 1)
+        super().__init__('take_image', 0.1)
         self.is_new_action = True
        
 
