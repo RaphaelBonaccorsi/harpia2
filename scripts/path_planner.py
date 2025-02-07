@@ -10,7 +10,7 @@ from geometry_msgs.msg import PoseStamped
 from ament_index_python.packages import get_package_share_directory
 import time, os, sys
 from std_srvs.srv import Trigger
-from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 # Adiciona o diretório base ao sys.path
 libs_path = os.path.join(os.path.dirname(__file__), './libs')
@@ -146,14 +146,26 @@ class PathPlanner(Node):
     def __init__(self):
         """Initializes the path planner node, map, and service."""
         super().__init__('path_planner')   
-        self.home_lat = -22.001333
-        self.home_lon = -47.934152
+        self.home_lat = None
+        self.home_lon = None
+        self.map = None
+        # Declaring callback groups
+        map_cb = MutuallyExclusiveCallbackGroup()
+
+        self.home_cli = self.create_client(Trigger, 'data_server/home_position',callback_group=map_cb)
+        while not self.home_cli.wait_for_service(timeout_sec=2.0):
+            self.get_logger().info('data_server/home_position service not available, waiting again...')
+
+        self.home_req = Trigger.Request()
+        self.home_future = self.home_cli.call_async(self.home_req)
+        self.home_future.add_done_callback(self.home_response_callback)
+
         self.drone_position = tuple()
         self.position_cli = self.create_client(Trigger, 'data_server/drone_position',callback_group=ReentrantCallbackGroup())
         while not self.position_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/drone_position service not available, waiting again...')
 
-        self.map_cli = self.create_client(Trigger, 'data_server/map')
+        self.map_cli = self.create_client(Trigger, 'data_server/map', callback_group=map_cb)
         while not self.map_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/map service not available, waiting again...')
         
@@ -162,14 +174,34 @@ class PathPlanner(Node):
         self.map_req = Trigger.Request()
         self.map_future = self.map_cli.call_async(self.map_req)
         self.map_future.add_done_callback(self.map_response_callback)
-        
-        self.map = Map(self.home_lat, self.home_lon)
 
         self.srv = self.create_service(GeneratePath, 'path_planner/generate_path', self.generate_path_callback)
         self.get_logger().info("Path planner service is ready to generate paths.")
 
         ## self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
         
+    def home_response_callback(self, future):
+        """Callback para processar a resposta do serviço de posição gps da home"""
+        try:
+            response = future.result()
+            position = response.message.split()
+
+            # Garante que a posição recebida tem pelo menos dois valores válidos
+            if len(position) < 2:
+                self.get_logger().error("Received an invalid position response!")
+                return
+
+            self.home_lat = float(position[0])
+            self.home_lon = float(position[1])
+
+            self.map = Map(self.home_lat, self.home_lon)
+            self.get_logger().info(f"Drone home coordinates: {self.home_lat} {self.home_lon}")
+            
+
+        
+        except Exception as e:
+            self.get_logger().error(f'Failed to process position response: {e}')
+    
     def position_response_callback(self, future):
         """Callback para processar a resposta do serviço de posição"""
         try:

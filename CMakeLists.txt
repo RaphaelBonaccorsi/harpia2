@@ -12,6 +12,7 @@ find_package(mavros_msgs REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(harpia_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
 #[[
 find_package(nav2_msgs REQUIRED)
 ]]
@@ -41,6 +42,7 @@ set(dependencies
     lifecycle_msgs
     std_srvs
     harpia_msgs
+    sensor_msgs
 )
 
 add_executable(planning_controller_node src/planning_controller_node.cpp)
