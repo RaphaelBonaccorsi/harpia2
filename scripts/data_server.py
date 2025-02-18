@@ -12,6 +12,7 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDur
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import NavSatFix
+from shapely.geometry import Point, Polygon
 
 class DataServer(Node):
 
@@ -23,7 +24,6 @@ class DataServer(Node):
         self.hardware_file = f"{package_share_dir}/data/hardware.json"
         self.all_missions_file = f"{package_share_dir}/data/all_missions.json"
         self.mission_index = self.declare_parameter('mission_index', 1).value
-        self.get_logger().info(f"@@ mission index: {self.mission_index}")
         self.home_lat = None
         self.home_long = None
         # Declaring callbackgroups for async callbacks
@@ -62,10 +62,32 @@ class DataServer(Node):
 
         self.get_logger().info("Data server service is ready.")
 
-        ## self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
+        try:
+            with open(self.map_file, 'r') as file:
+                self.map = json.loads(file.read())
+
+            with open(self.all_missions_file, 'r') as file:
+                missions = json.load(file)
+                self.mission = missions[self.mission_index]
+
+            with open(self.hardware_file, 'r') as file:
+                self.hardware = json.load(file)
+
+        except FileNotFoundError as e:
+            self.get_logger().error(f"File {e.filename} not found")
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f"One of the JSON files is invalid")
     
     def gps_pos_service_callback(self, request, response):
-        response.message = f'{self.drone_latitude} {self.drone_longitude} {self.drone_altitude}'
+        inside_regions = self.compute_region()
+
+        if inside_regions is None:
+            response.success = False
+
+            return response
+    
+        response.success = True
+        response.message = f'{self.drone_latitude} {self.drone_longitude} {self.drone_altitude} {",".join(inside_regions)}'
         return response
 
     def home_service_callback(self, request, response):
@@ -99,22 +121,46 @@ class DataServer(Node):
 
     def map_callback(self, request, response):
         self.get_logger().info(f"Received request to send map")
-        with open(self.map_file, 'r') as file:
-            response.message = file.read()
+        response.message = json.dumps(self.map)
         return response
 
     def mission_callback(self, request, response):
         self.get_logger().info(f"Received request to send mission")
-        with open(self.all_missions_file, 'r') as file:
-            missions = json.load(file)
-            response.message = json.dumps(missions[self.mission_index])
+        response.message = json.dumps(self.mission)
         return response
 
     def hardware_callback(self, request, response):
         self.get_logger().info(f"Received request to send hardware")
-        with open(self.hardware_file, 'r') as file:
-            response.message = file.read()
+        response.message = json.dumps(self.hardware)
         return response
+    
+    def compute_region(self):
+
+        if self.map is None:
+            self.get_logger().error('Cant compute region, map is unknow')    
+            return None
+
+        if not hasattr(self, 'drone_altitude') or self.drone_altitude is None:
+            self.get_logger().error('Cant compute region, drone position is unknow')    
+            return None
+
+        regions = []
+        region_names = []
+        for r in self.map['bases'] + self.map['roi']:
+            region = []
+            for point in r['geo_points']:
+                region.append((point[1],point[0]))
+            regions.append(region)
+            region_names.append(r['name'])
+
+        start_pos = (self.drone_latitude, self.drone_longitude)
+
+        inside_regions = []
+        for i in range(len(regions)):
+            if Polygon(regions[i]).contains(Point(start_pos)):
+                inside_regions.append(region_names[i])
+
+        return inside_regions
 
 def main(args=None):
     """

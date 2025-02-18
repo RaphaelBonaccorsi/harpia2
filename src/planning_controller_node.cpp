@@ -75,6 +75,18 @@ public:
     // load_pddl_file("/pddl/harpia_problema_teste.pddl");
 
     // Create a request and send it
+
+    RCLCPP_INFO(this->get_logger(), "@@ Waiting for problem service...");
+
+    // Wait until the service is available
+    if (!problem_generator_client_->wait_for_service(std::chrono::seconds(5))) {
+        RCLCPP_ERROR(this->get_logger(), "Problem service is not available!");
+        return;
+    }
+
+    RCLCPP_INFO(this->get_logger(), "@@ waiting 10s");
+    rclcpp::sleep_for(std::chrono::seconds(10));
+    RCLCPP_INFO(this->get_logger(), "@@ making problem request now");
     auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
     auto future = problem_generator_client_->async_send_request(request, std::bind(&InterfacePlansys2::get_problem_callback, this, std::placeholders::_1));
   
@@ -508,6 +520,7 @@ private:
   
   void get_problem_callback(rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture future)
   {
+    RCLCPP_INFO(this->get_logger(), "@@ problem request returned");
     auto response = future.get();
     if (response->success)
     {
@@ -524,7 +537,7 @@ private:
     }
     else 
     {
-      RCLCPP_ERROR(this->get_logger(), "Service call failed.");
+      RCLCPP_ERROR(this->get_logger(), "Generate problem service call returned with error.");
     }
   }
 };

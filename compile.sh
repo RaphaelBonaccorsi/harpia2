@@ -1,13 +1,24 @@
-echo "Building harpia_msgs:"
-cd src/harpia_msgs
-if ! colcon build; then
-  echo "Error building harpia_msgs"
-  exit 1
-fi
-cd ../..
-source src/harpia_msgs/install/setup.bash
-echo "Builded harpia_msgs successfully"
 
+
+if [[ ! -f "src/harpia_msgs/install/setup.bash" ]]; then
+  unset COMPILE_SCRIPT_JUMP_HARPIA_MSGS_COMPILATION_IF_ALREADY_IS
+fi
+
+if [[ -z "$COMPILE_SCRIPT_JUMP_HARPIA_MSGS_COMPILATION_IF_ALREADY_IS" ]]; then
+  unset COMPILE_SCRIPT_JUMP_HARPIA_MSGS_COMPILATION_IF_ALREADY_IS
+  echo "Building harpia_msgs:"
+  cd src/harpia_msgs
+  if ! colcon build; then
+    echo "Error building harpia_msgs"
+    exit 1
+  fi
+  cd ../..
+  echo "Builded harpia_msgs successfully"
+else
+  echo -e "Detected an existing harpia_msgs installation. Skipping compilation.\n"
+fi
+
+source src/harpia_msgs/install/setup.bash
 
 echo "Building main project:"
 # if ! colcon build --symlink-install; then

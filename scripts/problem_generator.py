@@ -4,9 +4,14 @@ from rclpy.node import Node
 from std_srvs.srv import Trigger
 import json
 import math
+import time
+
 
 class ProblemGenerator(Node):
     def __init__(self):
+
+        time.sleep(2)
+
         super().__init__('problem_generator')
         self.srv = self.create_service(Trigger, 'problem_generator/get_problem', self.service_callback)
         self.get_logger().info("Service 'problem_generator/get_problem' is ready.")
@@ -16,11 +21,13 @@ class ProblemGenerator(Node):
         self.hardware_cli = self.create_client(Trigger, 'data_server/hardware')
         self.mission_cli = self.create_client(Trigger, 'data_server/mission')
 
+        self.gps_cli = self.create_client(Trigger, 'data_server/gps_position')
+
         while not (self.map_cli.wait_for_service(timeout_sec=1.0) and 
                    self.hardware_cli.wait_for_service(timeout_sec=1.0) and 
-                   self.mission_cli.wait_for_service(timeout_sec=1.0)):
+                   self.mission_cli.wait_for_service(timeout_sec=1.0) and
+                   self.gps_cli.wait_for_service(timeout_sec=1.0)):
             self.get_logger().info('Still waiting for services...')
-
 
         self.map_req = Trigger.Request()
         self.hardware_req = Trigger.Request()
@@ -29,10 +36,18 @@ class ProblemGenerator(Node):
         self.data = {
             "map": None,
             "hardware": None,
-            "mission": None,
+            "mission": None
         }
 
+        self.current_gps_position = None
+        self.current_region = None
+
+        while not self.gps_cli.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Waiting for GPS service to become available...')
+
         self.getData()
+
+        self.current_region = self.get_current_position("TEST")
 
     def getData(self):
 
@@ -43,6 +58,7 @@ class ProblemGenerator(Node):
             
             self.get_logger().info(f"Received {attr_name} data successfully")
             self.data[attr_name] = json.loads(future.result().message)
+
 
         # Request map data
         future = self.map_cli.call_async(self.map_req)
@@ -55,24 +71,32 @@ class ProblemGenerator(Node):
         # Request mission data
         future = self.mission_cli.call_async(self.mission_req)
         future.add_done_callback(lambda f: handle_response(f, "mission"))
-
     
     def service_callback(self, request, response):
 
+        self.get_logger().info("@@ got problem request")
+
         if self.data['map'] is None or self.data['hardware'] is None or self.data['mission'] is None:
-            response.success = True
+            self.get_logger().info("@@ hmm 0")
+            response.success = False
             self.get_logger().error("map, hardware or mission data is missing")
-            return response
+            raise ValueError("map, hardware or mission data is missing")
+            # return response
+
+        self.get_logger().info("@@ hmm 1")
 
         response.success = True
-
         response.message = self.generate_problem()
+
+        self.get_logger().info("@@ hmm 2")
 
         return response
     
     def generate_problem(self):
 
+        self.get_logger().info("@@ hmm A 1")
         instances, predicates, functions, goals = self.generate_problem_parameters()
+        self.get_logger().info("@@ hmm A 2")
 
         objects = ""
         init = ""
@@ -90,6 +114,17 @@ class ProblemGenerator(Node):
 
     
     def generate_problem_parameters(self):
+
+        self.get_logger().info("@@ hmm B 1")
+        result = self.current_region
+        self.get_logger().info("@@ hmm B 2")
+        if result is None:
+            self.get_logger().info("Failed to get position")
+            return
+        lat, lon, alt, inside_region = result
+        
+        if inside_region == "":
+            raise ValueError("Drone is not inside any region")
 
         EARTH_RADIUS_M = 6371000  # Raio da Terra em metros
         def haversine(reg1, reg2):
@@ -163,11 +198,40 @@ class ProblemGenerator(Node):
         self.get_logger().warn("Using assumed values for inital state")
         functions.append(f"(= (battery_amount) {self.data['hardware']['battery-capacity']})")
         functions.append(f"(= (input_amount) {self.data['hardware']['input-capacity']})")
-        predicates.append(f"(at base_2)")
+        predicates.append(f"(at {inside_region})")
         
         functions.append(f"(= (mission_length) 0.0)")
 
         return instances, predicates, functions, goals
+    
+    def get_current_position(self, strm=""):
+
+        self.get_logger().info(f"@@ {strm} hmm C 1")
+        
+        if not self.gps_cli.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error('GPS service is not available!')
+            return None
+
+        gps_req = Trigger.Request()
+        future = self.gps_cli.call_async(gps_req)
+        rclpy.spin_until_future_complete(self, future)
+
+        self.get_logger().info(f"@@ {strm} hmm C 2")
+        
+        if future.result() is None:
+            self.get_logger().error('@@ Service call failed')
+            return None
+
+        if not future.result().success:
+            self.get_logger().error('@@ Service could not return valid response')
+            return None
+        
+        self.get_logger().info(f"@@ {strm} hmm C 3")
+        lat, lon, alt, inside_regions = future.result().message.split(" ")
+        inside_region = inside_regions.split(',')[0]
+
+        self.get_logger().info(f"@@ {strm} hmm C 4")
+        return lat, lon, alt, inside_region
         
 
 
