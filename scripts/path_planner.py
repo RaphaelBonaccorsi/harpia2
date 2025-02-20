@@ -12,6 +12,8 @@ import time, os, sys
 from std_srvs.srv import Trigger
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+
 # Adiciona o diretório base ao sys.path
 libs_path = os.path.join(os.path.dirname(__file__), './libs')
 sys.path.append(os.path.abspath(libs_path))
@@ -140,27 +142,32 @@ class Map:
 
             self.obstacleList.append(obstacle)  # Adiciona o obstáculo completo à lista principal
 
-class PathPlanner(Node):
+class PathPlanner(LifecycleNode):
     """Path planning node for generating and executing paths."""
 
     def __init__(self):
         """Initializes the path planner node, map, and service."""
         super().__init__('path_planner')   
+
+    def on_configure(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("Configuring node...")
+        
         self.home_lat = None
         self.home_lon = None
         self.map = None
+
         # Declaring callback groups
         map_cb = MutuallyExclusiveCallbackGroup()
 
         self.home_cli = self.create_client(Trigger, 'data_server/home_position',callback_group=map_cb)
         while not self.home_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/home_position service not available, waiting again...')
-
         self.home_req = Trigger.Request()
         self.home_future = self.home_cli.call_async(self.home_req)
         self.home_future.add_done_callback(self.home_response_callback)
 
         self.drone_position = tuple()
+
         self.position_cli = self.create_client(Trigger, 'data_server/drone_position',callback_group=ReentrantCallbackGroup())
         while not self.position_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/drone_position service not available, waiting again...')
@@ -171,14 +178,15 @@ class PathPlanner(Node):
         
         self.send_position_req()
 
-        self.map_req = Trigger.Request()
-        self.map_future = self.map_cli.call_async(self.map_req)
-        self.map_future.add_done_callback(self.map_response_callback)
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_activate(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("Activating node...")
 
         self.srv = self.create_service(GeneratePath, 'path_planner/generate_path', self.generate_path_callback)
         self.get_logger().info("Path planner service is ready to generate paths.")
 
-        ## self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
+        return TransitionCallbackReturn.SUCCESS
         
     def home_response_callback(self, future):
         """Callback para processar a resposta do serviço de posição gps da home"""
@@ -196,11 +204,16 @@ class PathPlanner(Node):
 
             self.map = Map(self.home_lat, self.home_lon)
             self.get_logger().info(f"Drone home coordinates: {self.home_lat} {self.home_lon}")
-            
 
-        
+            self.send_map_request()
+            
         except Exception as e:
             self.get_logger().error(f'Failed to process position response: {e}')
+
+    def send_map_request(self):
+        self.map_req = Trigger.Request()
+        self.map_future = self.map_cli.call_async(self.map_req)
+        self.map_future.add_done_callback(self.map_response_callback)
     
     def position_response_callback(self, future):
         """Callback para processar a resposta do serviço de posição"""
@@ -225,9 +238,11 @@ class PathPlanner(Node):
             response = future.result()
             self.get_logger().info('Map response from data_server')
             self.map.read_route_from_json(response.message)
+            # error that sometime happens:
+            # AttributeError: 'NoneType' object has no attribute 'read_route_from_json'
         except Exception as e:
             self.get_logger().error(f'Map data_server service call failed: {e}')
-            self.finish(False, 0.0, 'Service call exception')
+            # self.finish(False, 0.0, 'Service call exception') # the finish function doesnt exist
 
     def find_location_by_name(self, name):
         """

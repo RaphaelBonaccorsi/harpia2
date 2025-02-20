@@ -1,53 +1,51 @@
 #!/usr/bin/env python3
 import rclpy
-from rclpy.node import Node
 from std_srvs.srv import Trigger
 import json
 import math
 import time
 
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 
-class ProblemGenerator(Node):
+class ProblemGenerator(LifecycleNode):
     def __init__(self):
-
-        time.sleep(2)
-
         super().__init__('problem_generator')
-        self.srv = self.create_service(Trigger, 'problem_generator/get_problem', self.service_callback)
-        self.get_logger().info("Service 'problem_generator/get_problem' is ready.")
 
-
-        self.map_cli = self.create_client(Trigger, 'data_server/map')
-        self.hardware_cli = self.create_client(Trigger, 'data_server/hardware')
-        self.mission_cli = self.create_client(Trigger, 'data_server/mission')
-
-        self.gps_cli = self.create_client(Trigger, 'data_server/gps_position')
-
-        while not (self.map_cli.wait_for_service(timeout_sec=1.0) and 
-                   self.hardware_cli.wait_for_service(timeout_sec=1.0) and 
-                   self.mission_cli.wait_for_service(timeout_sec=1.0) and
-                   self.gps_cli.wait_for_service(timeout_sec=1.0)):
-            self.get_logger().info('Still waiting for services...')
-
-        self.map_req = Trigger.Request()
-        self.hardware_req = Trigger.Request()
-        self.mission_req = Trigger.Request()
+    def on_configure(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("Configuring node...")
 
         self.data = {
             "map": None,
             "hardware": None,
             "mission": None
         }
-
-        self.current_gps_position = None
         self.current_region = None
 
-        while not self.gps_cli.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for GPS service to become available...')
+        self.map_cli = self.create_client(Trigger, 'data_server/map')
+        self.hardware_cli = self.create_client(Trigger, 'data_server/hardware')
+        self.mission_cli = self.create_client(Trigger, 'data_server/mission')
+        self.gps_cli = self.create_client(Trigger, 'data_server/gps_position')
 
         self.getData()
 
-        self.current_region = self.get_current_position("TEST")
+        self.get_current_position()
+
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_activate(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("Activating node...")
+
+        if self.data["map"] is None or self.data["hardware"] is None or self.data["mission"] is None:
+            self.get_logger().info("Can't activate node: map, hardware or mission data is missing")
+            return TransitionCallbackReturn.FAILURE
+        
+        if self.current_region is None:
+            self.get_logger().info("Can't activate node: current region is missing")
+            return TransitionCallbackReturn.FAILURE
+
+        self.srv = self.create_service(Trigger, 'problem_generator/get_problem', self.service_callback)
+
+        return TransitionCallbackReturn.SUCCESS
 
     def getData(self):
 
@@ -61,15 +59,18 @@ class ProblemGenerator(Node):
 
 
         # Request map data
-        future = self.map_cli.call_async(self.map_req)
+        map_req = Trigger.Request()
+        future = self.map_cli.call_async(map_req)
         future.add_done_callback(lambda f: handle_response(f, "map"))
 
         # Request hardware status
-        future = self.hardware_cli.call_async(self.hardware_req)
+        hardware_req = Trigger.Request()
+        future = self.hardware_cli.call_async(hardware_req)
         future.add_done_callback(lambda f: handle_response(f, "hardware"))
 
         # Request mission data
-        future = self.mission_cli.call_async(self.mission_req)
+        mission_req = Trigger.Request()
+        future = self.mission_cli.call_async(mission_req)
         future.add_done_callback(lambda f: handle_response(f, "mission"))
     
     def service_callback(self, request, response):
@@ -205,33 +206,29 @@ class ProblemGenerator(Node):
         return instances, predicates, functions, goals
     
     def get_current_position(self, strm=""):
-
-        self.get_logger().info(f"@@ {strm} hmm C 1")
         
         if not self.gps_cli.wait_for_service(timeout_sec=5.0):
             self.get_logger().error('GPS service is not available!')
             return None
 
+
+        def gps_callback(furure):
+            
+            if future.result() is None:
+                self.get_logger().error('@@ Service call failed')
+                return None
+
+            if not future.result().success:
+                self.get_logger().error('@@ Service could not return valid response')
+                return None
+            lat, lon, alt, inside_regions = future.result().message.split(" ")
+            inside_region = inside_regions.split(',')[0]
+
+            self.current_region = lat, lon, alt, inside_region
+
         gps_req = Trigger.Request()
         future = self.gps_cli.call_async(gps_req)
-        rclpy.spin_until_future_complete(self, future)
-
-        self.get_logger().info(f"@@ {strm} hmm C 2")
-        
-        if future.result() is None:
-            self.get_logger().error('@@ Service call failed')
-            return None
-
-        if not future.result().success:
-            self.get_logger().error('@@ Service could not return valid response')
-            return None
-        
-        self.get_logger().info(f"@@ {strm} hmm C 3")
-        lat, lon, alt, inside_regions = future.result().message.split(" ")
-        inside_region = inside_regions.split(',')[0]
-
-        self.get_logger().info(f"@@ {strm} hmm C 4")
-        return lat, lon, alt, inside_region
+        future.add_done_callback(gps_callback)
         
 
 

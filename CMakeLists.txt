@@ -64,6 +64,7 @@ install(PROGRAMS
   scripts/path_planner.py
   scripts/go_to.py
   scripts/data_server.py
+  scripts/lifecycle_manager.py
   scripts/problem_generator.py
   scripts/take_image.py
   DESTINATION lib/${PROJECT_NAME})

@@ -35,15 +35,25 @@ def generate_launch_description():
     # Get the launch directory
     example_dir = get_package_share_directory('route_executor2')
 
-    plansys2_cmd = IncludeLaunchDescription(
+    ld = LaunchDescription()
+
+    # plansys
+    ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(
             get_package_share_directory('plansys2_bringup'),
             'launch',
             'plansys2_bringup_launch_monolithic.py')),
         launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
-    )
+    ))
 
     nodes_to_add = [
+        Node(
+            package='route_executor2',
+            executable='lifecycle_manager.py',
+            name='lifecycle_manager',
+            output='screen',
+            parameters=[]
+        ),
         Node(
             package='route_executor2',
             executable='planning_controller_node',
@@ -96,11 +106,7 @@ def generate_launch_description():
     ]
 
     # Create the launch description and populate
-    ld = LaunchDescription()
     ld.add_action(mission_index_arg)
-
-    # Declare the launch options
-    ld.add_action(plansys2_cmd)
 
     for node in nodes_to_add:
         ld.add_action(node)

@@ -3,7 +3,6 @@
 import rclpy
 import math
 import json
-from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
 from ament_index_python.packages import get_package_share_directory
 import time, os, sys
@@ -13,12 +12,17 @@ from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallb
 from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import NavSatFix
 from shapely.geometry import Point, Polygon
+from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
 
-class DataServer(Node):
+class DataServer(LifecycleNode):
 
     def __init__(self):
 
         super().__init__('data_server')
+
+    def on_configure(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("Configuring node...")
+
         package_share_dir = get_package_share_directory('route_executor2')
         self.map_file = f"{package_share_dir}/data/map.json"
         self.hardware_file = f"{package_share_dir}/data/hardware.json"
@@ -27,40 +31,23 @@ class DataServer(Node):
         self.home_lat = None
         self.home_long = None
         # Declaring callbackgroups for async callbacks
-        files_cb = ReentrantCallbackGroup()
-        position_cb = MutuallyExclusiveCallbackGroup()
-        gps_cb = MutuallyExclusiveCallbackGroup()
+        self.files_cb = ReentrantCallbackGroup()
+        self.position_cb = MutuallyExclusiveCallbackGroup()
+        self.gps_cb = MutuallyExclusiveCallbackGroup()
         # Define QoS profile for the position subscription
-        qos_profile = QoSProfile(
+        self.qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
             durability=QoSDurabilityPolicy.VOLATILE,
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1
         )
-
-        sensor_qos = QoSProfile(
+        self.sensor_qos = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
             durability=QoSDurabilityPolicy.VOLATILE,
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=5
         )
-        # Subscribe to the drone's current position
-        self.position_subscriber = self.create_subscription(
-            PoseStamped, '/mavros/local_position/pose', self.position_callback, qos_profile, callback_group=position_cb
-        )
-        # Subscribe to the drone's current gps position
-        self.gps_subscriber = self.create_subscription(
-            NavSatFix, '/mavros/global_position/global', self.gps_callback, sensor_qos, callback_group=gps_cb
-        )
 
-        self.map_srv = self.create_service(Trigger, 'data_server/map', self.map_callback, callback_group=files_cb)
-        self.mission_srv = self.create_service(Trigger, 'data_server/mission', self.mission_callback, callback_group=files_cb)
-        self.hardware_srv = self.create_service(Trigger, 'data_server/hardware', self.hardware_callback, callback_group=files_cb)
-        self.position_srv = self.create_service(Trigger, 'data_server/drone_position', self.position_service_callback, callback_group=position_cb)
-        self.home_srv = self.create_service(Trigger, 'data_server/home_position', self.home_service_callback, callback_group=gps_cb)
-        self.gps_pos_srv = self.create_service(Trigger, 'data_server/gps_position', self.gps_pos_service_callback, callback_group=gps_cb)
-
-        self.get_logger().info("Data server service is ready.")
 
         try:
             with open(self.map_file, 'r') as file:
@@ -75,8 +62,60 @@ class DataServer(Node):
 
         except FileNotFoundError as e:
             self.get_logger().error(f"File {e.filename} not found")
+            return TransitionCallbackReturn.ERROR
         except json.JSONDecodeError as e:
             self.get_logger().error(f"One of the JSON files is invalid")
+            return TransitionCallbackReturn.ERROR
+        
+        # Subscribe to the drone's current position
+        self.position_subscriber = self.create_subscription(
+            PoseStamped, '/mavros/local_position/pose', self.position_callback, self.qos_profile, callback_group=self.position_cb
+        )
+        # Subscribe to the drone's current gps position
+        self.gps_subscriber = self.create_subscription(
+            NavSatFix, '/mavros/global_position/global', self.gps_callback, self.sensor_qos, callback_group=self.gps_cb
+        )
+
+        self.current_position = None
+        self.drone_latitude = None
+        self.drone_longitude = None
+        self.drone_altitude = None
+        self.home_lat = None
+        self.home_long = None
+
+        self.position_missing_retry = 0
+
+        return TransitionCallbackReturn.SUCCESS
+
+    def on_activate(self, state: State) -> TransitionCallbackReturn:
+        self.get_logger().info("Activating node...")
+
+        if any(var is None for var in [
+            self.current_position,
+            self.drone_latitude,
+            self.drone_longitude,
+            self.drone_altitude,
+            self.home_lat,
+            self.home_long
+        ]):
+            self.position_missing_retry += 1
+            if self.position_missing_retry > 5:
+                self.get_logger().error("Can't activate node, one or more required position variables are None!")
+                self.get_logger().error("Is MAVROS running?")
+                
+            return TransitionCallbackReturn.FAILURE
+
+        self.map_srv = self.create_service(Trigger, 'data_server/map', self.map_callback, callback_group=self.files_cb)
+        self.mission_srv = self.create_service(Trigger, 'data_server/mission', self.mission_callback, callback_group=self.files_cb)
+        self.hardware_srv = self.create_service(Trigger, 'data_server/hardware', self.hardware_callback, callback_group=self.files_cb)
+        self.position_srv = self.create_service(Trigger, 'data_server/drone_position', self.position_service_callback, callback_group=self.position_cb)
+        self.home_srv = self.create_service(Trigger, 'data_server/home_position', self.home_service_callback, callback_group=self.gps_cb)
+        self.gps_pos_srv = self.create_service(Trigger, 'data_server/gps_position', self.gps_pos_service_callback, callback_group=self.gps_cb)
+
+        return TransitionCallbackReturn.SUCCESS
+
+
+    ##############################################
     
     def gps_pos_service_callback(self, request, response):
         inside_regions = self.compute_region()
@@ -120,17 +159,17 @@ class DataServer(Node):
         self.current_position = msg.pose.position
 
     def map_callback(self, request, response):
-        self.get_logger().info(f"Received request to send map")
+        # self.get_logger().info(f"Received request to send map")
         response.message = json.dumps(self.map)
         return response
 
     def mission_callback(self, request, response):
-        self.get_logger().info(f"Received request to send mission")
+        # self.get_logger().info(f"Received request to send mission")
         response.message = json.dumps(self.mission)
         return response
 
     def hardware_callback(self, request, response):
-        self.get_logger().info(f"Received request to send hardware")
+        # self.get_logger().info(f"Received request to send hardware")
         response.message = json.dumps(self.hardware)
         return response
     
