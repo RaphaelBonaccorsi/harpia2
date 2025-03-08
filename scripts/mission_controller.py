@@ -43,17 +43,17 @@ class MissionController(LifecycleNode):
 
         self.get_problem()
 
-        def replan_test_timer_callback():
-            if self.replan_timer is not None:
-                self.replan_timer.cancel()
-            self.get_logger().info("Let's test replan")
+        # def replan_test_timer_callback():
+        #     if self.replan_timer is not None:
+        #         self.replan_timer.cancel()
+        #     self.get_logger().info("Let's test replan")
 
-            def replan_test():
-                self.get_logger().info("replan worked?")
+        #     def replan_test():
+        #         self.get_logger().info("replan worked?")
 
-            self.request_replan(replan_test)
+        #     self.request_replan(replan_test)
             
-        self.replan_timer = self.create_timer(10, replan_test_timer_callback)
+        # self.replan_timer = self.create_timer(10, replan_test_timer_callback)
 
         return TransitionCallbackReturn.SUCCESS
 
