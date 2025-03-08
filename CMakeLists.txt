@@ -49,11 +49,17 @@ add_executable(planning_controller_node src/planning_controller_node.cpp)
 ament_target_dependencies(planning_controller_node ${dependencies})
 target_link_libraries(planning_controller_node nlohmann_json::nlohmann_json)
 
+
+add_executable(plansys_interface src/plansys_interface.cpp)
+ament_target_dependencies(plansys_interface ${dependencies})
+target_link_libraries(plansys_interface nlohmann_json::nlohmann_json)
+
 install(DIRECTORY launch pddl libs data json solver DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY libs DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS
   planning_controller_node
+  plansys_interface
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}
@@ -67,6 +73,7 @@ install(PROGRAMS
   scripts/lifecycle_manager.py
   scripts/problem_generator.py
   scripts/take_image.py
+  scripts/mission_controller.py
   DESTINATION lib/${PROJECT_NAME})
 
 

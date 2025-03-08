@@ -137,8 +137,8 @@ class LifecycleMannager(Node):
 
                 if configure_failed or activate_failed:
                     self.nodes[node_name]['tries'] += 1
-                    if self.nodes[node_name]['tries'] > 10:
-                        self.get_logger().error(f'{node_name} failed to {transition} after 10 tries')
+                    if self.nodes[node_name]['tries'] > 1000:
+                        self.get_logger().error(f'{node_name} failed to {transition} after 1000 tries')
                         return
                     
                     # self.get_logger().info(f'Retring to {transition} {node_name}...')
@@ -197,6 +197,14 @@ nodes = [
     {
         'node_name': 'path_planner',
         'depends_on': ['data_server']
+    },
+    {
+        'node_name': 'plansys_interface',
+        'depends_on': []
+    },
+    {
+        'node_name': 'mission_controller',
+        'depends_on': ['plansys_interface', 'problem_generator']
     },
 ]
 

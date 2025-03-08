@@ -162,12 +162,7 @@ class PathPlanner(LifecycleNode):
         self.home_cli = self.create_client(Trigger, 'data_server/home_position',callback_group=map_cb)
         while not self.home_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/home_position service not available, waiting again...')
-        self.home_req = Trigger.Request()
-        self.home_future = self.home_cli.call_async(self.home_req)
-        self.home_future.add_done_callback(self.home_response_callback)
-
-        self.drone_position = tuple()
-
+        
         self.position_cli = self.create_client(Trigger, 'data_server/drone_position',callback_group=ReentrantCallbackGroup())
         while not self.position_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/drone_position service not available, waiting again...')
@@ -175,6 +170,12 @@ class PathPlanner(LifecycleNode):
         self.map_cli = self.create_client(Trigger, 'data_server/map', callback_group=map_cb)
         while not self.map_cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('data_server/map service not available, waiting again...')
+
+        self.home_req = Trigger.Request()
+        self.home_future = self.home_cli.call_async(self.home_req)
+        self.home_future.add_done_callback(self.home_response_callback)
+
+        self.drone_position = tuple()
         
         self.send_position_req()
 

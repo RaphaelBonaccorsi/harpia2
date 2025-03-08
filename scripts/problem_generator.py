@@ -43,7 +43,7 @@ class ProblemGenerator(LifecycleNode):
             self.get_logger().info("Can't activate node: current region is missing")
             return TransitionCallbackReturn.FAILURE
 
-        self.srv = self.create_service(Trigger, 'problem_generator/get_problem', self.service_callback)
+        self.srv = self.create_service(Trigger, 'problem_generator/get_problem', self.get_problem_callback)
 
         return TransitionCallbackReturn.SUCCESS
 
@@ -73,52 +73,55 @@ class ProblemGenerator(LifecycleNode):
         future = self.mission_cli.call_async(mission_req)
         future.add_done_callback(lambda f: handle_response(f, "mission"))
     
-    def service_callback(self, request, response):
+    def get_problem_callback(self, request, response):
 
-        self.get_logger().info("@@ got problem request")
 
         if self.data['map'] is None or self.data['hardware'] is None or self.data['mission'] is None:
-            self.get_logger().info("@@ hmm 0")
             response.success = False
             self.get_logger().error("map, hardware or mission data is missing")
             raise ValueError("map, hardware or mission data is missing")
             # return response
 
-        self.get_logger().info("@@ hmm 1")
 
         response.success = True
-        response.message = self.generate_problem()
+        response.message = self.generate_json_problem()
 
-        self.get_logger().info("@@ hmm 2")
 
         return response
     
-    def generate_problem(self):
+    def generate_json_problem(self):
 
-        self.get_logger().info("@@ hmm A 1")
         instances, predicates, functions, goals = self.generate_problem_parameters()
-        self.get_logger().info("@@ hmm A 2")
+        problem = json.dumps({
+            "instances": [ f'{name} {key}' for key in instances.keys() for name in instances[key] ],
+            "predicates": predicates,
+            "functions": functions,
+            "goals": goals
+        })
 
-        objects = ""
-        init = ""
-        goal = ""
+        return problem
+    
+    # def generate_pddl_problem(self):
 
-        for key, value in instances.items():
-            objects += f"  {' '.join(value)} - {key}\n"
+    #     instances, predicates, functions, goals = self.generate_problem_parameters()
 
-        init += "  " + "\n  ".join(predicates) + "\n"
-        init += "  " + "\n  ".join(functions) + "\n"
+    #     objects = ""
+    #     init = ""
+    #     goal = ""
 
-        goal += "  (and\n    " + "\n    ".join(goals) + "\n  )"
+    #     for key, value in instances.items():
+    #         objects += f"  {' '.join(value)} - {key}\n"
 
-        return f"( define ( problem problem_1 )\n( :domain harpia )\n( :objects\n{objects}\n)\n( :init\n{init}\n)\n( :goal\n{goal}\n)\n)"
+    #     init += "  " + "\n  ".join(predicates) + "\n"
+    #     init += "  " + "\n  ".join(functions) + "\n"
 
+    #     goal += "  (and\n    " + "\n    ".join(goals) + "\n  )"
+
+    #     return f"( define ( problem problem_1 )\n( :domain harpia )\n( :objects\n{objects}\n)\n( :init\n{init}\n)\n( :goal\n{goal}\n)\n)"
     
     def generate_problem_parameters(self):
 
-        self.get_logger().info("@@ hmm B 1")
         result = self.current_region
-        self.get_logger().info("@@ hmm B 2")
         if result is None:
             self.get_logger().info("Failed to get position")
             return
@@ -171,37 +174,37 @@ class ProblemGenerator(LifecycleNode):
         for region1 in regions_list:
             for region2 in regions_list:
                 if region1['name'] == region2['name']:
-                    functions.append(f"(= (distance {region1['name']} {region1['name']}) 0.0)")
+                    functions.append(f"(distance {region1['name']} {region1['name']}) 0.0")
                 else:
-                    functions.append(f"(= (distance {region1['name']} {region2['name']}) {haversine(region1, region2)})")
+                    functions.append(f"(distance {region1['name']} {region2['name']}) {haversine(region1, region2)}")
 
         for mission_command in self.data['mission']['mission_execution']:
             command = mission_command["command"]
             area = mission_command["instructions"]["area"]
 
             if command == "take_picture":
-                predicates.append("(picture_goal "+area+")")
-                goals.append("(taken_image "+area+")")
+                predicates.append(f"picture_goal {area}")
+                goals.append(f"taken_image {area}")
             
             elif command == "end":
-                goals.append("(at "+area+")")
+                goals.append(f"at {area}")
             
             else:
                 self.get_logger().error(f"Comando '{command}' desconhecido")
             
 
-        functions.append(f"(= (battery_capacity) {self.data['hardware']['battery-capacity']})")
+        functions.append(f"(battery_capacity) {self.data['hardware']['battery-capacity']}")
         # functions.append(f"(= (discharge_rate_battery) {self.data['hardware']['discharge-rate-battery']})")
-        functions.append(f"(= (discharge_rate_battery) {0.1})")
-        functions.append(f"(= (velocity) {self.data['hardware']['efficient_velocity']})")
-        functions.append(f"(= (input_capacity) {self.data['hardware']['input-capacity']})")
+        functions.append(f"(discharge_rate_battery) {0.1}")
+        functions.append(f"(velocity) {self.data['hardware']['efficient_velocity']}")
+        functions.append(f"(input_capacity) {self.data['hardware']['input-capacity']}")
 
         self.get_logger().warn("Using assumed values for inital state")
-        functions.append(f"(= (battery_amount) {self.data['hardware']['battery-capacity']})")
-        functions.append(f"(= (input_amount) {self.data['hardware']['input-capacity']})")
-        predicates.append(f"(at {inside_region})")
+        functions.append(f"(battery_amount) {self.data['hardware']['battery-capacity']}")
+        functions.append(f"(input_amount) {self.data['hardware']['input-capacity']}")
+        predicates.append(f"at {inside_region}")
         
-        functions.append(f"(= (mission_length) 0.0)")
+        functions.append(f"(mission_length) 0.0")
 
         return instances, predicates, functions, goals
     
@@ -215,11 +218,11 @@ class ProblemGenerator(LifecycleNode):
         def gps_callback(furure):
             
             if future.result() is None:
-                self.get_logger().error('@@ Service call failed')
+                self.get_logger().error('Service call failed')
                 return None
 
             if not future.result().success:
-                self.get_logger().error('@@ Service could not return valid response')
+                self.get_logger().error('Service could not return valid response')
                 return None
             lat, lon, alt, inside_regions = future.result().message.split(" ")
             inside_region = inside_regions.split(',')[0]

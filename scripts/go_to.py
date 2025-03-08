@@ -9,30 +9,33 @@ from rclpy.action import ActionClient
 from plansys2_support_py.ActionExecutorClient import ActionExecutorClient
 
 
-class move(ActionExecutorClient):
+class go_to(ActionExecutorClient):
  
     def __init__(self):
         super().__init__('go_to', 0.2)
-        self.is_new_action = True
+        self.is_action_running = False
         self.waypoints = []  # Initialize waypoints as an empty list
         self.current_waypoint_index = 0  # Initialize the index
         self.cli = self.create_client(GeneratePath, 'path_planner/generate_path')
         while not self.cli.wait_for_service(timeout_sec=2.0):
-            self.get_logger().info('service not available, waiting again...')
+            self.get_logger().info('path planner service not available, waiting again...')
         self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
-
 
     # DO NOT USE THIS ↓↓↓ FUNCTIONS TO IMPLEMENT THE ACTION 
     def finish(self, success, completion, status):
         super().finish(success, completion, status)
         self.handle_end_of_action(success, completion, status)
-        self.is_new_action = True
+        self.is_action_running = False
 
     def do_work(self):
-        if self.is_new_action:
-            self.is_new_action = False
+        if not self.is_action_running:
+            self.is_action_running = True
             self.handle_start_of_action()
         self.handle_action_loop()
+
+    def on_deactivate(self, state):
+        self.is_action_running = False
+        return super().on_deactivate(state)
     # DO NOT USE THIS ↑↑↑ FUNCTIONS TO IMPLEMENT THE ACTION 
     
     def handle_start_of_action(self):
@@ -52,6 +55,10 @@ class move(ActionExecutorClient):
         waypoint : PoseStamped
             Target waypoints messages.
         """
+
+        if not self.is_action_running:
+            self.get_logger().info('Mission stoped, dont send waypoint')
+            return
 
 
         self.get_logger().info("sending waypoint")
@@ -130,6 +137,11 @@ class move(ActionExecutorClient):
         destination : str
             The destination point of the path.
         """
+
+        if not self.is_action_running:
+            self.get_logger().info('Mission stoped, dont call path_planner')
+            return
+        
         self.req = GeneratePath.Request()
         self.req.origin = origin
         self.req.destination = destination
@@ -188,7 +200,7 @@ class move(ActionExecutorClient):
 def main(args=None):
     rclpy.init(args=args)
 
-    node = move()
+    node = go_to()
     node.set_parameters([Parameter(name='action_name', value='go_to')])
 
     node.trigger_configure()

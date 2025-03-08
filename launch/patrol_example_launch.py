@@ -37,16 +37,14 @@ def generate_launch_description():
 
     ld = LaunchDescription()
 
-    # plansys
-    ld.add_action(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('plansys2_bringup'),
-            'launch',
-            'plansys2_bringup_launch_monolithic.py')),
-        launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
-    ))
-
     nodes_to_add = [
+        IncludeLaunchDescription( # plansys
+            PythonLaunchDescriptionSource(os.path.join(
+                get_package_share_directory('plansys2_bringup'),
+                'launch',
+                'plansys2_bringup_launch_monolithic.py')),
+            launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
+        ),
         Node(
             package='route_executor2',
             executable='lifecycle_manager.py',
@@ -54,13 +52,13 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
-        Node(
-            package='route_executor2',
-            executable='planning_controller_node',
-            name='planning_controller_node',
-            output='screen',
-            parameters=[]
-        ),
+        # Node(
+        #     package='route_executor2',
+        #     executable='planning_controller_node',
+        #     name='planning_controller_node',
+        #     output='screen',
+        #     parameters=[]
+        # ),
         Node(
             package='route_executor2',
             executable='go_to.py',
@@ -100,6 +98,20 @@ def generate_launch_description():
             package='route_executor2',
             executable='problem_generator.py',
             name='problem_generator',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='plansys_interface',
+            name='plansys_interface',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='mission_controller.py',
+            name='mission_controller',
             output='screen',
             parameters=[]
         ),
