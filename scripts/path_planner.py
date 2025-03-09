@@ -150,7 +150,7 @@ class PathPlanner(LifecycleNode):
         super().__init__('path_planner')   
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("Configuring node...")
+        pass # self.get_logger().info("Configuring node...") # NOT_ESSENTIAL_PRINT
         
         self.home_lat = None
         self.home_lon = None
@@ -182,10 +182,10 @@ class PathPlanner(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("Activating node...")
+        pass # self.get_logger().info("Activating node...") # NOT_ESSENTIAL_PRINT
 
         self.srv = self.create_service(GeneratePath, 'path_planner/generate_path', self.generate_path_callback)
-        self.get_logger().info("Path planner service is ready to generate paths.")
+        pass # self.get_logger().info("Path planner service is ready to generate paths.") # NOT_ESSENTIAL_PRINT
 
         return TransitionCallbackReturn.SUCCESS
         
@@ -204,7 +204,7 @@ class PathPlanner(LifecycleNode):
             self.home_lon = float(position[1])
 
             self.map = Map(self.home_lat, self.home_lon)
-            self.get_logger().info(f"Drone home coordinates: {self.home_lat} {self.home_lon}")
+            pass # self.get_logger().info(f"Drone home coordinates: {self.home_lat} {self.home_lon}") # NOT_ESSENTIAL_PRINT
 
             self.send_map_request()
             
@@ -228,7 +228,7 @@ class PathPlanner(LifecycleNode):
                 return
 
             self.drone_position = (float(position[0]), float(position[1]))
-            self.get_logger().info(f"Drone position updated: {self.drone_position}")
+            pass # self.get_logger().info(f"Drone position updated: {self.drone_position}") # NOT_ESSENTIAL_PRINT
         
         except Exception as e:
             self.get_logger().error(f'Failed to process position response: {e}')
@@ -237,7 +237,7 @@ class PathPlanner(LifecycleNode):
         # Callback for the data_server/map service
         try:
             response = future.result()
-            self.get_logger().info('Map response from data_server')
+            pass # self.get_logger().info('Map response from data_server') # NOT_ESSENTIAL_PRINT
             self.map.read_route_from_json(response.message)
             # error that sometime happens:
             # AttributeError: 'NoneType' object has no attribute 'read_route_from_json'
@@ -283,9 +283,9 @@ class PathPlanner(LifecycleNode):
         """
         Gera um caminho baseado na posição atual do drone e no destino.
         """
-        self.get_logger().info(f"Received request to generate path from {request.origin} to {request.destination}")
+        pass # self.get_logger().info(f"Received request to generate path from {request.origin} to {request.destination}") # NOT_ESSENTIAL_PRINT
 
-        self.get_logger().info("Requesting updated drone position...")
+        pass # self.get_logger().info("Requesting updated drone position...") # NOT_ESSENTIAL_PRINT
 
         # Armazena a posição antiga antes da atualização
         old_position = self.drone_position
@@ -321,7 +321,7 @@ class PathPlanner(LifecycleNode):
         waypointsList.extend(self.generate_path(start, goal) or [])
         response.waypoints = waypointsList
 
-        self.get_logger().info("Path generation complete.")
+        pass # self.get_logger().info("Path generation complete.") # NOT_ESSENTIAL_PRINT
         return response
 
     def generate_path(self, start: tuple, goal: tuple ) -> list:

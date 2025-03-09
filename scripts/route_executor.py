@@ -61,7 +61,7 @@ class RouteExecutor(Node):
         self.set_mode_client = self.create_client(SetMode, '/mavros/set_mode')
 
         # Wait for services to become available
-        self.get_logger().info('Waiting for arming and set mode services...')
+        pass # self.get_logger().info('Waiting for arming and set mode services...') # NOT_ESSENTIAL_PRINT
         self.arming_client.wait_for_service(timeout_sec=10.0)
         self.set_mode_client.wait_for_service(timeout_sec=10.0)
 
@@ -94,7 +94,7 @@ class RouteExecutor(Node):
 
         # Timer for publishing setpoints
         self.setpoint_timer = self.create_timer(0.05, self.publish_current_setpoint)
-        self.get_logger().info('Started publishing setpoints at 20Hz...')
+        pass # self.get_logger().info('Started publishing setpoints at 20Hz...') # NOT_ESSENTIAL_PRINT
 
         # Activate offboard mode and arm the drone
         
@@ -116,7 +116,7 @@ class RouteExecutor(Node):
         GoalResponse
             Response indicating whether the goal is accepted or rejected.
         """
-        self.get_logger().info(f'Receiving move request to: {goal_request.destination.pose}')
+        pass # self.get_logger().info(f'Receiving move request to: {goal_request.destination.pose}') # NOT_ESSENTIAL_PRINT
         self.waypoint = goal_request.destination
         return GoalResponse.ACCEPT
 
@@ -134,7 +134,7 @@ class RouteExecutor(Node):
         CancelResponse
             Response indicating whether the cancellation is accepted.
         """
-        self.get_logger().info('Cancelling goal')
+        pass # self.get_logger().info('Cancelling goal') # NOT_ESSENTIAL_PRINT
         self._cancel_requested = True
         return CancelResponse.ACCEPT
 
@@ -153,7 +153,7 @@ class RouteExecutor(Node):
         MoveTo.Result
             The result of the action, indicating success or failure.
         """
-        self.get_logger().info('Executing movement action')
+        pass # self.get_logger().info('Executing movement action') # NOT_ESSENTIAL_PRINT
 
         feedback_msg = MoveTo.Feedback()
         result = MoveTo.Result()
@@ -174,7 +174,7 @@ class RouteExecutor(Node):
                 self._timer.cancel()  # Cancelar o timer
                 goal_handle.succeed()
                 result.success = True
-                self.get_logger().info('Movement completed successfully')
+                pass # self.get_logger().info('Movement completed successfully') # NOT_ESSENTIAL_PRINT
                 goal_future.set_result(result)
 
             # Checar se o cancelamento foi solicitado
@@ -182,7 +182,7 @@ class RouteExecutor(Node):
                 self._timer.cancel()  # Cancelar o timer
                 goal_handle.canceled()
                 result.success = False
-                self.get_logger().info('Action canceled')
+                pass # self.get_logger().info('Action canceled') # NOT_ESSENTIAL_PRINT
                 goal_future.set_result(result)
 
             # Publicar o setpoint atual
@@ -240,14 +240,14 @@ class RouteExecutor(Node):
         """
         Sets the drone's mode to OFFBOARD.
         """
-        self.get_logger().info('Setting mode to OFFBOARD')
+        pass # self.get_logger().info('Setting mode to OFFBOARD') # NOT_ESSENTIAL_PRINT
         set_mode_request = SetMode.Request()
         set_mode_request.custom_mode = 'OFFBOARD'
         set_mode_future = self.set_mode_client.call_async(set_mode_request)
         rclpy.spin_until_future_complete(self, set_mode_future)
 
         if set_mode_future.result() is not None and set_mode_future.result().mode_sent:
-            self.get_logger().info('Offboard mode set successfully')
+            pass # self.get_logger().info('Offboard mode set successfully') # NOT_ESSENTIAL_PRINT
         else:
             self.get_logger().error('Failed to set Offboard mode')
 
@@ -255,14 +255,14 @@ class RouteExecutor(Node):
         """
         Arms the drone.
         """
-        self.get_logger().info('Arming the drone...')
+        pass # self.get_logger().info('Arming the drone...') # NOT_ESSENTIAL_PRINT
         arm_request = CommandBool.Request()
         arm_request.value = True
         arm_future = self.arming_client.call_async(arm_request)
         rclpy.spin_until_future_complete(self, arm_future)
 
         if arm_future.result() is not None and arm_future.result().success:
-            self.get_logger().info('Drone armed successfully')
+            pass # self.get_logger().info('Drone armed successfully') # NOT_ESSENTIAL_PRINT
         else:
             self.get_logger().error('Failed to arm the drone')
 
