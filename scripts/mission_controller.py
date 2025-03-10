@@ -98,7 +98,14 @@ class MissionController(LifecycleNode):
             {
                 'type': 'setGoals',
                 'values': problem['goals']
-            }
+            },
+            {
+                'type': 'removeInstances',
+                'values': [
+                    'base_1 base',
+                    'region_1 region',
+                ]
+            },
         ]
 
         def service_callback(future):
@@ -106,7 +113,8 @@ class MissionController(LifecycleNode):
                 response = future.result()
                 if response.success:
                     self.logger.info(f'Service call successful')
-                    self.requestPlanExecution()
+                    self.logger.info(f'@@ NOT REQUESTING PLAN EXECUTION FOR TEST')
+                    # self.requestPlanExecution()
                 else:
                     self.logger.error(f'Service call failed: {response.message}')
                     return TransitionCallbackReturn.ERROR

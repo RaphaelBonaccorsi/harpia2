@@ -119,7 +119,6 @@ private:
         try
         {
             json_commands = nlohmann::json::parse(request->message);
-            RCLCPP_INFO(this->get_logger(), "Parsed JSON: %s", json_commands.dump().c_str());
         }
         catch (const nlohmann::json::parse_error &e)
         {
@@ -133,62 +132,63 @@ private:
 
         for (auto& command : json_commands) {
             string type = command["type"].get<string>();
-            auto& values = command["values"];
-            
-            if(type == "addInstances")
+
+            nlohmann::json values;
+            if(command.contains("values"))
             {
-                if(!add_instances(values))
+                if(command["values"].is_array())
                 {
-                    RCLCPP_ERROR(this->get_logger(), "Failed to add instances");
-                    response->success = false;
-                    return;
+                    values = command["values"];
+                }
+                else
+                {
+                    RCLCPP_ERROR(this->get_logger(), "ERROR, 'values' is not an array");
+                    continue;
                 }
             }
-            else if(type == "addPredicates")
+            else values = nlohmann::json::array();
+
+            // Create a map of string keys to lambda functions
+            std::map<std::string, std::function<bool()>> cmd = {
+                {"addInstances",     [this, values]() { return this->addInstances    (values); }},
+                {"addPredicates",    [this, values]() { return this->addPredicates   (values); }},
+                {"addFunctions",     [this, values]() { return this->addFunctions    (values); }},
+                {"setGoals",         [this, values]() { return this->setGoals        (values); }},
+                {"clearGoal",        [this, values]() { return this->clearGoal       (values); }},
+                {"clearKnowledge",   [this, values]() { return this->clearKnowledge  (values); }},
+                {"removeInstances",  [this, values]() { return this->removeInstances (values); }},
+                {"removePredicates", [this, values]() { return this->removePredicates(values); }},
+                {"removeFunctions",  [this, values]() { return this->removeFunctions (values); }},
+                {"updateFunctions",  [this, values]() { return this->updateFunctions (values); }},
+            };
+
+            if(cmd.count(type) == 0)
             {
-                if(!addPredicates(values))
-                {
-                    RCLCPP_ERROR(this->get_logger(), "Failed to add predicates");
-                    response->success = false;
-                    return;
-                }
+                RCLCPP_ERROR(this->get_logger(), "Unknown command: %s", type.c_str());
+                response->success = false;
             }
-            else if(type == "addFunctions")
+            else if(!cmd[type]())
             {
-                if(!addFunctions(values))
-                {
-                    RCLCPP_ERROR(this->get_logger(), "Failed to add functions");
-                    response->success = false;
-                    return;
-                }
-            }
-            else if(type == "setGoals")
-            {
-                if(!setGoals(values))
-                {
-                    RCLCPP_ERROR(this->get_logger(), "Failed to set goals");
-                    response->success = false;
-                    return;
-                }
+                RCLCPP_ERROR(this->get_logger(), "Failed to execute cmd '%s'", type.c_str());
+                response->success = false;
+                return;
             }
             else
             {
-                RCLCPP_ERROR(this->get_logger(), "Unknown command type: %s", type.c_str());
-                response->success = false;
+                RCLCPP_INFO(this->get_logger(), "Execute cmd '%s' successfully", type.c_str());
             }
         }
 
         // // Print the domain and problemD
         // auto domain = domain_client_->getDomain();
-        // auto problem = problem_client_->getProblem();
-
         // RCLCPP_INFO(this->get_logger(), "Domain: %s", domain.c_str());
-        // RCLCPP_INFO(this->get_logger(), "Problem: %s", problem.c_str());
+        auto problem = problem_client_->getProblem();
+        RCLCPP_INFO(this->get_logger(), "Problem: %s", problem.c_str());
         
         response->success = true;
     }
 
-    bool add_instances(nlohmann::json& instances)
+    bool addInstances(const nlohmann::json& instances)
     {
         RCLCPP_INFO(this->get_logger(), "Adding instances...");
 
@@ -200,7 +200,12 @@ private:
                 string instance_type = str.substr(str.find(' ') + 1);
                 RCLCPP_INFO(this->get_logger(), "Adding instance %s of type %s", instance_name.c_str(), instance_type.c_str());
 
-                problem_client_->addInstance(plansys2::Instance(instance_name, instance_type));
+                bool result = problem_client_->addInstance(plansys2::Instance(instance_name, instance_type));
+                if(!result)
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Failed to add instance %s", str.c_str());
+                    return false;
+                }
             }
             catch(const std::exception& e)
             {
@@ -208,78 +213,171 @@ private:
                 return false;
             }
         }
-
         return true;
     }
 
-    bool addPredicates(nlohmann::json& predicates)
+    bool removeInstances(const nlohmann::json& instances)
+    {
+        RCLCPP_INFO(this->get_logger(), "Removing instances...");
+
+        for (auto& instance : instances) {
+            string str = instance.get<string>();
+            try
+            {
+                string instance_name = str.substr(0, str.find(' '));
+                string instance_type = str.substr(str.find(' ') + 1);
+                RCLCPP_INFO(this->get_logger(), "Removing instance %s of type %s", instance_name.c_str(), instance_type.c_str());
+
+                bool result = problem_client_->removeInstance(plansys2::Instance(instance_name, instance_type));
+                if(!result)
+                {
+                    RCLCPP_ERROR(this->get_logger(), "Failed to remove instance %s", str.c_str());
+                    return false;
+                }
+            }
+            catch(const std::exception& e)
+            {
+                RCLCPP_ERROR(this->get_logger(), "Failed to remove instance: %s", e.what());
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool addPredicates(const nlohmann::json& predicates)
     {
         RCLCPP_INFO(this->get_logger(), "Adding predicates...");
 
         for (auto& predicate : predicates) {
             string str = predicate.get<string>();
-            try
-            {
-                RCLCPP_INFO(this->get_logger(), "Adding predicate %s", str.c_str());
 
-                problem_client_->addPredicate(plansys2::Predicate("("+str+")"));
-            }
-            catch(const std::exception& e)
+            RCLCPP_INFO(this->get_logger(), "Adding predicate %s", str.c_str());
+
+            bool result = problem_client_->addPredicate(plansys2::Predicate("("+str+")"));
+            if(!result)
             {
-                RCLCPP_ERROR(this->get_logger(), "Failed to add predicate: %s", e.what());
+                RCLCPP_ERROR(this->get_logger(), "Failed to add predicate %s", str.c_str());
                 return false;
             }
         }
-
+        
         return true;
     }
 
-    bool addFunctions(nlohmann::json& functions)
+    bool removePredicates(const nlohmann::json& predicates)
+    {
+        RCLCPP_INFO(this->get_logger(), "Removing predicates...");
+
+        for (auto& predicate : predicates) {
+            string str = predicate.get<string>();
+
+            RCLCPP_INFO(this->get_logger(), "Removing predicate %s", str.c_str());
+
+            bool result = problem_client_->removePredicate(plansys2::Predicate("("+str+")"));
+            if(!result)
+            {
+                RCLCPP_ERROR(this->get_logger(), "Failed to remove predicate %s", str.c_str());
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    bool addFunctions(const nlohmann::json& functions)
     {
         RCLCPP_INFO(this->get_logger(), "Adding functions...");
 
         for (auto& function : functions) {
             string str = function.get<string>();
-            try
+            
+            RCLCPP_INFO(this->get_logger(), "Adding function %s", str.c_str());
+
+            bool result = problem_client_->addFunction(plansys2::Function("(= "+str+")"));
+            if(!result)
             {
-                RCLCPP_INFO(this->get_logger(), "Adding function %s", str.c_str());
-                problem_client_->addFunction(plansys2::Function("(= "+str+")"));
-            }
-            catch(const std::exception& e)
-            {
-                RCLCPP_ERROR(this->get_logger(), "Failed to add function: %s", e.what());
+                RCLCPP_ERROR(this->get_logger(), "Failed to add function %s", str.c_str());
                 return false;
             }
         }
 
         return true;
     }
+ 
+    bool removeFunctions(const nlohmann::json& functions)
+    {
+        RCLCPP_INFO(this->get_logger(), "Removing functions...");
 
-    bool setGoals(nlohmann::json& goals)
+        for (auto& function : functions) {
+            string str = function.get<string>();
+            
+            RCLCPP_INFO(this->get_logger(), "Removing function %s", str.c_str());
+
+            bool result = problem_client_->removeFunction(plansys2::Function("(= "+str+")"));
+            if(!result)
+            {
+                RCLCPP_ERROR(this->get_logger(), "Failed to remove function %s", str.c_str());
+                return false;
+            }
+        }
+
+        return true;
+    }
+ 
+    bool updateFunctions(const nlohmann::json& functions)
+    {
+        RCLCPP_INFO(this->get_logger(), "Updating functions...");
+
+        for (auto& function : functions) {
+            string str = function.get<string>();
+            
+            RCLCPP_INFO(this->get_logger(), "Updating function %s", str.c_str());
+
+            bool result = problem_client_->updateFunction(plansys2::Function("(= "+str+")"));
+            if(!result)
+            {
+                RCLCPP_ERROR(this->get_logger(), "Failed to update function %s", str.c_str());
+                return false;
+            }
+        }
+
+        return true;
+    }
+ 
+    bool setGoals(const nlohmann::json& goals)
     {
         RCLCPP_INFO(this->get_logger(), "Setting goals...");
 
         string goal_str = "(and";
         for (auto& goal : goals) {
             string str = goal.get<string>();
-            try
-            {
-                RCLCPP_INFO(this->get_logger(), "Adding goal %s", str.c_str());
-                goal_str += " ("+str+")";
-            }
-            catch(const std::exception& e)
-            {
-                RCLCPP_ERROR(this->get_logger(), "Failed to add goal: %s", e.what());
-                return false;
-            }
+            goal_str += " ("+str+")";
         }
-
         goal_str += ")";
-        problem_client_->setGoal(plansys2::Goal(goal_str));
+
+        bool result = problem_client_->setGoal(plansys2::Goal(goal_str));
+        if(!result)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Failed to set goal %s", goal_str.c_str());
+            return false;
+        }
 
         return true;
     }
 
+    bool clearGoal(const nlohmann::json& goals)
+    {
+        RCLCPP_INFO(this->get_logger(), "Clearing goal...");
+        problem_client_->clearGoal();
+        return true;
+    }
+
+    bool clearKnowledge(const nlohmann::json& goals)
+    {
+        RCLCPP_INFO(this->get_logger(), "Clearing knowledge...");
+        problem_client_->clearKnowledge();
+        return true;
+    }
 
     void wait_for_problem_expert_availability()
     {

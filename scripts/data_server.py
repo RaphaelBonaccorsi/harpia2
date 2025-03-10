@@ -19,7 +19,6 @@ class DataServer(LifecycleNode):
     def __init__(self):
 
         super().__init__('data_server')
-        self.get_logger().info("oioioi data_server")
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("Configuring node...")
