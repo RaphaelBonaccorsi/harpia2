@@ -44,7 +44,7 @@ Harpia 2 is the ROS 2 version of the Harpia system for UAV mission and path plan
 #### PX4
 - git clone https://github.com/PX4/PX4-Autopilot.git --recursive
 - bash PX4_Autopilot/Tools/setup/ubuntu.sh
-- Use gazebo classic instead of Ignition Gazebo
+##### Use gazebo classic instead of Ignition Gazebo
 - sudo apt remove gz-harmonic
 - sudo apt install aptitude
 - sudo aptitude install gazebo libgazebo11 libgazebo-dev
