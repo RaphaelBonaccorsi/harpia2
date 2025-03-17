@@ -1,6 +1,6 @@
 # Request
-int32 origin_id
-int32 destination_id
+string origin
+string destination
 
 ---
 # Response

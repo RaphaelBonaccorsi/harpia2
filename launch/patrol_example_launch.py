@@ -20,71 +20,107 @@ from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
+
+    # Declare launch arguments
+    mission_index_arg = DeclareLaunchArgument('mission_index', default_value='1', description='The mission index to execute from the mission file.')
+
+    # Use LaunchConfiguration to get the values of arguments
+    mission_index_value = LaunchConfiguration('mission_index')
+    
     # Get the launch directory
     example_dir = get_package_share_directory('route_executor2')
 
-    plansys2_cmd = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('plansys2_bringup'),
-            'launch',
-            'plansys2_bringup_launch_monolithic.py')),
-        launch_arguments={'model_file': example_dir + '/pddl/domain.pddl'}.items()
-        )
-    """
-    nav2_cmd = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            get_package_share_directory('nav2_bringup'),
-            'launch',
-            'tb3_simulation_launch.py')),
-        launch_arguments={
-            'autostart': 'true',
-            'params_file': os.path.join(example_dir, 'params', 'nav2_params.yaml')
-        }.items())
-    """
-    # Specify the actions
-    control_cmd = Node(
-        package='route_executor2',
-        executable='planning_controller_node',
-        name='planning_controller_node',
-        output='screen',
-        parameters=[])
-        
-    move_cmd = Node(
-        package='route_executor2',
-        executable='move_action_node',
-        name='move_action_node',
-        output='screen',
-        parameters=[])
-
-    route_cmd = Node(
-        package='route_executor2',
-        executable='route_executor.py',
-        name='route_executor',
-        output='screen',
-        parameters=[])
-
-    path_planner_cmd = Node(
-        package='route_executor2',
-        executable='path_planner.py',
-        name='path_planner',
-        output='screen',
-        parameters=[])
-
-    
-
-    # Create the launch description and populate
     ld = LaunchDescription()
 
-    # Declare the launch options
-    ld.add_action(plansys2_cmd)
-    #ld.add_action(nav2_cmd)
+    nodes_to_add = [
+        IncludeLaunchDescription( # plansys
+            PythonLaunchDescriptionSource(os.path.join(
+                get_package_share_directory('plansys2_bringup'),
+                'launch',
+                'plansys2_bringup_launch_monolithic.py')),
+            launch_arguments={'model_file': example_dir + '/pddl/harpia_domain.pddl'}.items()
+        ),
+        Node(
+            package='route_executor2',
+            executable='lifecycle_manager.py',
+            name='lifecycle_manager',
+            output='screen',
+            parameters=[]
+        ),
+        # Node(
+        #     package='route_executor2',
+        #     executable='planning_controller_node',
+        #     name='planning_controller_node',
+        #     output='screen',
+        #     parameters=[]
+        # ),
+        Node(
+            package='route_executor2',
+            executable='go_to.py',
+            name='go_to',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='take_image.py',
+            name='take_image',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='route_executor.py',
+            name='route_executor',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='path_planner.py',
+            name='path_planner',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='data_server.py',
+            name='data_server',
+            output='screen',
+            parameters=[{'mission_index': mission_index_value}]
+        ),
+        Node(
+            package='route_executor2',
+            executable='problem_generator.py',
+            name='problem_generator',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='plansys_interface',
+            name='plansys_interface',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='mission_controller.py',
+            name='mission_controller',
+            output='screen',
+            parameters=[]
+        ),
+    ]
 
-    ld.add_action(control_cmd)
-    ld.add_action(route_cmd)
-    ld.add_action(move_cmd)
-    ld.add_action(path_planner_cmd)
+    # Create the launch description and populate
+    ld.add_action(mission_index_arg)
+
+    for node in nodes_to_add:
+        ld.add_action(node)
 
     return ld

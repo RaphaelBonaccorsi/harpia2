@@ -4,18 +4,18 @@
   ;; Objects (instances of types)
   (:objects 
     drone1 - drone
-    waypoint_1 waypoint_2 waypoint_3 waypoint_4 waypoint_5 - waypoint
+    region_1 region_2 region_3 region_4 region_5 - waypoint
   )
 
   ;; Initial state
   (:init
-    (drone_at drone1 waypoint_1)
-    (connected waypoint_1 waypoint_2)
-    (connected waypoint_2 waypoint_3)
-    (connected waypoint_3 waypoint_4)
-    (connected waypoint_4 waypoint_5)
+    (drone_at drone1 region_1)
+    (connected region_1 region_2)
+    (connected region_2 region_3)
+    (connected region_3 region_4)
+    (connected region_4 region_5)
   )
 
   ;; Goal state
-  (:goal (drone_at drone1 waypoint_5))
+  (:goal (drone_at drone1 region_5))
 )
