@@ -6,6 +6,7 @@ from rclpy.action import ActionClient
 from std_srvs.srv import Trigger
 from harpia_msgs.srv import StrInOut
 from harpia_msgs.action import ExecutePlan
+from std_msgs.msg import String
 import json
 
 class MissionController(LifecycleNode):
@@ -19,12 +20,13 @@ class MissionController(LifecycleNode):
 
         self.isMissionRunning = False
         self.isWaitingCancelation = False
-        self.isWaitingToReplan = False
-        self.whatToRunWhenReplan = None
+        # self.isWaitingToReplan = False
+        # self.whatToRunWhenReplan = None
 
         # Create service client but don't activate it yet
         self.update_parameters_client = self.create_client(StrInOut, 'plansys_interface/update_parameters')
         self.get_problem_client = self.create_client(Trigger, 'problem_generator/get_problem')
+        self.problem_update_subscription = self.create_subscription(String, 'problem_generator/problem_update', self.problem_update_callback, 10)
         self.goal_handle = None
         return TransitionCallbackReturn.SUCCESS
 
@@ -84,27 +86,20 @@ class MissionController(LifecycleNode):
 
         updates = [
             {
-                'type': 'addInstances',
+                'type': 'add_instances',
                 'values': problem['instances']
             },
             {
-                'type': 'addPredicates',
+                'type': 'add_predicates',
                 'values': problem['predicates']
             },
             {
-                'type': 'addFunctions',
+                'type': 'add_functions',
                 'values': problem['functions']
             },
             {
-                'type': 'setGoals',
+                'type': 'set_goals',
                 'values': problem['goals']
-            },
-            {
-                'type': 'removeInstances',
-                'values': [
-                    'base_1 base',
-                    'region_1 region',
-                ]
             },
         ]
 
@@ -113,8 +108,7 @@ class MissionController(LifecycleNode):
                 response = future.result()
                 if response.success:
                     self.logger.info(f'Service call successful')
-                    self.logger.info(f'@@ NOT REQUESTING PLAN EXECUTION FOR TEST')
-                    # self.requestPlanExecution()
+                    self.requestPlanExecution()
                 else:
                     self.logger.error(f'Service call failed: {response.message}')
                     return TransitionCallbackReturn.ERROR
@@ -183,21 +177,25 @@ class MissionController(LifecycleNode):
     
     def result_callback(self, future):
         result = future.result().result
-        self.get_logger().info(f'Final result: {result.success}')
+        self.get_logger().info(f'Mission ended, final result: {result.success}')
         self.isMissionRunning = False
 
         if self.isWaitingCancelation:
             self.isWaitingCancelation = False
             self.get_logger().info('Mission canceled.')
+            
+            if hasattr(self, 'whatToRunWhenFinishedCancelation'):
+                self.whatToRunWhenFinishedCancelation(True)
+                del self.whatToRunWhenFinishedCancelation
 
-            if self.isWaitingToReplan:
-                self.isWaitingToReplan = False
-                self.get_logger().info('Now replanning...')
-                if self.whatToRunWhenReplan is None:
-                    self.get_logger().error('No replan function defined')
-                else:
-                    self.whatToRunWhenReplan()
-                    self.whatToRunWhenReplan = None
+            # if self.isWaitingToReplan:
+            #     self.isWaitingToReplan = False
+            #     self.get_logger().info('Now replanning...')
+            #     if self.whatToRunWhenReplan is None:
+            #         self.get_logger().error('No replan function defined')
+            #     else:
+            #         self.whatToRunWhenReplan()
+            #         self.whatToRunWhenReplan = None
 
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
@@ -206,38 +204,85 @@ class MissionController(LifecycleNode):
         # if feedback.step == 2:
         #     self.cancel_goal()
 
-    def request_cancel_goal(self):
+    def request_cancel_goal(self, func_callback=None):
+
         if not self.goal_handle:
             self.get_logger().error('No goal to cancel')
+            func_callback(False)
             return
         
         self.get_logger().info('Requesting goal cancellation...')
 
+        if self.isWaitingCancelation:
+            self.get_logger().error('ERROR, cancelation request already sent')
+            func_callback(False)
+            return
+        
+        if func_callback is not None:
+            self.whatToRunWhenFinishedCancelation = func_callback
 
         def cancel_response_callback(future):
             cancel_response = future.result()
             if cancel_response.return_code == 0:  # GOAL_TERMINAL_STATE
-                self.get_logger().info('Cancellation succeeded')
+                self.get_logger().info('Cancellation request succeeded')
                 self.isWaitingCancelation = True
             else:
-                self.get_logger().warn(f'Cancellation failed with code: {cancel_response.return_code}')
-                if self.isWaitingToReplan:
-                    self.get_logger().error("could not replan, cancelation failed")
-                    self.isWaitingToReplan = False
-                    self.whatToRunWhenReplan = None
+                self.get_logger().warn(f'Cancellation request failed with code: {cancel_response.return_code}')
+
+                if hasattr(self, 'whatToRunWhenFinishedCancelation'):
+                    self.whatToRunWhenFinishedCancelation(False)
+                    del self.whatToRunWhenFinishedCancelation
+                # if self.isWaitingToReplan:
+                #     self.get_logger().error("could not replan, cancelation failed")
+                #     self.isWaitingToReplan = False
+                #     self.whatToRunWhenReplan = None
 
         future = self.goal_handle.cancel_goal_async()
         future.add_done_callback(cancel_response_callback)
 
-    def request_replan(self, whatToRunWhenReplan):
-        if self.isWaitingToReplan:
-            self.get_logger().error('Already waiting to replan')
+    # def request_replan(self, whatToRunWhenReplan):
+    #     if self.isWaitingToReplan:
+    #         self.get_logger().error('Already waiting to replan')
+    #         return
+        
+    #     self.get_logger().info('Replanning...')
+    #     self.isWaitingToReplan = True
+    #     self.whatToRunWhenReplan = whatToRunWhenReplan
+    #     self.request_cancel_goal()
+
+    def problem_update_callback(self, msg: String):
+        try:
+            problem_updates = json.loads(msg.data)
+        except json.JSONDecodeError as e:
+            self.get_logger().error(f"ERROR, the problem update json in invalid")
             return
         
-        self.get_logger().info('Replanning...')
-        self.isWaitingToReplan = True
-        self.whatToRunWhenReplan = whatToRunWhenReplan
-        self.request_cancel_goal()
+        self.get_logger().info(f'Received problem update: {json.dumps(problem_updates, indent=2)}')
+
+        def when_cancel_goal(success):
+            if not success:
+                self.get_logger().error("could not cancel mission, what to do here?")
+                return
+            
+            self.get_logger().info("Mission canceled, now start replanning...")
+
+            def when_finished_updating_problem(future):
+                if future.result() is None:
+                    self.get_logger().error('ERROR, call to update problem failed')
+                    return
+                
+                response = future.result()
+                if not response.success:
+                    self.logger.error(f'Service call returned wi error: {response.message}')
+                    return
+                
+                self.logger.info(f'Updated problem successfully, now executing...')
+                self.requestPlanExecution()
+
+            self.send_parameters_update(problem_updates, when_finished_updating_problem)
+
+        self.request_cancel_goal(when_cancel_goal)
+        
 
 def main(args=None):
     rclpy.init(args=args)

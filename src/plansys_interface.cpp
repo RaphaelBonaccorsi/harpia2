@@ -150,16 +150,16 @@ private:
 
             // Create a map of string keys to lambda functions
             std::map<std::string, std::function<bool()>> cmd = {
-                {"addInstances",     [this, values]() { return this->addInstances    (values); }},
-                {"addPredicates",    [this, values]() { return this->addPredicates   (values); }},
-                {"addFunctions",     [this, values]() { return this->addFunctions    (values); }},
-                {"setGoals",         [this, values]() { return this->setGoals        (values); }},
-                {"clearGoal",        [this, values]() { return this->clearGoal       (values); }},
-                {"clearKnowledge",   [this, values]() { return this->clearKnowledge  (values); }},
-                {"removeInstances",  [this, values]() { return this->removeInstances (values); }},
-                {"removePredicates", [this, values]() { return this->removePredicates(values); }},
-                {"removeFunctions",  [this, values]() { return this->removeFunctions (values); }},
-                {"updateFunctions",  [this, values]() { return this->updateFunctions (values); }},
+                {"add_instances",     [this, values]() { return this->addInstances    (values); }},
+                {"add_predicates",    [this, values]() { return this->addPredicates   (values); }},
+                {"add_functions",     [this, values]() { return this->addFunctions    (values); }},
+                {"set_goals",         [this, values]() { return this->setGoals        (values); }},
+                {"clear_goal",        [this, values]() { return this->clearGoal       (values); }},
+                {"clear_knowledge",   [this, values]() { return this->clearKnowledge  (values); }},
+                {"remove_instances",  [this, values]() { return this->removeInstances (values); }},
+                {"remove_predicates", [this, values]() { return this->removePredicates(values); }},
+                {"remove_functions",  [this, values]() { return this->removeFunctions (values); }},
+                {"update_functions",  [this, values]() { return this->updateFunctions (values); }},
             };
 
             if(cmd.count(type) == 0)
