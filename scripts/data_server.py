@@ -13,6 +13,7 @@ from rclpy.executors import MultiThreadedExecutor
 from sensor_msgs.msg import NavSatFix
 from shapely.geometry import Point, Polygon
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
+from std_msgs.msg import String
 
 class DataServer(LifecycleNode):
 
@@ -111,11 +112,31 @@ class DataServer(LifecycleNode):
         self.position_srv = self.create_service(Trigger, 'data_server/drone_position', self.position_service_callback, callback_group=self.position_cb)
         self.home_srv = self.create_service(Trigger, 'data_server/home_position', self.home_service_callback, callback_group=self.gps_cb)
         self.gps_pos_srv = self.create_service(Trigger, 'data_server/gps_position', self.gps_pos_service_callback, callback_group=self.gps_cb)
+        self.mission_update_publisher = self.create_publisher(String, 'data_server/mission_updates', 10)
+
+        self.test_update()
 
         return TransitionCallbackReturn.SUCCESS
 
 
     ##############################################
+
+    def test_update(self):
+        def test_update_callback():
+            self.destroy_timer(self.test_timer)
+            self.publish_mission_updates([
+                {
+                    'type': 'remove',
+                    'area': 'region_1',
+                    'command': 'take_picture',
+                },
+                {
+                    'type': 'add',
+                    'area': 'region_3',
+                    'command': 'take_picture',
+                },
+            ])
+        self.test_timer = self.create_timer(43, test_update_callback)
     
     def gps_pos_service_callback(self, request, response):
         inside_regions = self.compute_region()
@@ -200,6 +221,12 @@ class DataServer(LifecycleNode):
                 inside_regions.append(region_names[i])
 
         return inside_regions
+    
+    def publish_mission_updates(self, updates):
+        self.get_logger().info(f"publishing mission updates")
+        msg = String()
+        msg.data = json.dumps(updates)
+        self.mission_update_publisher.publish(msg)
 
 def main(args=None):
     """

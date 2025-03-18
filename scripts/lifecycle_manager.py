@@ -55,7 +55,7 @@ class LifecycleMannager(Node):
                 future = client.call_async(request)
                 future.add_done_callback(handle_get_state_response)
 
-            elif tries > 50:
+            elif tries > 100:
                 self.get_logger().error(f'Could not find lifecycle node {node_name}.')
                 timer.cancel()
                 del self.nodes[node_name]
