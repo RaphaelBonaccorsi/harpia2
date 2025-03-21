@@ -194,8 +194,8 @@ def handle_new_log(log):
 
     print(str)
 
-read_configs()
-while True:
-    pass
+# read_configs()
+# while True:
+#     pass
 for line in sys.stdin:
     process_new_line(line)
