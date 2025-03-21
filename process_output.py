@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import sys
+import signal
 import re
 import json
 from termcolor import colored
 
 launch_script = 'launch/patrol_example_launch.py'
 
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def printb(arg):
     print(json.dumps(arg, indent=2))
@@ -180,7 +182,7 @@ def handle_new_log(log):
     str = ""
 
     if log['file_name'] is not None:
-        str += colored(f"[{log['file_name']}] ", nodes[log['file_name']][0]) 
+        str += colored('[', 'blue')+colored(f"{log['file_name']}", nodes[log['file_name']][0])+colored('] ', 'blue')
     # if log['node_name'] is not None:
     #     str += colored(f"[{log['node_name']}] ", nodes[log['file_name']][0])
     # if log['type_of_message'] is not None:
@@ -197,5 +199,9 @@ def handle_new_log(log):
 # read_configs()
 # while True:
 #     pass
-for line in sys.stdin:
-    process_new_line(line)
+
+try:
+    for line in sys.stdin:
+        process_new_line(line)
+except KeyboardInterrupt:
+    print(colored(' Interrupted', 'red'))
