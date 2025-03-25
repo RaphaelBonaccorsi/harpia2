@@ -449,7 +449,7 @@ private:
         // Helper lambda to add actions to the plan
         auto logger = this->get_logger();
         auto add_action = [&gen_plan, &logger](std::string action_name, double start_time) {
-            RCLCPP_INFO(logger, "adding: |%s|%f|", action_name.c_str(), start_time);
+            // RCLCPP_INFO(logger, "adding: |%s|%f|", action_name.c_str(), start_time);
             plansys2_msgs::msg::PlanItem plan_item;
             plan_item.action = action_name;
             plan_item.time = start_time;
@@ -502,7 +502,7 @@ private:
         // Log the created plan
         RCLCPP_INFO(this->get_logger(), "Plan created:");
         for (const auto &action : gen_plan.items) {
-            RCLCPP_INFO(this->get_logger(), "Action: %s, Start Time: %.2f", action.action.c_str(), action.time);
+            RCLCPP_INFO(this->get_logger(), "Action: %s", action.action.c_str());
             output_file << "Action: " << action.action << ", Start Time: " << action.time << "\n";
         }
         output_file.close();
