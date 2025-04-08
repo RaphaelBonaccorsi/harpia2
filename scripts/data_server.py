@@ -25,8 +25,8 @@ class DataServer(LifecycleNode):
         self.get_logger().info("Configuring node...")
 
         package_share_dir = get_package_share_directory('route_executor2')
-        # self.map_file = f"{package_share_dir}/data/map.json"
-        self.map_file = f"{package_share_dir}/data/map_harpia.json"
+        self.map_file = f"{package_share_dir}/data/map.json"
+        # self.map_file = f"{package_share_dir}/data/map_harpia.json"
         self.hardware_file = f"{package_share_dir}/data/hardware.json"
         self.all_missions_file = f"{package_share_dir}/data/all_missions.json"
         self.mission_index = self.declare_parameter('mission_index', 1).value
@@ -115,7 +115,7 @@ class DataServer(LifecycleNode):
         self.gps_pos_srv = self.create_service(Trigger, 'data_server/gps_position', self.gps_pos_service_callback, callback_group=self.gps_cb)
         self.mission_update_publisher = self.create_publisher(String, 'data_server/mission_updates', 10)
 
-        self.test_update()
+        # self.test_update()
 
         return TransitionCallbackReturn.SUCCESS
 
