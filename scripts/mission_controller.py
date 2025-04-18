@@ -45,6 +45,9 @@ class MissionController(LifecycleNode):
 
         self.get_problem()
 
+        self.create_timer(1, self.check_battery_callback)
+        self.battery_sim = 1
+
         # def replan_test_timer_callback():
         #     if self.replan_timer is not None:
         #         self.replan_timer.cancel()
@@ -282,7 +285,36 @@ class MissionController(LifecycleNode):
             self.send_parameters_update(problem_updates, when_finished_updating_problem)
 
         self.request_cancel_goal(when_cancel_goal)
-        
+
+    def check_battery_callback(self):
+        return
+        dec = 1/60 # 1 min of battery life
+        self.battery_sim -= dec
+        if(self.battery_sim < 0):
+            self.battery_sim = 0
+
+        self.get_logger().info(f'Battery: {self.battery_sim:.2f}')
+
+        updates = [
+            {
+                'type': 'update_functions',
+                'values': [f'battery_amount {str(100*self.battery_sim)}']
+            },
+        ]
+
+        def service_callback(future):
+            if future.result() is None:
+                self.logger.error('battery call timed out!')
+                return
+
+            response = future.result()
+            if not response.success:
+                self.logger.error(f'battery failed: {response.message}')
+                return
+            
+            # self.logger.info(f'battery update successful')
+
+        self.send_parameters_update(updates, service_callback)
 
 def main(args=None):
     rclpy.init(args=args)

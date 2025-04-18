@@ -36,8 +36,6 @@
 
    
     (:functions
-    
-
         ;; Variavel q controla bateria em porcentagem
         (battery_amount)
         ;; quantidade de insumo
@@ -61,7 +59,6 @@
         (total_goals)
         (goals_achived)
         (mission_length)
-
     )
 
 
@@ -73,23 +70,14 @@
             (= ?duration 5)
         :condition (and
             (at start (at ?from_region))
-            ; (> (battery_amount) (+ (* (/ (distance ?from_region ?to_region) (velocity)) (discharge_rate_battery)) 15))
+            ; (at start (> (battery_amount) 0))
         )
         :effect (and 
-                (at start (not (at ?from_region)))
-                (at end (been_at ?to_region))
-                (at end (at ?to_region))
-                (at end (decrease (battery_amount ) 
-                      (*
-                          (/
-                              (distance ?from_region ?to_region)
-                              (velocity)
-                          )
-                          (discharge_rate_battery)
-                      )
-          
-                ))
-                (at end(increase (mission_length) (distance ?from_region ?to_region)))
+            (at start (not (at ?from_region)))
+            (at end (been_at ?to_region))
+            (at end (at ?to_region))
+            ; (at end (decrease (battery_amount) 1))
+            (at end(increase (mission_length) (distance ?from_region ?to_region)))
         )
     )
     

@@ -113,7 +113,7 @@ private:
         std::shared_ptr<harpia_msgs::srv::StrInOut::Response> response) {
         (void)request;  // Suppress unused parameter warning (Trigger has no request fields)
 
-        RCLCPP_INFO(this->get_logger(), "Trigger service called!, strin: %s", request->message.c_str());
+        // RCLCPP_INFO(this->get_logger(), "Trigger service called!, strin: %s", request->message.c_str());
 
         nlohmann::json json_commands;
         try
@@ -173,24 +173,18 @@ private:
                 response->success = false;
                 return;
             }
-            else
-            {
-                RCLCPP_INFO(this->get_logger(), "Execute cmd '%s' successfully", type.c_str());
-            }
+            // else
+            // {
+            //     RCLCPP_INFO(this->get_logger(), "Execute cmd '%s' successfully", type.c_str());
+            // }
         }
-
-        // // Print the domain and problemD
-        // auto domain = domain_client_->getDomain();
-        // RCLCPP_INFO(this->get_logger(), "Domain: %s", domain.c_str());
-        auto problem = problem_client_->getProblem();
-        RCLCPP_INFO(this->get_logger(), "Problem: %s", problem.c_str());
         
         response->success = true;
     }
 
     bool addInstances(const nlohmann::json& instances)
     {
-        RCLCPP_INFO(this->get_logger(), "Adding instances...");
+        // RCLCPP_INFO(this->get_logger(), "Adding instances...");
 
         for (auto& instance : instances) {
             string str = instance.get<string>();
@@ -198,7 +192,7 @@ private:
             {
                 string instance_name = str.substr(0, str.find(' '));
                 string instance_type = str.substr(str.find(' ') + 1);
-                RCLCPP_INFO(this->get_logger(), "Adding instance %s of type %s", instance_name.c_str(), instance_type.c_str());
+                // RCLCPP_INFO(this->get_logger(), "Adding instance %s of type %s", instance_name.c_str(), instance_type.c_str());
 
                 bool result = problem_client_->addInstance(plansys2::Instance(instance_name, instance_type));
                 if(!result)
@@ -218,7 +212,7 @@ private:
 
     bool removeInstances(const nlohmann::json& instances)
     {
-        RCLCPP_INFO(this->get_logger(), "Removing instances...");
+        // RCLCPP_INFO(this->get_logger(), "Removing instances...");
 
         for (auto& instance : instances) {
             string str = instance.get<string>();
@@ -226,7 +220,7 @@ private:
             {
                 string instance_name = str.substr(0, str.find(' '));
                 string instance_type = str.substr(str.find(' ') + 1);
-                RCLCPP_INFO(this->get_logger(), "Removing instance %s of type %s", instance_name.c_str(), instance_type.c_str());
+                // RCLCPP_INFO(this->get_logger(), "Removing instance %s of type %s", instance_name.c_str(), instance_type.c_str());
 
                 bool result = problem_client_->removeInstance(plansys2::Instance(instance_name, instance_type));
                 if(!result)
@@ -246,12 +240,12 @@ private:
 
     bool addPredicates(const nlohmann::json& predicates)
     {
-        RCLCPP_INFO(this->get_logger(), "Adding predicates...");
+        // RCLCPP_INFO(this->get_logger(), "Adding predicates...");
 
         for (auto& predicate : predicates) {
             string str = predicate.get<string>();
 
-            RCLCPP_INFO(this->get_logger(), "Adding predicate %s", str.c_str());
+            // RCLCPP_INFO(this->get_logger(), "Adding predicate %s", str.c_str());
 
             bool result = problem_client_->addPredicate(plansys2::Predicate("("+str+")"));
             if(!result)
@@ -266,12 +260,12 @@ private:
 
     bool removePredicates(const nlohmann::json& predicates)
     {
-        RCLCPP_INFO(this->get_logger(), "Removing predicates...");
+        // RCLCPP_INFO(this->get_logger(), "Removing predicates...");
 
         for (auto& predicate : predicates) {
             string str = predicate.get<string>();
 
-            RCLCPP_INFO(this->get_logger(), "Removing predicate %s", str.c_str());
+            // RCLCPP_INFO(this->get_logger(), "Removing predicate %s", str.c_str());
 
             bool result = problem_client_->removePredicate(plansys2::Predicate("("+str+")"));
             if(!result)
@@ -286,12 +280,12 @@ private:
 
     bool addFunctions(const nlohmann::json& functions)
     {
-        RCLCPP_INFO(this->get_logger(), "Adding functions...");
+        // RCLCPP_INFO(this->get_logger(), "Adding functions...");
 
         for (auto& function : functions) {
             string str = function.get<string>();
             
-            RCLCPP_INFO(this->get_logger(), "Adding function %s", str.c_str());
+            // RCLCPP_INFO(this->get_logger(), "Adding function %s", str.c_str());
 
             bool result = problem_client_->addFunction(plansys2::Function("(= "+str+")"));
             if(!result)
@@ -306,12 +300,12 @@ private:
  
     bool removeFunctions(const nlohmann::json& functions)
     {
-        RCLCPP_INFO(this->get_logger(), "Removing functions...");
+        // RCLCPP_INFO(this->get_logger(), "Removing functions...");
 
         for (auto& function : functions) {
             string str = function.get<string>();
             
-            RCLCPP_INFO(this->get_logger(), "Removing function %s", str.c_str());
+            // RCLCPP_INFO(this->get_logger(), "Removing function %s", str.c_str());
 
             bool result = problem_client_->removeFunction(plansys2::Function("(= "+str+")"));
             if(!result)
@@ -326,7 +320,7 @@ private:
  
     bool updateFunctions(const nlohmann::json& functions)
     {
-        RCLCPP_INFO(this->get_logger(), "Updating functions...");
+        // RCLCPP_INFO(this->get_logger(), "Updating functions...");
 
         for (auto& function : functions) {
             string str = function.get<string>();
@@ -346,7 +340,7 @@ private:
  
     bool setGoals(const nlohmann::json& goals)
     {
-        RCLCPP_INFO(this->get_logger(), "Setting goals...");
+        // RCLCPP_INFO(this->get_logger(), "Setting goals...");
 
         string goal_str = "(and";
         for (auto& goal : goals) {
@@ -367,14 +361,14 @@ private:
 
     bool clearGoal(const nlohmann::json& goals)
     {
-        RCLCPP_INFO(this->get_logger(), "Clearing goal...");
+        // RCLCPP_INFO(this->get_logger(), "Clearing goal...");
         problem_client_->clearGoal();
         return true;
     }
 
     bool clearKnowledge(const nlohmann::json& goals)
     {
-        RCLCPP_INFO(this->get_logger(), "Clearing knowledge...");
+        // RCLCPP_INFO(this->get_logger(), "Clearing knowledge...");
         problem_client_->clearKnowledge();
         return true;
     }
