@@ -47,6 +47,7 @@ class ActionPlannerExecutor:
             'activate': Transition.TRANSITION_ACTIVATE,
             'deactivate': Transition.TRANSITION_DEACTIVATE,
         }
+        
 
     def call_change_state(self, transition, callback):
         """
