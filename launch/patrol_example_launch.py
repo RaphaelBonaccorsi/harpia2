@@ -33,7 +33,8 @@ def generate_launch_description():
     mission_index_value = LaunchConfiguration('mission_index')
     
     # Get the launch directory
-    example_dir = get_package_share_directory('route_executor2')
+    share_dir = get_package_share_directory('route_executor2')
+    domain_file = share_dir + '/pddl/harpia_domain_test.pddl'
 
     ld = LaunchDescription()
 
@@ -43,7 +44,7 @@ def generate_launch_description():
                 get_package_share_directory('plansys2_bringup'),
                 'launch',
                 'plansys2_bringup_launch_monolithic.py')),
-            launch_arguments={'model_file': example_dir + '/pddl/harpia_domain_test.pddl'}.items()
+            launch_arguments={'model_file': domain_file}.items()
         ),
         Node(
             package='route_executor2',
@@ -114,6 +115,14 @@ def generate_launch_description():
             name='mission_controller',
             output='screen',
             parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='action_planner.py',
+            name='action_planner',
+            output='screen',
+            # parameters=[{'pddl_domain': share_dir + '/pddl/harpia_domain_test.pddl'}]
+            parameters=[{"pddl_domain": share_dir+'/pddl/harpia_domain_test.pddl'}]
         ),
     ]
 

@@ -206,6 +206,10 @@ nodes = [
         'node_name': 'mission_controller',
         'depends_on': ['plansys_interface', 'problem_generator']
     },
+    {
+        'node_name': 'action_planner',
+        'depends_on': []
+    },
 ]
 
 def main(args=None):

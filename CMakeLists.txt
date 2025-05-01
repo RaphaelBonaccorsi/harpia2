@@ -74,6 +74,7 @@ install(PROGRAMS
   scripts/problem_generator.py
   scripts/take_image.py
   scripts/mission_controller.py
+  scripts/action_planner.py
   DESTINATION lib/${PROJECT_NAME})
 
 

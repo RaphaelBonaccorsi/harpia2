@@ -123,9 +123,10 @@ def process_new_line(line):
         if file_name == logs[-1]['file_name']:
             logs[-1]['message'] += '\n'+message
             logs[-1]['test'] = True
+            handle_log_continuation(message)
             return
 
-    not_recognized.append(line)
+    handle_not_recognized(line)
 
 node_colors = [
     ('red',           []),
@@ -195,6 +196,35 @@ def handle_new_log(log):
     str += colored(f"{log['message']}", color=msg_color,attrs=msg_attrs)
 
     print(str)
+
+def handle_log_continuation(message):
+    lastLog = logs[-1]
+
+    msg_attrs = []
+    msg_color = "blue"
+
+    if lastLog['type_of_message'] == "INFO":
+        msg_color = "white"
+    elif lastLog['type_of_message'] == "ERROR":
+        msg_color = "red"
+    elif lastLog['type_of_message'] == "WARN":
+        msg_color = "yellow"
+
+    str = ""
+    if lastLog['file_name'] is not None:
+        str = colored('[', 'blue')+colored(f"{lastLog['file_name']}", nodes[lastLog['file_name']][0])+colored('] ', 'blue')
+    
+    str += colored(f"{message}", color=msg_color,attrs=msg_attrs)
+
+    print(str)
+
+
+def handle_not_recognized(line):
+    line = line.replace('\n', '')
+    not_recognized.append(line)
+    print(colored('Not recognized: ', 'red')+colored(f" {line}", 'blue'))
+
+
 
 # read_configs()
 # while True:
