@@ -54,7 +54,7 @@ add_executable(plansys_interface src/plansys_interface.cpp)
 ament_target_dependencies(plansys_interface ${dependencies})
 target_link_libraries(plansys_interface nlohmann_json::nlohmann_json)
 
-install(DIRECTORY launch pddl libs data json solver DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch pddl libs data json solver scripts DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY libs DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS
