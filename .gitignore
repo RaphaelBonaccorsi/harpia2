@@ -14,3 +14,4 @@ launch/__pycache__/
 **/*.pyo
 
 /output/
+/test/

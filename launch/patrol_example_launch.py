@@ -53,13 +53,20 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='planning_controller_node',
-        #     name='planning_controller_node',
-        #     output='screen',
-        #     parameters=[]
-        # ),
+        Node(
+            package='route_executor2',
+            executable='planning_controller_node',
+            name='planning_controller_node',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='mission_controller.py',
+            name='mission_controller',
+            output='screen',
+            parameters=[]
+        ),
         Node(
             package='route_executor2',
             executable='go_to.py',

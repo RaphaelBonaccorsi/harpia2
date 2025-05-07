@@ -1,10 +1,6 @@
 from unified_planning.io import PDDLReader, PDDLWriter
 from unified_planning.model.types import _UserType
-from unified_planning.model import Problem, Object
 from unified_planning.shortcuts import FluentExp
-
-from unified_planning.model import FNode
-from unified_planning.model.expression  import NumericConstant
 
 class ActionPlannerMemory:
     _instance = None
