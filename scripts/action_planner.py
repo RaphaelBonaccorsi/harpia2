@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 
-import rclpy
+import rclpy, os, sys
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
          
+from ament_index_python.packages import get_package_share_directory
+package_share_path = get_package_share_directory("route_executor2")
+scripts_path = os.path.join(package_share_path, 'scripts')
+sys.path.append(scripts_path)
+from action_planner_memory import ActionPlannerMemory
+
 class ActionPlanner(LifecycleNode):
 
     def __init__(self):
