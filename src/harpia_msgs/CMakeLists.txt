@@ -15,6 +15,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/StrInOut.srv"
   "action/MoveTo.action"
   "action/ExecutePlan.action"
+  "action/ActionCaller.action"
   DEPENDENCIES builtin_interfaces std_msgs action_msgs geometry_msgs
 )
 

@@ -9,6 +9,7 @@ package_share_path = get_package_share_directory("route_executor2")
 scripts_path = os.path.join(package_share_path, 'scripts')
 sys.path.append(scripts_path)
 from action_planner_memory import ActionPlannerMemory
+from action_planner_executor import ActionPlannerExecutor
 
 class ActionPlanner(LifecycleNode):
 
@@ -25,6 +26,8 @@ class ActionPlanner(LifecycleNode):
             self.memory = ActionPlannerMemory()
             if not self.memory.init(self.domain_file, self.get_logger()):
                 return TransitionCallbackReturn.ERROR
+            
+            self.plan_executor = ActionPlannerExecutor(self, self.memory)
         
             return TransitionCallbackReturn.SUCCESS
         
@@ -43,7 +46,7 @@ class ActionPlanner(LifecycleNode):
 
             self.memory.add_predicate("picture_goal", ["region_1"])
             self.memory.add_predicate("picture_goal", ["region_2"])
-            self.memory.add_predicate("at", ["base_1"])
+            self.memory.add_predicate("at", ["region_1"])
 
             self.memory.set_function("distance", ["base_1", "base_1"], 0.0000000000)
             self.memory.set_function("distance", ["base_1", "region_1"], 126.2738489105)
@@ -64,9 +67,38 @@ class ActionPlanner(LifecycleNode):
             self.memory.add_goal("taken_image", ["region_2"] )
             self.memory.add_goal("at", ["base_1"] )
 
-            domain, problem = self.memory.get_pddl()
-            self.get_logger().info(f"Domain: {domain}")
-            self.get_logger().info(f"Problem: {problem}")
+            plan = [
+                ("go_to", ["region_1", "region_2"]),
+                ("test", ["region_1", "region_2"]),
+                ("go_to", ["region_2", "region_1"]),
+            ]
+            self.plan_executor.execute_plan(plan)
+
+            # domain, problem = self.memory.get_pddl()
+            # self.get_logger().info(f"Domain: {domain}")
+            # self.get_logger().info(f"Problem: {problem}")
+
+            # def check_something():
+            #     def asd(a, b):
+            #         if self.memory.check_conditions_action("go_to", [f"region_{a}", f"region_{b}"], "at start"):
+            #             self.get_logger().info(f"{a} -> {b} OK")
+            #         else:
+            #             self.get_logger().info(f"{a} -> {b} NOP")
+                    
+            #     asd(1, 2)
+            #     asd(2, 1)
+
+            # check_something()
+            # self.get_logger().info("goint from 1 to 2")
+            # self.memory.apply_effects("go_to", ["region_1", "region_2"], ["at start", "at end"])
+            # check_something()
+            # self.get_logger().info("goint from 2 to 1")
+            # self.memory.apply_effects("go_to", ["region_2", "region_1"], ["at start", "at end"])
+            # check_something()
+            
+
+        
+
 
 
         except Exception as e:

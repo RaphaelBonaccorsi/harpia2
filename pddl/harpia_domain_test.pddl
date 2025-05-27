@@ -36,6 +36,8 @@
             (= ?duration 5)
         :condition (and
             (at start (at ?from_region))
+            (at end (> (battery_amount) 0))
+            (over all (> (battery_capacity) 0))
             ; (at start (> (battery_amount) 0))
         )
         :effect (and 
@@ -43,7 +45,7 @@
             (at end (been_at ?to_region))
             (at end (at ?to_region))
             ; (at end (decrease (battery_amount) 1))
-            (at end(increase (mission_length) (distance ?from_region ?to_region)))
+            (at end(increase (mission_length) (/ (distance ?from_region ?to_region) 2)))
         )
     )
     
@@ -107,4 +109,20 @@
             (at end(assign (input_amount) (input_capacity)))
         )
     )
+
+    (:durative-action test
+        :parameters (?reg1 - region
+                     ?reg2 - region) 
+        :duration
+            (= ?duration 1)
+        :condition (and
+            (at start (> (battery_amount) (/ (battery_capacity) 2)))
+        )
+        :effect 
+        (and
+            (at end(assign (input_amount) (input_capacity)))
+        )
+    )
+
+
 )

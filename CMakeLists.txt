@@ -75,6 +75,8 @@ install(PROGRAMS
   scripts/take_image.py
   scripts/mission_controller.py
   scripts/action_planner.py
+  scripts/action_node_example.py
+  scripts/just_a_test.py
   DESTINATION lib/${PROJECT_NAME})
 
 

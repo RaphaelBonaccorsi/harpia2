@@ -1,0 +1,11 @@
+# Objetivo (Goal)
+string action_name
+string[] parameters
+
+---
+# Resultado
+bool success
+
+---
+# Feedback
+float32 status

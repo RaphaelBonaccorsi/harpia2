@@ -186,29 +186,37 @@ class LifecycleMannager(Node):
             self.get_logger().info(f'{node_name} activated successfully')
 
 nodes = [
+    # {
+    #     'node_name': 'data_server',
+    #     'depends_on': []
+    # },
+    # {
+    #     'node_name': 'problem_generator',
+    #     'depends_on': ['data_server']
+    # },
+    # {
+    #     'node_name': 'path_planner',
+    #     'depends_on': ['data_server']
+    # },
+    # {
+    #     'node_name': 'plansys_interface',
+    #     'depends_on': []
+    # },
+    # {
+    #     'node_name': 'mission_controller',
+    #     'depends_on': ['plansys_interface', 'problem_generator']
+    # },
+    # {
+    #     'node_name': 'action_planner',
+    #     'depends_on': []
+    # },
     {
-        'node_name': 'data_server',
+        'node_name': 'action_node_example',
         'depends_on': []
     },
     {
-        'node_name': 'problem_generator',
-        'depends_on': ['data_server']
-    },
-    {
-        'node_name': 'path_planner',
-        'depends_on': ['data_server']
-    },
-    {
-        'node_name': 'plansys_interface',
-        'depends_on': []
-    },
-    {
-        'node_name': 'mission_controller',
-        'depends_on': ['plansys_interface', 'problem_generator']
-    },
-    {
-        'node_name': 'action_planner',
-        'depends_on': []
+        'node_name': 'just_a_test',
+        'depends_on': ['action_node_example']
     },
 ]
 
