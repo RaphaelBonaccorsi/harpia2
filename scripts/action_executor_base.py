@@ -1,5 +1,6 @@
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, LifecycleState
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
+from rclpy.callback_groups import ReentrantCallbackGroup
 import rclpy
 from rclpy.task import Future
 import time
@@ -22,14 +23,15 @@ class ActionExecutorBase(LifecycleNode):
 
     def on_activate(self, previous_state: LifecycleState) -> TransitionCallbackReturn:
         self.get_logger().info('Activating... (base class)')
-
+        self.action_cb = ReentrantCallbackGroup()
         self._action_server = ActionServer(
             self,
             ActionCaller,
             '/action/'+self._node_name,
             execute_callback   = self.execute_cb,
             goal_callback      = self.goal_cb,
-            cancel_callback    = self.cancel_cb
+            cancel_callback    = self.cancel_cb,
+            callback_group=self.action_cb
         )
 
         return self.on_activate_extension()

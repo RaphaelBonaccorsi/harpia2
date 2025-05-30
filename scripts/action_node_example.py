@@ -2,6 +2,7 @@
 
 import os, sys, rclpy
 from ament_index_python.packages import get_package_share_directory
+from rclpy.executors import MultiThreadedExecutor
 package_share_path = get_package_share_directory("route_executor2")
 scripts_path = os.path.join(package_share_path, 'scripts')
 sys.path.append(scripts_path)
@@ -45,7 +46,13 @@ class ActionNodeExample(ActionExecutorBase):
 def main(args=None):
     rclpy.init(args=args)
     node = ActionNodeExample()
-    rclpy.spin(node)
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        node.get_logger().info('KeyboardInterrupt, shutting down.\n')
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
