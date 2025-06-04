@@ -123,14 +123,14 @@ def generate_launch_description():
         #     output='screen',
         #     parameters=[]
         # ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='action_planner.py',
-        #     name='action_planner',
-        #     output='screen',
-        #     # parameters=[{'pddl_domain': share_dir + '/pddl/harpia_domain_test.pddl'}]
-        #     parameters=[{"pddl_domain": share_dir+'/pddl/harpia_domain_test.pddl'}]
-        # ),
+        Node(
+            package='route_executor2',
+            executable='action_planner.py',
+            name='action_planner',
+            output='screen',
+            # parameters=[{'pddl_domain': share_dir + '/pddl/harpia_domain_test.pddl'}]
+            parameters=[{"pddl_domain": share_dir+'/pddl/harpia_domain_test.pddl'}]
+        ),
         Node(
             package='route_executor2',
             executable='action_node_example.py',
@@ -138,13 +138,13 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
-        Node(
-            package='route_executor2',
-            executable='just_a_test.py',
-            name='just_a_test',
-            output='screen',
-            parameters=[]
-        ),
+        # Node(
+        #     package='route_executor2',
+        #     executable='just_a_test.py',
+        #     name='just_a_test',
+        #     output='screen',
+        #     parameters=[]
+        # ),
     ]
 
     # Create the launch description and populate

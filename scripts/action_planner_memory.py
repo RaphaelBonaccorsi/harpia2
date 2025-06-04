@@ -268,9 +268,9 @@ class ActionPlannerMemory:
 
     def _evaluate_expression(self, expr, state):
         """Recursively evaluate expressions, including arithmetic operations."""
-        # print(f"Evaluating: {expr}")
+        # self.get_logger().info(f"Evaluating: {expr}")
         if expr.is_constant():
-            # print(expr.constant_value(), "is a constant")
+            # self.get_logger().info(expr.constant_value(), "is a constant")
             return expr.constant_value()  # Direct value for constants like numbers
 
         elif expr.is_fluent_exp():
@@ -280,19 +280,19 @@ class ActionPlannerMemory:
                 value = float(value[0]) / float(value[1])
             else:
                 value = float(value)
-            # print(value, "fluent")
+            # self.get_logger().info(value, "fluent")
             return value  # Lookup fluent value in the state
 
         elif expr.node_type in {
             OperatorKind.PLUS, OperatorKind.MINUS, 
             OperatorKind.TIMES, OperatorKind.DIV
         }:
-            # print("is expression")
+            # self.get_logger().info("is expression")
             evaluated_args = [self._evaluate_expression(arg, state) for arg in expr.args]
             # for arg in evaluated_args:
-            #     print(arg, "evaluated arg")
+            #     self.get_logger().info(arg, "evaluated arg")
 
-            # print(expr.node_type, "operation")
+            # self.get_logger().info(expr.node_type, "operation")
             # Handle unary minus (e.g., -x)
             if expr.node_type == OperatorKind.MINUS and len(evaluated_args) == 1:
                 return -evaluated_args[0]
@@ -318,9 +318,9 @@ class ActionPlannerMemory:
                 'GT', 'GE', 'LT', 'LE', 'EQUALS'
             }:
                 left_expr, right_expr = condition.args
-                # print("evaluating left side:")
+                # self.get_logger().info("evaluating left side:")
                 left_val = self._evaluate_expression(left_expr, current_state)
-                # print("\n\nevaluating right side:")
+                # self.get_logger().info("\n\nevaluating right side:")
                 right_val = self._evaluate_expression(right_expr, current_state)
 
                 # Apply the operator
@@ -360,14 +360,16 @@ class ActionPlannerMemory:
 
 
     def check_conditions_action(self, action_name, parameters, timings):
+        if type(timings) is str:
+            timings = [timings]
 
-        print("checking:", action_name, " ".join(parameters))
+        # self.get_logger().info(f"checking {', '.join(timings)} conditions for: {action_name} "+" ".join(parameters))
 
         action = self._get_action_by_name(action_name)
         if action is None:
             raise ValueError(f"Action '{action_name}' not found in the domain.")
 
-        # print("action:", action)
+        # self.get_logger().info("action:", action)
 
         at_start = []
         at_end = []
@@ -388,16 +390,13 @@ class ActionPlannerMemory:
         if len(parameter_names) != len(parameters):
             raise ValueError(f"Number of parameters from action '{action_name}' ({len(parameter_names)}) does not match the number of provided parameters ({len(parameters)}).")
 
-        # print("parameter_names:", parameter_names)
-        # print("parameters:", parameters)
+        # self.get_logger().info("parameter_names:", parameter_names)
+        # self.get_logger().info("parameters:", parameters)
 
         substitution_map = {}
         for i in range(len(parameter_names)):
             substitution_map[action.parameter(parameter_names[i])] = self.pddl.object(parameters[i])
-        # print("substitution_map:", substitution_map)
-
-        if type(timings) is str:
-            timings = [timings]
+        # self.get_logger().info("substitution_map:", substitution_map)
 
         conditions = []
         if "at start" in timings:
@@ -412,11 +411,11 @@ class ActionPlannerMemory:
             cond.substitute(substitution_map)
             for cond in conditions
         ]
-        print(f"resolved_conditions: {resolved_conditions}")
+        # self.get_logger().info(f"resolved_conditions: {resolved_conditions}")
 
         # Check if resolved conditions are met
         all_met = self._are_conditions_met(resolved_conditions)
-        print(f"All met: {all_met}")
+        # self.get_logger().info(f"All met: {all_met}")
         return all_met
 
     def apply_effects(self, action_name, parameters, timings):
@@ -445,7 +444,7 @@ class ActionPlannerMemory:
             timing = str(timing)
             if str(timing) not in timings:
                 continue
-            print(f"\ncomp '{timing}'")
+            # self.get_logger().info(f"\ncomp '{timing}'")
             for effect in effects:
                 # Substitute parameters in the effect's fluent and value
                 substituted_fluent = effect.fluent.substitute(substitution_map)

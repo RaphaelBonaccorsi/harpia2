@@ -110,19 +110,19 @@
         )
     )
 
-    (:durative-action test
-        :parameters (?reg1 - region
-                     ?reg2 - region) 
-        :duration
-            (= ?duration 1)
-        :condition (and
-            (at start (> (battery_amount) (/ (battery_capacity) 2)))
-        )
-        :effect 
-        (and
-            (at end(assign (input_amount) (input_capacity)))
-        )
-    )
+    ; (:durative-action test
+    ;     :parameters (?reg1 - region
+    ;                  ?reg2 - region) 
+    ;     :duration
+    ;         (= ?duration 1)
+    ;     :condition (and
+    ;         (at start (> (battery_amount) (/ (battery_capacity) 2)))
+    ;     )
+    ;     :effect 
+    ;     (and
+    ;         (at end(assign (input_amount) (input_capacity)))
+    ;     )
+    ; )
 
 
 )

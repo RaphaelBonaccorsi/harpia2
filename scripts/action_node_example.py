@@ -13,10 +13,11 @@ from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, LifecycleSt
 class ActionNodeExample(ActionExecutorBase):
 
     def __init__(self):
-        super().__init__("action_node_example")
+        super().__init__("go_to")
         self.get_logger().info("ActionNodeExample initialized")
 
         self.index = 0
+        self.n_iterations = 5
 
     def on_configure_extension(self):
         self.get_logger().info("Configuring... (example)")
@@ -29,19 +30,25 @@ class ActionNodeExample(ActionExecutorBase):
         return True
 
     def execute_goal(self, goal_handle):
-        self.get_logger().info("Executing goal")
+
+        # self.get_logger().info("action name: " + str(goal_handle.request.action_name))
+        # self.get_logger().info("parameters: " + str(goal_handle.request.parameters))
+        # self.get_logger().info("Executing goal")
         self.index += 1
 
-        if self.index >= 60:
+        if self.index >= self.n_iterations:
             self.get_logger().info("Goal completed")
             return True, 1.0
         
-        self.get_logger().info(f"Goal status {self.index}/60")
-        return False, self.index/60
-            
+        # self.get_logger().info(f"Goal status {self.index}/{self.n_iterations}")
+        return False, self.index/self.n_iterations   
 
     def cancel_goal(self, goal_handle):
         self.get_logger().info("Canceling goal")
+
+    def cancel_goal_request(self, goal_handle):
+        self.get_logger().info("Cancel goal request received")
+        return True
 
 def main(args=None):
     rclpy.init(args=args)

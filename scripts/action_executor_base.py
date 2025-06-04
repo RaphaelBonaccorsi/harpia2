@@ -73,11 +73,11 @@ class ActionExecutorBase(LifecycleNode):
 
     def cancel_cb(self, goal_handle):
         self.get_logger().info('Received cancel request')
-        return CancelResponse.ACCEPT
+        return CancelResponse.ACCEPT if self.cancel_goal_request(goal_handle) else CancelResponse.REJECT
 
     def execute_cb(self, goal_handle):
         self.get_logger().info(
-            f"Executing action: {goal_handle.request.action_name} "
+            f"Executing action: {self.get_name()} "
             f"params: {goal_handle.request.parameters}")
         
         
@@ -89,7 +89,7 @@ class ActionExecutorBase(LifecycleNode):
                 goal_handle.canceled()
                 return ActionCaller.Result()
 
-            self.get_logger().info(f"Executing step")
+            # self.get_logger().info(f"Executing step")
             finish, status = self.execute_goal(goal_handle)
             feedback = ActionCaller.Feedback()
             feedback.status = status
@@ -115,4 +115,7 @@ class ActionExecutorBase(LifecycleNode):
         raise NotImplementedError("Subclasses should implement this method.")
     
     def cancel_goal(self, goal_handle):
+        raise NotImplementedError("Subclasses should implement this method.")
+    
+    def cancel_goal_request(self, goal_handle):
         raise NotImplementedError("Subclasses should implement this method.")

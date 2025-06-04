@@ -1,5 +1,4 @@
 # Objetivo (Goal)
-string action_name
 string[] parameters
 
 ---

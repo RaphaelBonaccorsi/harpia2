@@ -2,6 +2,8 @@ from rclpy.action import ActionClient
 from lifecycle_msgs.srv import ChangeState
 from lifecycle_msgs.msg import Transition
 from enum import Enum
+from harpia_msgs.action import ActionCaller
+from action_msgs.msg import GoalStatus
 
 class ActionState(Enum):
     PENDING = 1
@@ -100,7 +102,7 @@ class ActionPlannerExecutor:
     def execute_plan(self, plan, on_success=None, on_failure=None):
         self.on_plan_success = on_success
         self.on_plan_failure = on_failure
-        self.get_logger().info("plan:\n"+'\n'.join([ f"{action[0]} {' '.join(action[1])}" for action in plan]))
+        self.get_logger().info("execute plan:\n"+'\n'.join([ f"{action[0]} {' '.join(action[1])}" for action in plan]))
 
         if self.current_plan is not None:
             self.get_logger().warn("plan already in progress")
@@ -120,34 +122,134 @@ class ActionPlannerExecutor:
 
             self.current_plan.append(new_action)
 
-        [self.print_action(action) for action in self.current_plan]
-        self.check_if_can_start_action()
-        [self.print_action(action) for action in self.current_plan]
-
         self.check_actions_condition_timer = self._parent_node.create_timer(1, self.check_in_progress_action_conditions)
+        # [self.print_action(action) for action in self.current_plan]
+        self.check_if_can_start_action()
+        # [self.print_action(action) for action in self.current_plan]
+
 
     def check_if_can_start_action(self):
+        self.get_logger().info("checking if can start action")
+        self.get_logger().info("actions before:")
+        [self.print_action(action) for action in self.current_plan]
+
         if self.current_plan is None:
             self.get_logger().error("no plan in progress")
-            return
+            return False
+        
+        started_any_action = False
+
+        all_completed = True
+        is_there_in_progress = False
         
         for action in self.current_plan:
 
             if action['state'] == ActionState.PENDING:
+                all_completed = False
+
                 if self.memory.check_conditions_action(action['name'], action['args'], "at start"):
                     self.get_logger().info(f"action {action['name']} can be started")
-                    self.start_action(action)
+                    if not self.start_action(action):
+                        return False
+                    started_any_action = True
                     continue
                 else:
                     self.get_logger().info(f"action {action['name']} can NOT be started")
                     break
+            elif action['state'] == ActionState.IN_PROGRESS:
+                all_completed = False
+                is_there_in_progress = True
+            elif action['state'] == ActionState.COMPLETED:
+                # is_there_completed = True
+                pass
+        
+
+        self.get_logger().info("actions after:")
+        [self.print_action(action) for action in self.current_plan]
+
+        if not started_any_action:
+            # if entered here, could not continue with the plan
+
+            if is_there_in_progress:
+                self.get_logger().info("there is an action in progress, waiting for it to finish")
+                
+            elif all_completed:
+                self.get_logger().info("all actions completed, plan succeeded")
+                self.handle_plan_success()
+            else:
+                self.get_logger().info("no actions can be started, plan failed")
+                self.handle_plan_failure()
+
+
+        return started_any_action
             
     def start_action(self, action):        
         action['state'] = ActionState.IN_PROGRESS
         self.memory.apply_effects(action['name'], action['args'], ["at start"])
         self.get_logger().info(f"action {action['name']} started")
 
+        # call action 
+        goal_msg = ActionCaller.Goal(parameters=action['args'])
+        self.get_logger().info(f"Sending goal: {action['name']} {goal_msg.parameters}")
+        
+
+        def result_callback(future):
+
+            result = future.result().result
+            status = future.result().status
+
+            if status == GoalStatus.STATUS_SUCCEEDED:
+                # Action completed (was not canceled)
+
+                if result.success:
+                    self.get_logger().info(f"action {action['name']} completed")    
+                    self.memory.apply_effects(action['name'], action['args'], ["at end"])
+                    action['state'] = ActionState.COMPLETED
+                    self.check_if_can_start_action()
+                
+                else:
+                    self.get_logger().error(f'Action finished, but failed')
+            elif status == GoalStatus.STATUS_CANCELED:
+                self.get_logger().info('Goal was canceled by client')
+            else:
+                self.get_logger().error(f'Goal ended with status code: {status}')
+
+
+        def goal_response_callback(future):
+            goal_handle = future.result()
+            if not goal_handle.accepted:
+                self.get_logger().warn('Goal rejected by server')
+                return
+
+            _goal_handle = goal_handle
+
+            result_future = goal_handle.get_result_async()
+            result_future.add_done_callback(result_callback)
+
+        def feedback_callback(fb_msg):
+            self.get_logger().info(f"Feedback: {fb_msg.feedback.status:.2f}")
+
+        action_client = ActionClient(
+            self._parent_node,
+            ActionCaller,
+            '/action/'+action['name'],
+        )
+        if not action_client.wait_for_server(timeout_sec=1.0):
+            self.get_logger().error('Action server not available')
+            # since canot start the action, the plan is failed
+            self.handle_plan_failure()
+            return False
+
+        future = action_client.send_goal_async(
+            goal_msg,
+            feedback_callback=feedback_callback,
+        )
+        future.add_done_callback(goal_response_callback)
+
+        return True
+
     def check_in_progress_action_conditions(self):
+        # self.get_logger().info("checking in progress action conditions")
         if self.current_plan is None:
             self.get_logger().error("no plan in progress")
             return
@@ -164,7 +266,7 @@ class ActionPlannerExecutor:
             self.on_plan_failure()
         self.current_plan = None
 
-        self.destroy_timer(self.check_actions_condition_timer)
+        self._parent_node.destroy_timer(self.check_actions_condition_timer)
 
     def handle_plan_success(self):
         self.get_logger().info("Plan succeeded")
@@ -172,4 +274,4 @@ class ActionPlannerExecutor:
             self.on_plan_success()
         self.current_plan = None
 
-        self.destroy_timer(self.check_actions_condition_timer)
+        self._parent_node.destroy_timer(self.check_actions_condition_timer)

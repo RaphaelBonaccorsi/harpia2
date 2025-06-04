@@ -19,6 +19,7 @@ class ActionPlanner(LifecycleNode):
         self.declare_parameter("pddl_domain", "")
         self.domain_file = self.get_parameter("pddl_domain").get_parameter_value().string_value
 
+        self.solver = "TFD"
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         try:
@@ -69,9 +70,9 @@ class ActionPlanner(LifecycleNode):
 
             plan = [
                 ("go_to", ["region_1", "region_2"]),
-                ("test", ["region_1", "region_2"]),
                 ("go_to", ["region_2", "region_1"]),
             ]
+            
             self.plan_executor.execute_plan(plan)
 
             # domain, problem = self.memory.get_pddl()
