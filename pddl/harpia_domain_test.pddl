@@ -62,8 +62,7 @@
         :effect(and
             (at end(taken_image ?region))
             (at end(increase (mission_length) 1000))
-            (at end(decrease (battery_amount) 10
-            ))
+            (at end(decrease (battery_amount) 10))
         )
     )
     (:durative-action pulverize_region

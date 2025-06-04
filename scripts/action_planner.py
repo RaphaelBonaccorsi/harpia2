@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import rclpy, os, sys
+import rclpy, os, sys, subprocess, re
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, State, TransitionCallbackReturn
          
@@ -10,6 +10,7 @@ scripts_path = os.path.join(package_share_path, 'scripts')
 sys.path.append(scripts_path)
 from action_planner_memory import ActionPlannerMemory
 from action_planner_executor import ActionPlannerExecutor
+from harpia_msgs.action import ExecutePlan
 
 class ActionPlanner(LifecycleNode):
 
@@ -20,6 +21,7 @@ class ActionPlanner(LifecycleNode):
         self.domain_file = self.get_parameter("pddl_domain").get_parameter_value().string_value
 
         self.solver = "TFD"
+        # self.solver = "OPTIC"
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
         try:
@@ -38,6 +40,8 @@ class ActionPlanner(LifecycleNode):
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("Activating node...")
+
+        
 
         try:
 
@@ -68,45 +72,90 @@ class ActionPlanner(LifecycleNode):
             self.memory.add_goal("taken_image", ["region_2"] )
             self.memory.add_goal("at", ["base_1"] )
 
-            plan = [
-                ("go_to", ["region_1", "region_2"]),
-                ("go_to", ["region_2", "region_1"]),
-            ]
-            
+            plan = self.generate_plan_custom_solver()
+
+            self.get_logger().info(f"Generated plan:")
+            for action in plan:
+                self.get_logger().info(f"{action[0]} "+" ".join(action[1]))
+                        
             self.plan_executor.execute_plan(plan)
-
-            # domain, problem = self.memory.get_pddl()
-            # self.get_logger().info(f"Domain: {domain}")
-            # self.get_logger().info(f"Problem: {problem}")
-
-            # def check_something():
-            #     def asd(a, b):
-            #         if self.memory.check_conditions_action("go_to", [f"region_{a}", f"region_{b}"], "at start"):
-            #             self.get_logger().info(f"{a} -> {b} OK")
-            #         else:
-            #             self.get_logger().info(f"{a} -> {b} NOP")
-                    
-            #     asd(1, 2)
-            #     asd(2, 1)
-
-            # check_something()
-            # self.get_logger().info("goint from 1 to 2")
-            # self.memory.apply_effects("go_to", ["region_1", "region_2"], ["at start", "at end"])
-            # check_something()
-            # self.get_logger().info("goint from 2 to 1")
-            # self.memory.apply_effects("go_to", ["region_2", "region_1"], ["at start", "at end"])
-            # check_something()
             
-
-        
-
-
-
         except Exception as e:
             self.get_logger().error(f"Error during activation: {e}")
             return TransitionCallbackReturn.ERROR
         
         return TransitionCallbackReturn.SUCCESS
+    
+    def generate_plan_custom_solver(self) -> bool:
+        """
+        Write domain/problem PDDL to files under <package_share>/solver,
+        call the external generate_plan.sh with the chosen solver, parse
+        the output into a plan list, and send it to plan_executor.
+        """
+
+        solver_base = get_package_share_directory("route_executor2")
+        solver_dir = os.path.join(solver_base, "solver")
+        domain_path = os.path.join(solver_dir, "domain.pddl")
+        problem_path = os.path.join(solver_dir, "problem.pddl")
+
+        domain_pddl_text, problem_pddl_text = self.memory.get_pddl()
+
+        try:
+            with open(domain_path, "w") as f:
+                f.write(domain_pddl_text)
+        except Exception as e:
+            self.get_logger().error(f"Failed to write domain file: {e}")
+            return False
+
+        try:
+            with open(problem_path, "w") as f:
+                f.write(problem_pddl_text)
+        except Exception as e:
+            self.get_logger().error(f"Failed to write problem file: {e}")
+            return False
+
+        solver_subdir = os.path.join(solver_dir, self.solver)
+        generate_script = os.path.join(solver_subdir, "generate_plan.sh")
+        cmd = [generate_script, domain_path, problem_path]
+
+        self.get_logger().info(f"Calling external solver: {' '.join(cmd)}")
+        try:
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                check=False  # We’ll check returncode ourselves
+            )
+        except FileNotFoundError:
+            self.get_logger().error(f"Solver script not found: {generate_script}")
+            return False
+        except Exception as e:
+            self.get_logger().error(f"Error when running solver: {e}")
+            return False
+
+        if result.returncode != 0:
+            self.get_logger().error(f"Solver returned non-zero exit code {result.returncode}:\n{result.stderr}")
+            return False
+
+        regex_pattern = r"^(\d+\.\d+):\s\(([^)]+)\)\s\[(\d+\.\d+)\]$"
+        plan = []
+
+        for line in result.stdout.splitlines():
+            self.get_logger().debug(f"Parsing line: {line.strip()}")
+            match = re.match(regex_pattern, line.strip())
+
+            if match:
+                start_time = float(match.group(1))
+                action_parameters = match.group(2).split()
+                action_name = action_parameters.pop(0)
+                duration = float(match.group(3))
+
+                plan.append((action_name, action_parameters))
+
+        return plan
+
+    # (…existing methods, e.g. on_deactivate(), on_cleanup(), etc.…)
 
 def main(args=None):
     """

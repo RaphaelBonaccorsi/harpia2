@@ -1,67 +1,66 @@
 #!/usr/bin/env python3
 
-import rclpy
-from rclpy.parameter import Parameter, ParameterType
-from harpia_msgs.srv import GeneratePath
-from geometry_msgs.msg import PoseStamped
-from harpia_msgs.action import MoveTo
-from rclpy.action import ActionClient
-from rclpy.lifecycle import LifecycleNode, LifecycleState, TransitionCallbackReturn
+import os, sys, rclpy
+from ament_index_python.packages import get_package_share_directory
 from rclpy.executors import MultiThreadedExecutor
+package_share_path = get_package_share_directory("route_executor2")
+scripts_path = os.path.join(package_share_path, 'scripts')
+sys.path.append(scripts_path)
 
+from action_executor_base import ActionExecutorBase
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, LifecycleState
 
-class go_to(LifecycleNode):
+class ActionNodeExample(ActionExecutorBase):
 
     def __init__(self):
-        super().__init__('go_to')
-        self.logger = self.get_logger()
-        
-    def on_configure(self, previous_state: LifecycleState) -> TransitionCallbackReturn:
-        self.logger.info('Configuring...')
-        self.is_action_running = False
-        self.waypoints = []  # Initialize waypoints as an empty list
-        self.current_waypoint_index = 0  # Initialize the index
-        self.cli = self.create_client(GeneratePath, 'path_planner/generate_path')
+        super().__init__("go_to")
+        self.get_logger().info("ActionNodeExample initialized")
 
-        self.action_client = ActionClient(self, MoveTo, '/drone/move_to_waypoint')
+        self.index = 0
+        self.n_iterations = 5
 
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_activate(self, previous_state: LifecycleState) -> TransitionCallbackReturn:
-        self.logger.info('Activating...')
-        while not self.cli.wait_for_service(timeout_sec=2.0):
-            self.get_logger().info('path planner service not available, waiting again...')
-        
-        
-        
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_deactivate(self, previous_state: LifecycleState) -> TransitionCallbackReturn:
-        self.logger.info('Deactivating...')
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_cleanup(self, previous_state: LifecycleState) -> TransitionCallbackReturn:
-        self.logger.info('Cleaning up...')
-        self.destroy_client(self.update_parameters_client)
-        return TransitionCallbackReturn.SUCCESS
-
-    def on_shutdown(self, previous_state: LifecycleState) -> TransitionCallbackReturn:
-        self.logger.info('Shutting down...')
-        self.destroy_client(self.update_parameters_client)
+    def on_configure_extension(self):
+        self.get_logger().info("Configuring... (example)")
         return TransitionCallbackReturn.SUCCESS
     
 
+    def new_goal(self, goal_request):
+        self.get_logger().info("New goal received")
+        self.index = 0
+        return True
+
+    def execute_goal(self, goal_handle):
+
+        # self.get_logger().info("action name: " + str(goal_handle.request.action_name))
+        # self.get_logger().info("parameters: " + str(goal_handle.request.parameters))
+        # self.get_logger().info("Executing goal")
+        self.index += 1
+
+        if self.index >= self.n_iterations:
+            self.get_logger().info("Goal completed")
+            return True, 1.0
+        
+        # self.get_logger().info(f"Goal status {self.index}/{self.n_iterations}")
+        return False, self.index/self.n_iterations   
+
+    def cancel_goal(self, goal_handle):
+        self.get_logger().info("Canceling goal")
+
+    def cancel_goal_request(self, goal_handle):
+        self.get_logger().info("Cancel goal request received")
+        return True
+
 def main(args=None):
-    """
-    Main function to initialize the go_to node and handle spinning.
-    """
     rclpy.init(args=args)
-    go_to = go_to()
+    node = ActionNodeExample()
     executor = MultiThreadedExecutor()
-    executor.add_node(go_to)
+    executor.add_node(node)
     try:
         executor.spin()
     except KeyboardInterrupt:
-        go_to.get_logger().info('KeyboardInterrupt, shutting down.\n')
-    go_to.destroy_node()
+        node.get_logger().info('KeyboardInterrupt, shutting down.\n')
+    node.destroy_node()
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()

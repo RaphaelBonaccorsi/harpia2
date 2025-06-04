@@ -133,8 +133,15 @@ def generate_launch_description():
         ),
         Node(
             package='route_executor2',
-            executable='action_node_example.py',
-            name='action_node_example',
+            executable='new_go_to.py',
+            name='new_go_to',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='new_take_image.py',
+            name='new_take_image',
             output='screen',
             parameters=[]
         ),

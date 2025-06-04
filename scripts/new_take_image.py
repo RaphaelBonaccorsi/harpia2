@@ -13,7 +13,7 @@ from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, LifecycleSt
 class ActionNodeExample(ActionExecutorBase):
 
     def __init__(self):
-        super().__init__("go_to")
+        super().__init__("take_image")
         self.get_logger().info("ActionNodeExample initialized")
 
         self.index = 0

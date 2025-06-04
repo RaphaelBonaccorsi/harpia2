@@ -147,12 +147,13 @@ class ActionPlannerExecutor:
             if action['state'] == ActionState.PENDING:
                 all_completed = False
 
-                if self.memory.check_conditions_action(action['name'], action['args'], "at start"):
+                if self.memory.check_conditions_action(action['name'], action['args'], ["at start", "over all"]):
                     self.get_logger().info(f"action {action['name']} can be started")
                     if not self.start_action(action):
                         return False
                     started_any_action = True
-                    continue
+                    # continue # to handle multiple action at the same time, use continue instead of break
+                    break
                 else:
                     self.get_logger().info(f"action {action['name']} can NOT be started")
                     break
