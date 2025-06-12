@@ -166,8 +166,8 @@ class ProblemGenerator(LifecycleNode):
 
         functions.append(f"(battery_capacity) {self.data['hardware']['battery-capacity']}")
         # functions.append(f"(= (discharge_rate_battery) {self.data['hardware']['discharge-rate-battery']})")
-        functions.append(f"(discharge_rate_battery) {0.1}")
-        functions.append(f"(velocity) {self.data['hardware']['efficient_velocity']}")
+        # functions.append(f"(discharge_rate_battery) {0.1}")
+        # functions.append(f"(velocity) {self.data['hardware']['efficient_velocity']}")
         functions.append(f"(input_capacity) {self.data['hardware']['input-capacity']}")
 
         functions.append(f"(battery_amount) {self.data['hardware']['battery-capacity']}")

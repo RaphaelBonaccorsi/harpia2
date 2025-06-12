@@ -41,7 +41,7 @@ class MissionController(LifecycleNode):
             self.logger.error('get_problem service not available, activation failed!')
             return TransitionCallbackReturn.ERROR
 
-        self.execute_plan_action_client = ActionClient(self, ExecutePlan, 'plansys_interface/execute_plan')
+        self.execute_plan_action_client = ActionClient(self, ExecutePlan, 'action_planner/execute_plan')
 
         self.get_problem()
 
@@ -81,6 +81,8 @@ class MissionController(LifecycleNode):
         # Create and send request
         request = StrInOut.Request()
         request.message = json.dumps(updates)
+
+        self.get_logger().info(f'@@ SENDING PARAMETERS UPDATE')
             
         future = self.update_parameters_client.call_async(request)
         future.add_done_callback(callback_func)
@@ -118,7 +120,8 @@ class MissionController(LifecycleNode):
             else:
                 self.logger.error('Service call timed out!')
                 return TransitionCallbackReturn.ERROR
-            
+        
+        # self.get_logger().info('@@ FROM send_problem')
         self.send_parameters_update(updates, service_callback)
 
     def get_problem(self):
@@ -141,6 +144,7 @@ class MissionController(LifecycleNode):
 
             self.send_problem(problem)
 
+        # self.get_logger().info('@@ FROM GET PROBLEM')
         future = self.get_problem_client.call_async(request)
         future.add_done_callback(service_callback)
 
@@ -282,6 +286,7 @@ class MissionController(LifecycleNode):
                 self.logger.info(f'Updated problem successfully, now executing...')
                 self.requestPlanExecution()
 
+            # self.get_logger().info('@@ FROM problem_update_callback')
             self.send_parameters_update(problem_updates, when_finished_updating_problem)
 
         self.request_cancel_goal(when_cancel_goal)

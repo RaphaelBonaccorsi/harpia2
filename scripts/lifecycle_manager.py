@@ -126,9 +126,9 @@ class LifecycleMannager(Node):
             if not response.success:
                 # self.get_logger().info(f'Failed to {transition} node {node_name}')
                 if not self.nodes[node_name]['update_check']:
-                    self.get_logger().error('didnt received an update since the transition request, this is a problem')
+                    self.get_logger().error(f'didnt received an update from {node_name} since the transition request, this is a problem')
                     # this is a problem because this code assumes that the node always get updates from the subcriber before the request returns
-                    raise Exception('didnt received an update since the transition request, this is a problem')
+                    raise Exception(f'didnt received an update from {node_name} since the transition request, this is a problem')
                 
                 # self.get_logger().info(f'transition/current_state: {transition}/{self.nodes[node_name]["state"]}')
                 
@@ -186,26 +186,26 @@ class LifecycleMannager(Node):
             self.get_logger().info(f'{node_name} activated successfully')
 
 nodes = [
-    # {
-    #     'node_name': 'data_server',
-    #     'depends_on': []
-    # },
-    # {
-    #     'node_name': 'problem_generator',
-    #     'depends_on': ['data_server']
-    # },
-    # {
-    #     'node_name': 'path_planner',
-    #     'depends_on': ['data_server']
-    # },
+    {
+        'node_name': 'data_server',
+        'depends_on': []
+    },
+    {
+        'node_name': 'problem_generator',
+        'depends_on': ['data_server']
+    },
+    {
+        'node_name': 'path_planner',
+        'depends_on': ['data_server']
+    },
     # {
     #     'node_name': 'plansys_interface',
     #     'depends_on': []
     # },
-    # {
-    #     'node_name': 'mission_controller',
-    #     'depends_on': ['plansys_interface', 'problem_generator']
-    # },
+    {
+        'node_name': 'mission_controller',
+        'depends_on': ['action_planner', 'problem_generator'] # not anymore 'plansys_interface'
+    },
     {
         'node_name': 'action_planner',
         'depends_on': []
@@ -220,7 +220,7 @@ nodes = [
     },
     # {
     #     'node_name': 'just_a_test',
-    #     'depends_on': ['action_node_example']
+    #     'depends_on': ['action_planner']
     # },
 ]
 

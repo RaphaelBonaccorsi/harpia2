@@ -99,6 +99,9 @@ class ActionPlannerExecutor:
     def print_action(self, action):
         self.get_logger().info(f"action: {action['name']} {action['args']} ({action['state']})")
 
+    def is_executing(self):
+        return self.current_plan is not None
+    
     def execute_plan(self, plan, on_success=None, on_failure=None):
         self.on_plan_success = on_success
         self.on_plan_failure = on_failure
@@ -129,9 +132,9 @@ class ActionPlannerExecutor:
 
 
     def check_if_can_start_action(self):
-        self.get_logger().info("checking if can start action")
-        self.get_logger().info("actions before:")
-        [self.print_action(action) for action in self.current_plan]
+        # self.get_logger().info("checking if can start action")
+        # self.get_logger().info("actions before:")
+        # [self.print_action(action) for action in self.current_plan]
 
         if self.current_plan is None:
             self.get_logger().error("no plan in progress")
@@ -148,14 +151,14 @@ class ActionPlannerExecutor:
                 all_completed = False
 
                 if self.memory.check_conditions_action(action['name'], action['args'], ["at start", "over all"]):
-                    self.get_logger().info(f"action {action['name']} can be started")
+                    # self.get_logger().info(f"action {action['name']} can be started")
                     if not self.start_action(action):
                         return False
                     started_any_action = True
-                    # continue # to handle multiple action at the same time, use continue instead of break
-                    break
+                    # continue
+                    break # to handle multiple action at the same time, use continue instead of break
                 else:
-                    self.get_logger().info(f"action {action['name']} can NOT be started")
+                    # self.get_logger().info(f"action {action['name']} can NOT be started")
                     break
             elif action['state'] == ActionState.IN_PROGRESS:
                 all_completed = False
@@ -165,8 +168,8 @@ class ActionPlannerExecutor:
                 pass
         
 
-        self.get_logger().info("actions after:")
-        [self.print_action(action) for action in self.current_plan]
+        # self.get_logger().info("actions after:")
+        # [self.print_action(action) for action in self.current_plan]
 
         if not started_any_action:
             # if entered here, could not continue with the plan
@@ -187,11 +190,11 @@ class ActionPlannerExecutor:
     def start_action(self, action):        
         action['state'] = ActionState.IN_PROGRESS
         self.memory.apply_effects(action['name'], action['args'], ["at start"])
-        self.get_logger().info(f"action {action['name']} started")
+        # self.get_logger().info(f"action {action['name']} started")
 
         # call action 
         goal_msg = ActionCaller.Goal(parameters=action['args'])
-        self.get_logger().info(f"Sending goal: {action['name']} {goal_msg.parameters}")
+        # self.get_logger().info(f"Sending goal: {action['name']} {goal_msg.parameters}")
         
 
         def result_callback(future):
@@ -228,7 +231,8 @@ class ActionPlannerExecutor:
             result_future.add_done_callback(result_callback)
 
         def feedback_callback(fb_msg):
-            self.get_logger().info(f"Feedback: {fb_msg.feedback.status:.2f}")
+            # self.get_logger().info(f"Feedback: {fb_msg.feedback.status:.2f}")
+            pass
 
         action_client = ActionClient(
             self._parent_node,

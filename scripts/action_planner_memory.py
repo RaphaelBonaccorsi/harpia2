@@ -179,7 +179,7 @@ class ActionPlannerMemory:
             self.get_logger().error("Domain not loaded. Call set_domain first.")
             return False
 
-        self.get_logger().info(f"Setting function '{function_name}{instance_names}' = {value}")
+        # self.get_logger().info(f"Setting function '{function_name}{instance_names}' = {value}")
 
         # Verifica se a função (fluent numérico) existe no domínio
         fluent = next((f for f in self.pddl.fluents if f.name == function_name), None)
@@ -260,6 +260,11 @@ class ActionPlannerMemory:
         return True
 
     def clear_goals(self):
+        self.pddl.clear_goals()
+
+    def clear_memory(self):
+        self.pddl._objects.clear()
+        self.pddl.initial_values.clear()
         self.pddl.clear_goals()
 
     def get_pddl(self):

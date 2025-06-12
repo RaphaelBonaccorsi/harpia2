@@ -31,7 +31,7 @@ class ActionExecutorBase(LifecycleNode):
             execute_callback   = self.execute_cb,
             goal_callback      = self.goal_cb,
             cancel_callback    = self.cancel_cb,
-            callback_group=self.action_cb
+            callback_group     = self.action_cb
         )
 
         return self.on_activate_extension()
@@ -65,7 +65,7 @@ class ActionExecutorBase(LifecycleNode):
     # ---- callbacks -------------------------------------------------
     def goal_cb(self, goal_request):
         self.get_logger().info(f'Received goal: {str(goal_request)}')
-
+        
         if self.new_goal(goal_request):
             return GoalResponse.ACCEPT 
         else:
@@ -76,9 +76,9 @@ class ActionExecutorBase(LifecycleNode):
         return CancelResponse.ACCEPT if self.cancel_goal_request(goal_handle) else CancelResponse.REJECT
 
     def execute_cb(self, goal_handle):
-        self.get_logger().info(
-            f"Executing action: {self.get_name()} "
-            f"params: {goal_handle.request.parameters}")
+        # self.get_logger().info(
+        #     f"Executing action: {self.get_name()} "
+        #     f"params: {goal_handle.request.parameters}")
         
         
 

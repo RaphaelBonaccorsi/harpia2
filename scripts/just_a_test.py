@@ -17,6 +17,9 @@ from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn
 from rclpy.action import ActionClient
 from action_msgs.msg import GoalStatus
 from harpia_msgs.action import ActionCaller
+from harpia_msgs.srv import StrInOut
+import json
+from harpia_msgs.action import ExecutePlan
 
 
 class JustATest(LifecycleNode):
@@ -32,91 +35,137 @@ class JustATest(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state) -> TransitionCallbackReturn:
-        self.get_logger().info('Activating node…')
+      
+        # Create a client for the update_parameters service
 
-        # Create the Action Client
-        self._action_client = ActionClient(self, ActionCaller, '/action/action_node_example')
-        self.get_logger().info('Waiting for action server…')
-        if not self._action_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error('Action server not available – shutting down')
-            return TransitionCallbackReturn.FAILURE
-        self.get_logger().info('Action server available')
-
-        # Send the goal once activated
-        self.send_goal()
-        return TransitionCallbackReturn.SUCCESS
-
-    # ───────── Action handling ──────────
-    def send_goal(self):
-        goal_msg = ActionCaller.Goal(action_name='pick', parameters=['box1', 'shelf2'])
-        self.get_logger().info(f"Sending goal: {goal_msg.action_name} {goal_msg.parameters}")
-
-        future = self._action_client.send_goal_async(
-            goal_msg,
-            feedback_callback=self.feedback_callback,
+        self._update_parameters_client = self.create_client(
+            StrInOut,
+            'plansys_interface/update_parameters'
         )
-        future.add_done_callback(self.goal_response_callback)
 
-        # Start timer to cancel after 10 s
-        self._cancel_timer = self.create_timer(10.0, self._on_cancel_timer)
+        # Wait for the service to be available
+        if not self._update_parameters_client.wait_for_service(timeout_sec=5.0):
+            self.get_logger().error('update_parameters service not available!')
+            return TransitionCallbackReturn.ERROR
 
-    def goal_response_callback(self, future):
-        goal_handle = future.result()
-        if not goal_handle.accepted:
-            self.get_logger().warn('Goal rejected by server')
-            return
+        # Example JSON command to add an instance
+        req = StrInOut.Request()
+        req.message = json.dumps([
+        {
+            "type": "add_instances",
+            "values": ["region_1 region", "region_2 region", "base_1 base"],
+        },
+        {
+            "type": "add_predicates",
+            "values": ["picture_goal region_1", "picture_goal region_2", "at base_1"],
+        },
+        {
+            "type": "add_functions",
+            "values": [
+                "(distance base_1 base_1) 0.0",
+                "(distance base_1 region_1) 126.27384891047109",
+                "(distance base_1 region_2) 94.05380248989793",
+                "(distance region_1 base_1) 126.27384891047109",
+                "(distance region_1 region_1) 0.0",
+                "(distance region_1 region_2) 129.32460292272947",
+                "(distance region_2 base_1) 94.05380248989793",
+                "(distance region_2 region_1) 129.32460292272947",
+                "(distance region_2 region_2) 0.0",
+                "(battery_capacity) 100",
+                # "(discharge_rate_battery) 0.1",
+                # "(velocity) 7",
+                "(input_capacity) 1",
+                "(battery_amount) 100",
+                "(input_amount) 1",
+                "(mission_length) 0.0",
+            ],
+        },
+        {
+            "type": "set_goals",
+            "values": ["taken_image region_1", "taken_image region_2", "at base_1"],
+        },
+            {
+                "type": "log_pddl",
+                "values": []
+            },
+        ])
 
-        self._goal_handle = goal_handle
-        self.get_logger().info('Goal accepted – waiting for result…')
+        self.get_logger().info(f"Requesting update_parameters with: {req.message}")
+        future = self._update_parameters_client.call_async(req)
 
-        result_future = goal_handle.get_result_async()
-        result_future.add_done_callback(self.result_callback)
+        def _on_update_parameters_response(fut):
+            try:
+                resp = fut.result()
+                if resp.success:
+                    self.get_logger().info(f"update_parameters succeeded: {resp.message}")
+                else:
+                    self.get_logger().error(f"update_parameters failed: {resp.message}")
+            except Exception as e:
+                self.get_logger().error(f"Service call failed: {e}")
 
-    def feedback_callback(self, fb_msg):
-        self.get_logger().info(f"Feedback: {fb_msg.feedback.status:.2f}")
+        future.add_done_callback(_on_update_parameters_response)
 
-    def result_callback(self, future):
-        # Stop cancel timer
-        if self._cancel_timer:
-            self._cancel_timer.cancel()
 
-        result = future.result().result
-        status = future.result().status
+        # Create an action client for ActionCaller        
+        # After update_parameters finishes, send a goal to /action_planner/execute_plan
 
-        if status == GoalStatus.STATUS_SUCCEEDED:
-            self.get_logger().info(f'Goal succeeded: success={result.success}')
-        elif status == GoalStatus.STATUS_CANCELED:
-            self.get_logger().info('Goal was canceled by client')
-        else:
-            self.get_logger().error(f'Goal ended with status code: {status}')
 
-    # ───────── Cancel timer callback ──────────
-    def _on_cancel_timer(self):
-        self.get_logger().info('10 s elapsed – sending cancel request')
-        if self._goal_handle:
-            cancel_future = self._goal_handle.cancel_goal_async()
-            cancel_future.add_done_callback(lambda f: self.get_logger().info('Cancel request sent'))
-        # One‑shot timer – stop it
-        if self._cancel_timer:
-            self._cancel_timer.cancel()
+        self._execute_plan_client = ActionClient(self, ExecutePlan, '/action_planner/execute_plan')
+
+        def _send_execute_plan_goal():
+            if not self._execute_plan_client.wait_for_server(timeout_sec=5.0):
+                self.get_logger().error('ExecutePlan action server not available!')
+                return
+
+            goal_msg = ExecutePlan.Goal()
+            # '{}' means default/empty goal, so no fields set
+
+            self.get_logger().info('Sending ExecutePlan goal...')
+            send_goal_future = self._execute_plan_client.send_goal_async(goal_msg)
+
+            def _goal_response_callback(fut):
+                goal_handle = fut.result()
+                if not goal_handle.accepted:
+                    self.get_logger().error('ExecutePlan goal rejected')
+                    return
+                self.get_logger().info('ExecutePlan goal accepted')
+
+            send_goal_future.add_done_callback(_goal_response_callback)
+
+        # Add to the update_parameters callback
+        def _on_update_parameters_response(fut):
+            try:
+                resp = fut.result()
+                if resp.success:
+                    self.get_logger().info(f"update_parameters succeeded: {resp.message}")
+                    _send_execute_plan_goal()
+                else:
+                    self.get_logger().error(f"update_parameters failed: {resp.message}")
+            except Exception as e:
+                self.get_logger().error(f"Service call failed: {e}")
+
+        future.add_done_callback(_on_update_parameters_response)
+
+        return TransitionCallbackReturn.SUCCESS
 
 
 # ───────── main ──────────
 
+
 def main(args=None):
+    """
+    Main function to initialize the action_planner node and handle spinning.
+    """
     rclpy.init(args=args)
-    node = JustATest()
+    action_planner = JustATest()
     executor = MultiThreadedExecutor()
-    executor.add_node(node)
-
-
+    executor.add_node(action_planner)
     try:
         executor.spin()
     except KeyboardInterrupt:
-        node.get_logger().info('KeyboardInterrupt – shutting down')
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        action_planner.get_logger().info('KeyboardInterrupt, shutting down.\n')
+    action_planner.destroy_node()
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':
