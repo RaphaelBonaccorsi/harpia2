@@ -74,7 +74,19 @@ Harpia 2 is the ROS 2 version of the Harpia system for UAV mission and path plan
 
 ### Build
 
-- `Build harpia`
+- (Recommended) Use the bash scripts "compile.sh", "compile_and_run.sh" and "run.sh"
+- cd src/harpia_msgs (in the project root directory)
+- colcon build
+- source install/setup.bash
+- cd ../.. (return to the project root directory)
+- colcon build
+- source install/setup.bash
+- Launch the system with ros2 launch launch/launch_file.py
+
+### Troubleshooting
+
+- Common issues when installing or running the system comes from:
+- Not sourcing ROS 2, harpia_msgs or the harpia system itself (remember to use source /opt/ros/humble/setup.bash and any other setup.bash files needed in every new terminal session)
 
 ## Simulation Video
 
