@@ -16,7 +16,7 @@ from harpia_msgs.srv import GeneratePath
 from geometry_msgs.msg import PoseStamped
 from harpia_msgs.action import MoveTo
 from rclpy.action import ActionClient
-from plansys2_support_py.ActionExecutorClient import ActionExecutorClient
+
 
 class ActionNodeExample(ActionExecutorBase):
 
