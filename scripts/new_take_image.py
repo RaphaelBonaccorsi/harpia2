@@ -17,7 +17,7 @@ class ActionNodeExample(ActionExecutorBase):
         self.get_logger().info("ActionNodeExample initialized")
 
         self.index = 0
-        self.n_iterations = 5
+        self.n_iterations = 10
 
     def on_configure_extension(self):
         self.get_logger().info("Configuring... (example)")
@@ -40,7 +40,7 @@ class ActionNodeExample(ActionExecutorBase):
             self.get_logger().info("Goal completed")
             return True, 1.0
         
-        # self.get_logger().info(f"Goal status {self.index}/{self.n_iterations}")
+        self.get_logger().info(f"Goal status {self.index}/{self.n_iterations}")
         return False, self.index/self.n_iterations   
 
     def cancel_goal(self, goal_handle):
