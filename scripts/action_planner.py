@@ -188,8 +188,6 @@ class ActionPlanner(LifecycleNode):
 
     def exe_plan_goal_request(self, goal_request):
 
-        # self.get_logger().info('@@ RECEIVED NEW GOAL REQUEST')
-
         if not self._can_receive_execute_plan_goal: # this check exists because the next check [self.plan_executor.is_executing()] only works after self.plan_executor.execute_plan() is called
             self.get_logger().warn("Cannot receive new goals at the moment, rejecting goal.")
             return GoalResponse.REJECT
@@ -199,7 +197,7 @@ class ActionPlanner(LifecycleNode):
             return GoalResponse.REJECT
         
         self.plan = self.generate_plan_custom_solver()
-        self.get_logger().info(f"Generated plan ASDASD: {self.plan}") # @@ here plan is fine
+        self.get_logger().info(f"Generated plan ASDASD: {self.plan}")
 
         if not self.plan:
             self.get_logger().error("Failed to generate a valid plan, rejecting goal.")
@@ -209,8 +207,15 @@ class ActionPlanner(LifecycleNode):
         self._can_receive_execute_plan_goal = False
         return GoalResponse.ACCEPT 
         
-    def exe_plan_cancel_request(self):
-        raise NotImplementedError("Cancel request handling is not implemented yet.")
+    def exe_plan_cancel_request(self, goal_handle):
+        return CancelResponse.REJECT
+        if self._is_cancelling:
+            self.get_logger().warn("Already cancelling a plan execution, rejecting cancel request.")
+            return CancelResponse.REJECT
+        self.get_logger().info("Accepting cancel request")
+        self._is_cancelling = True
+        return CancelResponse.ACCEPT
+    
 
     def exe_plan_execute(self, goal_handle):
         
@@ -222,15 +227,40 @@ class ActionPlanner(LifecycleNode):
             self.get_logger().error("Plan execution failed.")
             self._plan_finished_success = (True, False)
 
-        self.plan_executor.execute_plan(self.plan, on_success, on_failure) # @@ here plan works
+        def on_finish_cancel():
+            self.get_logger().info("Plan execution was cancelled 1.")
+            self._plan_finished_success = (True, False)
+            self._finished_cancel = True
+            # goal_handle.canceled()
+
+        def check_if_plan_is_cancelling():
+            return self._is_cancelling
+        
         self._can_receive_execute_plan_goal = True
         self._plan_finished_success = (False, False)
+        self._is_cancelling = False
+        self._finished_cancel = False
+
+        self.plan_executor.execute_plan(
+            self.plan,
+            check_if_plan_is_cancelling,
+            on_success,
+            on_failure,
+            on_finish_cancel)
+        
 
         while True:
             if goal_handle.is_cancel_requested:
-                self.get_logger().info('Plan execution canceled')
-                goal_handle.canceled()
-                return ExecutePlan.Result()
+                self.get_logger().info('Plan execution is canceling, waiting...')
+                while not self._finished_cancel:
+                    time.sleep(1)
+                    self.get_logger().info('waiting cancel...')
+                self.get_logger().info('Plan execution was cancelled 2.')
+                goal_handle.canceled() 
+                result = ExecutePlan.Result()
+                result.success = self._plan_finished_success[1]
+                return result
+
 
             feedback = ExecutePlan.Feedback()
             feedback.step = 0
@@ -252,8 +282,6 @@ class ActionPlanner(LifecycleNode):
         """
         Callback for the 'plansys_interface/update_parameters' service.
         """
-
-        # self.get_logger().info('@@ STARTED UPDATE PARAMETERS CALLBACK')
 
         try:
             json_commands = json.loads(request.message)
@@ -314,8 +342,6 @@ class ActionPlanner(LifecycleNode):
             response.success = False
             response.message = f"Error processing commands: {e}"
             return response
-        
-        # self.get_logger().info('@@ END OF UPDATE PARAMETERS CALLBACK')
         
         response.success = True
         response.message = ""
