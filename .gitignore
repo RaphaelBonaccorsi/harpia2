@@ -2,12 +2,11 @@
 /build/
 /install/
 /.vscode
+/venv
 
 src/harpia_msgs/build
 src/harpia_msgs/install
 src/harpia_msgs/log
-
-launch/__pycache__/
 
 **/__pycache__/
 **/*.pyc
