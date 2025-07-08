@@ -118,13 +118,6 @@ def generate_launch_description():
         # ),
         Node(
             package='route_executor2',
-            executable='mission_controller.py',
-            name='mission_controller',
-            output='screen',
-            parameters=[]
-        ),
-        Node(
-            package='route_executor2',
             executable='action_planner.py',
             name='action_planner',
             output='screen',
