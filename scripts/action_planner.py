@@ -208,7 +208,7 @@ class ActionPlanner(LifecycleNode):
         return GoalResponse.ACCEPT 
         
     def exe_plan_cancel_request(self, goal_handle):
-        return CancelResponse.REJECT
+        # return CancelResponse.REJECT
         if self._is_cancelling:
             self.get_logger().warn("Already cancelling a plan execution, rejecting cancel request.")
             return CancelResponse.REJECT
@@ -228,7 +228,6 @@ class ActionPlanner(LifecycleNode):
             self._plan_finished_success = (True, False)
 
         def on_finish_cancel():
-            self.get_logger().info("Plan execution was cancelled 1.")
             self._plan_finished_success = (True, False)
             self._finished_cancel = True
             # goal_handle.canceled()
@@ -253,9 +252,7 @@ class ActionPlanner(LifecycleNode):
             if goal_handle.is_cancel_requested:
                 self.get_logger().info('Plan execution is canceling, waiting...')
                 while not self._finished_cancel:
-                    time.sleep(1)
-                    self.get_logger().info('waiting cancel...')
-                self.get_logger().info('Plan execution was cancelled 2.')
+                    time.sleep(0.1)
                 goal_handle.canceled() 
                 result = ExecutePlan.Result()
                 result.success = self._plan_finished_success[1]
@@ -362,7 +359,7 @@ class ActionPlanner(LifecycleNode):
         for predicate in predicates:
             instance_names = predicate.split(" ")
             predicate_name = instance_names.pop(0)
-            self.get_logger().info(f"Adding predicate: {predicate_name} with instances {instance_names}")
+            # self.get_logger().info(f"Adding predicate: {predicate_name} with instances {instance_names}")
             if not self.memory.add_predicate(predicate_name, instance_names):
                 return False
         return True
@@ -370,7 +367,7 @@ class ActionPlanner(LifecycleNode):
         for predicate in predicates:
             instance_names = predicate.split(" ")
             predicate_name = instance_names.pop(0)
-            self.get_logger().info(f"Removing predicate: {predicate_name} with instances {instance_names}")
+            # self.get_logger().info(f"Removing predicate: {predicate_name} with instances {instance_names}")
             if not self.memory.remove_predicate(predicate_name, instance_names):
                 return False
         return True
@@ -387,7 +384,7 @@ class ActionPlanner(LifecycleNode):
             func_args = match.group(1).split()
             value = float(match.group(2))
             func_name = func_args.pop(0)
-            self.get_logger().info(f"Updating function: {func_name} with args {func_args} to value {value}")
+            # self.get_logger().info(f"Updating function: {func_name} with args {func_args} to value {value}")
             if not self.memory.set_function(func_name, func_args, value):
                 return False
         return True
@@ -397,7 +394,7 @@ class ActionPlanner(LifecycleNode):
         for goal in goals:
             instance_names = goal.split(" ")
             goal_name = instance_names.pop(0)
-            self.get_logger().info(f"Setting goal: {goal_name} with instances {instance_names}")
+            # self.get_logger().info(f"Setting goal: {goal_name} with instances {instance_names}")
             if not self.memory.add_goal(goal_name, instance_names):
                 return False
         return True
@@ -416,8 +413,8 @@ class ActionPlanner(LifecycleNode):
         domain_pddl, problem_pddl = self.memory.get_pddl()
         # self.get_logger().info("Current PDDL Domain:")
         # self.get_logger().info(domain_pddl)
-        self.get_logger().info("Current PDDL Problem:")
-        self.get_logger().info(problem_pddl)
+        # self.get_logger().info("Current PDDL Problem:")
+        # self.get_logger().info(problem_pddl)
         return True
 
 def main(args=None):

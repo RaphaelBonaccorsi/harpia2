@@ -108,7 +108,7 @@ class JustATest(LifecycleNode):
             },
         ])
 
-        self.get_logger().info(f"Requesting update_parameters with: {req.message}")
+        # self.get_logger().info(f"Requesting update_parameters with: {req.message}")
         future = self._update_parameters_client.call_async(req)
 
         def _on_update_parameters_response(fut):

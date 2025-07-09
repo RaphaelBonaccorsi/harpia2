@@ -55,6 +55,8 @@ class RouteExecutor(Node):
         """
         super().__init__('route_executor')
 
+        self.get_logger().info('RouteExecutor node initializing')  # NOT_ESSENTIAL_PRINT
+
         # Publisher and service clients
         self.publisher_ = self.create_publisher(PoseStamped, '/mavros/setpoint_position/local', 10)
         self.arming_client = self.create_client(CommandBool, '/mavros/cmd/arming')

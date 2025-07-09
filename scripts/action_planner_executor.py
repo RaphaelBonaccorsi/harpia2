@@ -154,7 +154,7 @@ class ActionPlannerExecutor:
                 all_completed = False
 
                 if is_cancelling:
-                    self.get_logger().info("plan is cancelling, skipping action start")
+                    # self.get_logger().info("plan is cancelling, skipping action start")
                     continue
 
                 if self.memory.check_conditions_action(action['name'], action['args'], ["at start", "over all"]):
