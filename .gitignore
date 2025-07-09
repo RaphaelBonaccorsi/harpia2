@@ -2,6 +2,7 @@
 /build/
 /install/
 /.vscode
+/.venv
 /venv
 
 src/harpia_msgs/build
