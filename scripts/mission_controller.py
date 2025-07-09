@@ -206,7 +206,7 @@ class MissionController(LifecycleNode):
 
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
-        self.get_logger().info(f'Received feedback: Step {feedback.step}/{feedback.nofsteps}')
+        # self.get_logger().info(f'Received feedback: Step {feedback.step}/{feedback.nofsteps}')
 
         # if feedback.step == 2:
         #     self.cancel_goal()

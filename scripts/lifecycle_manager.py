@@ -190,38 +190,34 @@ nodes = [
         'node_name': 'data_server',
         'depends_on': []
     },
-    # {
-    #     'node_name': 'problem_generator',
-    #     'depends_on': ['data_server']
-    # },
+    {
+        'node_name': 'problem_generator',
+        'depends_on': ['data_server']
+    },
     {
         'node_name': 'path_planner',
         'depends_on': ['data_server']
     },
-    # # # {
-    # # #     'node_name': 'plansys_interface',
-    # # #     'depends_on': []
-    # # # },
-    # {
-    #     'node_name': 'mission_controller',
-    #     'depends_on': ['action_planner', 'problem_generator']
-    # },
-    # {
-    #     'node_name': 'action_planner',
-    #     'depends_on': []
-    # },
-    # {
-    #     'node_name': 'new_take_image',
-    #     'depends_on': []
-    # },
+    {
+        'node_name': 'mission_controller',
+        'depends_on': ['action_planner', 'problem_generator'] # not anymore 'plansys_interface'
+    },
+    {
+        'node_name': 'action_planner',
+        'depends_on': []
+    },
+    {
+        'node_name': 'new_take_image',
+        'depends_on': []
+    },
     {
         'node_name': 'new_go_to',
         'depends_on': []
     },
-    # # {
-    # #     'node_name': 'just_a_test',
-    # #     'depends_on': ['action_planner']
-    # # },
+    # {
+    #     'node_name': 'just_a_test',
+    #     'depends_on': ['action_planner']
+    # },
 ]
 
 def main(args=None):

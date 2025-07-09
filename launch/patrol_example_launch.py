@@ -39,13 +39,13 @@ def generate_launch_description():
     ld = LaunchDescription()
 
     nodes_to_add = [
-        # # IncludeLaunchDescription( # plansys
-        # #     PythonLaunchDescriptionSource(os.path.join(
-        # #         get_package_share_directory('plansys2_bringup'),
-        # #         'launch',
-        # #         'plansys2_bringup_launch_monolithic.py')),
-        # #     launch_arguments={'model_file': domain_file}.items()
-        # # ),
+        # IncludeLaunchDescription( # plansys
+        #     PythonLaunchDescriptionSource(os.path.join(
+        #         get_package_share_directory('plansys2_bringup'),
+        #         'launch',
+        #         'plansys2_bringup_launch_monolithic.py')),
+        #     launch_arguments={'model_file': domain_file}.items()
+        # ),
         Node(
             package='route_executor2',
             executable='lifecycle_manager.py',
@@ -53,34 +53,20 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
-        # # Node(
-        # #     package='route_executor2',
-        # #     executable='planning_controller_node',
-        # #     name='planning_controller_node',
-        # #     output='screen',
-        # #     parameters=[]
-        # # ),
-        # # Node(
-        # #     package='route_executor2',
-        # #     executable='go_to.py',
-        # #     name='go_to',
-        # #     output='screen',
-        # #     parameters=[]
-        # # ),
-        # # Node(
-        # #     package='route_executor2',
-        # #     executable='take_image.py',
-        # #     name='take_image',
-        # #     output='screen',
-        # #     parameters=[]
-        # # ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='route_executor.py',
-        #     name='route_executor',
-        #     output='screen',
-        #     parameters=[]
-        # ),
+        Node(
+            package='route_executor2',
+            executable='mission_controller.py',
+            name='mission_controller',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='route_executor.py',
+            name='route_executor',
+            output='screen',
+            parameters=[]
+        ),
         Node(
             package='route_executor2',
             executable='path_planner.py',
@@ -95,28 +81,21 @@ def generate_launch_description():
             output='screen',
             parameters=[{'mission_index': mission_index_value}]
         ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='problem_generator.py',
-        #     name='problem_generator',
-        #     output='screen',
-        #     parameters=[]
-        # ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='mission_controller.py',
-        #     name='mission_controller',
-        #     output='screen',
-        #     parameters=[]
-        # ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='action_planner.py',
-        #     name='action_planner',
-        #     output='screen',
-        #     # parameters=[{'pddl_domain': share_dir + '/pddl/harpia_domain.pddl'}]
-        #     parameters=[{"pddl_domain": share_dir+'/pddl/harpia_domain_test.pddl'}]
-        # ),
+        Node(
+            package='route_executor2',
+            executable='problem_generator.py',
+            name='problem_generator',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='action_planner.py',
+            name='action_planner',
+            output='screen',
+            # parameters=[{'pddl_domain': share_dir + '/pddl/harpia_domain.pddl'}]
+            parameters=[{"pddl_domain": share_dir+'/pddl/harpia_domain_test.pddl'}]
+        ),
         Node(
             package='route_executor2',
             executable='new_go_to.py',
@@ -124,20 +103,20 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
+        Node(
+            package='route_executor2',
+            executable='new_take_image.py',
+            name='new_take_image',
+            output='screen',
+            parameters=[]
+        ),
         # Node(
         #     package='route_executor2',
-        #     executable='new_take_image.py',
-        #     name='new_take_image',
+        #     executable='just_a_test.py',
+        #     name='just_a_test',
         #     output='screen',
         #     parameters=[]
         # ),
-        # # Node(
-        # #     package='route_executor2',
-        # #     executable='just_a_test.py',
-        # #     name='just_a_test',
-        # #     output='screen',
-        # #     parameters=[]
-        # # ),
     ]
 
     # Create the launch description and populate
