@@ -110,6 +110,13 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
+        Node(
+            package='route_executor2',
+            executable='new_recharge_battery.py',
+            name='new_recharge_battery',
+            output='screen',
+            parameters=[]
+        ),
         # Node(
         #     package='route_executor2',
         #     executable='just_a_test.py',

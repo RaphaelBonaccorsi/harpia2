@@ -118,7 +118,7 @@ class RouteExecutor(Node):
         GoalResponse
             Response indicating whether the goal is accepted or rejected.
         """
-        self.get_logger().info(f'Receiving move request to: {goal_request.destination.pose}') # NOT_ESSENTIAL_PRINT
+        # self.get_logger().info(f'Receiving move request to: {goal_request.destination.pose}') # NOT_ESSENTIAL_PRINT
         self.waypoint = goal_request.destination
         return GoalResponse.ACCEPT
 
@@ -155,7 +155,7 @@ class RouteExecutor(Node):
         MoveTo.Result
             The result of the action, indicating success or failure.
         """
-        self.get_logger().info('Executing movement action') # NOT_ESSENTIAL_PRINT
+        # self.get_logger().info('Executing movement action') # NOT_ESSENTIAL_PRINT
 
         feedback_msg = MoveTo.Feedback()
         result = MoveTo.Result()
@@ -176,7 +176,7 @@ class RouteExecutor(Node):
                 self._timer.cancel()  # Cancelar o timer
                 goal_handle.succeed()
                 result.success = True
-                self.get_logger().info('Movement completed successfully') # NOT_ESSENTIAL_PRINT
+                # self.get_logger().info('Movement completed successfully') # NOT_ESSENTIAL_PRINT
                 goal_future.set_result(result)
 
             # Checar se o cancelamento foi solicitado

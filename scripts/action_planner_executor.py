@@ -139,7 +139,7 @@ class ActionPlannerExecutor:
         # [self.print_action(action) for action in self.current_plan]
 
         if self.current_plan is None:
-            self.get_logger().error("no plan in progress")
+            self.get_logger().error("no plan in progress 1")
             return False
         
         is_cancelling = self.check_if_plan_is_cancelling()
@@ -147,8 +147,11 @@ class ActionPlannerExecutor:
 
         all_completed = True
         is_there_in_progress = False
+
         
         for action in self.current_plan:
+
+            # self.get_logger().info(f"checking action {action['name']} {action['args']} ({action['state']})")
 
             if action['state'] == ActionState.PENDING:
                 all_completed = False
@@ -160,17 +163,21 @@ class ActionPlannerExecutor:
                 if self.memory.check_conditions_action(action['name'], action['args'], ["at start", "over all"]):
                     # self.get_logger().info(f"action {action['name']} can be started")
                     if not self.start_action(action):
+                        self.get_logger().error(f"could not start action {action['name']}")
                         return False
                     started_any_action = True
-                    # continue
-                    break # to handle multiple action at the same time, use 'continue' instead of 'break'
+                    break
+                else:
+                    # self.get_logger().info(f"action {action['name']} cannot be started, conditions not met")
+                    # if the action cannot be started, the plan is failed
+                    self.handle_plan_failure()
+                    return False
             elif action['state'] == ActionState.IN_PROGRESS:
                 all_completed = False
                 is_there_in_progress = True
             elif action['state'] == ActionState.COMPLETED:
                 # is_there_completed = True
                 pass
-        
 
         # self.get_logger().info("actions after:")
         # [self.print_action(action) for action in self.current_plan]
@@ -178,8 +185,8 @@ class ActionPlannerExecutor:
         if is_cancelling:
             self.get_logger().info("plan is cancelling...")
             if not is_there_in_progress:
-                self.get_logger().info("Finished canceling")
-                self.on_finish_cancel()
+                self.handle_plan_canceled()
+
                 return False
             else:
                 self.get_logger().info("but still there are actions in progress")
@@ -269,7 +276,7 @@ class ActionPlannerExecutor:
     def check_in_progress_action_conditions(self):
         # self.get_logger().info("checking in progress action conditions")
         if self.current_plan is None:
-            self.get_logger().error("no plan in progress")
+            self.get_logger().error("no plan in progress 2")
             return
         
         for action in self.current_plan:
@@ -290,6 +297,14 @@ class ActionPlannerExecutor:
         self.get_logger().info("Plan succeeded")
         if self.on_plan_success is not None:
             self.on_plan_success()
+        self.current_plan = None
+
+        self._parent_node.destroy_timer(self.check_actions_condition_timer)
+
+    def handle_plan_canceled(self):
+        self.get_logger().info("Plan cancelled")
+        if self.on_finish_cancel is not None:
+            self.on_finish_cancel()
         self.current_plan = None
 
         self._parent_node.destroy_timer(self.check_actions_condition_timer)

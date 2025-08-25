@@ -83,7 +83,7 @@ class ActionPlannerMemory:
             self.get_logger().error("Domain not loaded. Call set_domain first.")
             return False
 
-        self.get_logger().info(f"Adding predicate '{predicate_name}' with instances {instance_names}")
+        # self.get_logger().info(f"Adding predicate '{predicate_name}' with instances {instance_names}")
 
         # Verifica se o predicado (fluent) existe no domínio
         fluent = next((f for f in self.pddl.fluents if f.name == predicate_name), None)
@@ -228,7 +228,7 @@ class ActionPlannerMemory:
             self.get_logger().error("Domain not loaded. Call set_domain first.")
             return False
 
-        self.get_logger().info(f"Setting goal: {predicate_name}{instance_names}")
+        # self.get_logger().info(f"Setting goal: {predicate_name}{instance_names}")
 
         # Verifica se o predicado existe
         fluent = next((f for f in self.pddl.fluents if f.name == predicate_name), None)
@@ -460,3 +460,71 @@ class ActionPlannerMemory:
 
                 # Update the state
                 self.pddl.set_initial_value(substituted_fluent, evaluated_value)
+
+
+    def get_function_value(self, function_name, instance_names):
+        """
+        Recupera o valor de uma função numérica (fluent) do estado inicial.
+
+        Args:
+            function_name (str): O nome da função conforme definido no PDDL.
+            instance_names (list[str]): Uma lista com os nomes das instâncias
+                                        que são argumentos para a função.
+
+        Returns:
+            float | int | None: O valor numérico da função se encontrada,
+                                ou None se ocorrer um erro ou a função não
+                                estiver definida no estado inicial.
+        """
+        if not hasattr(self, 'pddl') or self.pddl is None:
+            self.get_logger().error("Domain not loaded. Call set_domain first.")
+            return None
+
+        # 1. Encontrar o fluent (a definição da função) no domínio.
+        fluent = next((f for f in self.pddl.fluents if f.name == function_name), None)
+        if not fluent:
+            self.get_logger().warning(f"Function '{function_name}' not found in the domain.")
+            return None
+
+        # 2. Verificar se é realmente uma função numérica.
+        if not fluent.type.is_real_type() and not fluent.type.is_int_type():
+            self.get_logger().warning(f"'{function_name}' is not a numeric function.")
+            return None
+
+        # 3. Validar o número de argumentos (aridade).
+        expected_arity = len(fluent.signature)
+        if len(instance_names) != expected_arity:
+            self.get_logger().warning(
+                f"Function '{function_name}' expects {expected_arity} arguments, but {len(instance_names)} were given."
+            )
+            return None
+
+        # 4. Converter nomes de instâncias em objetos do problema.
+        objects = []
+        for obj_name in instance_names:
+            try:
+                obj = self.pddl.object(obj_name)
+                objects.append(obj)
+            except KeyError:
+                self.get_logger().warning(f"Object '{obj_name}' does not exist in the problem.")
+                return None
+
+        # 5. Criar a expressão do fluent com os argumentos concretos.
+        # Ex: (custo_transporte caminhao1)
+        function_expression = FluentExp(fluent, objects)
+
+        # 6. Obter o valor do estado inicial.
+        # self.pddl.initial_values é um dicionário que mapeia expressões a valores.
+        value_node = self.pddl.initial_values.get(function_expression)
+
+        if value_node is None:
+            self.get_logger().info(f"Function '{function_expression}' is not explicitly set in the initial state.")
+            return None
+
+        # O valor retornado é um FNode. Extraímos o valor constante dele.
+        if value_node.is_constant():
+            return value_node.constant_value()
+        else:
+            # Este caso é improvável para valores iniciais, mas é um fallback seguro.
+            self.get_logger().error(f"Initial value for '{function_expression}' is not a constant: {value_node}")
+            return None

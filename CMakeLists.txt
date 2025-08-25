@@ -82,6 +82,7 @@ install(PROGRAMS
   scripts/action_planner.py
   scripts/new_go_to.py
   scripts/new_take_image.py
+  scripts/new_recharge_battery.py
   scripts/just_a_test.py
   DESTINATION lib/${PROJECT_NAME})
 

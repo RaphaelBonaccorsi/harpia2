@@ -175,6 +175,7 @@ class ProblemGenerator(LifecycleNode):
         functions.append(f"(input_capacity) {self.data['hardware']['input-capacity']}")
 
         functions.append(f"(battery_amount) {self.data['hardware']['battery-capacity']}")
+        # functions.append(f"(battery_amount) 0")
         functions.append(f"(input_amount) {self.data['hardware']['input-capacity']}")
         predicates.append(f"at {inside_region}")
         

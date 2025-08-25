@@ -109,6 +109,21 @@ class ActionPlanner(LifecycleNode):
         self._can_receive_execute_plan_goal = True
         self._plan_finished_success = (False, False) # first is if finished, second is if successful
         
+        # # show the battery amount every second
+        # self.last_battery_that_was_shown = None
+        # def show_battery_callback():
+        #     battery_amount = self.memory.get_function_value("battery_amount", [])
+        #     if battery_amount is None:
+        #         self.get_logger().info(f"bat: None")
+        #         return
+        #     battery_amount = round(float(battery_amount))
+        #     if battery_amount != self.last_battery_that_was_shown:
+        #         self.get_logger().info(f"bat: {battery_amount:.0f}%")
+        #         self.last_battery_that_was_shown = battery_amount
+        # self.create_timer(1, show_battery_callback)
+
+        # self.start_bat_sim()
+
         return TransitionCallbackReturn.SUCCESS
     
     def generate_plan_custom_solver(self):
@@ -128,8 +143,8 @@ class ActionPlanner(LifecycleNode):
         #print domain and problem PDDL
         # self.get_logger().info("Domain PDDL:")
         # self.get_logger().info(domain_pddl_text)
-        self.get_logger().info("Problem PDDL:")
-        self.get_logger().info(problem_pddl_text)
+        # self.get_logger().info("Problem PDDL:")
+        # self.get_logger().info(problem_pddl_text)
 
         try:
             with open(domain_path, "w") as f:
@@ -149,7 +164,7 @@ class ActionPlanner(LifecycleNode):
         generate_script = os.path.join(solver_subdir, "generate_plan.sh")
         cmd = [generate_script, domain_path, problem_path]
 
-        self.get_logger().info(f"Calling external solver: {' '.join(cmd)}")
+        # self.get_logger().info(f"Calling external solver: {' '.join(cmd)}")
         try:
             result = subprocess.run(
                 cmd,
@@ -183,6 +198,74 @@ class ActionPlanner(LifecycleNode):
                 duration = float(match.group(3))
 
                 plan.append((action_name, action_parameters))
+
+        # Correct repeated go_to actions
+        if len(plan) > 1:
+            i = 0
+            while True:
+                if i >= len(plan) - 1:
+                    break
+
+                if not(plan[i][0] == 'go_to' and plan[i+1][0] == 'go_to'):
+                    i += 1
+                    continue
+
+                if plan[i][1][1] == plan[i+1][1][0]:
+                    self.get_logger().warn(f"Merging actions: {plan[i][0]} {plan[i][1]} and {plan[i+1][0]} {plan[i+1][1]}")
+                    plan[i][1][1] = plan[i+1][1][1]
+                    del plan[i+1]
+
+
+        # # Check if self.plan_index exists
+        # if not hasattr(self, 'plan_index'):
+        #     self.plan_index = 0
+        # else:
+        #     self.plan_index += 1
+
+        # predefined_plans = [
+
+        #     #####################################################
+        #     # use mission 2
+        #     # [
+        #     #     # ('recharge_battery', ['base_1'              ]),
+        #     #     ('go_to',            ['base_1',   'region_1']),
+        #     #     ('take_image',       ['region_1'            ]),
+        #     #     ('go_to',            ['region_1', 'region_2']),
+        #     #     ('take_image',       ['region_2'            ]),
+        #     #     ('go_to',            ['region_2', 'region_3']),
+        #     #     ('take_image',       ['region_3'            ]),
+        #     #     ('go_to',            ['region_3', 'base_1'  ]),
+        #     # ],
+        #     # [
+        #     #     ('go_to',            ['region_3',   'base_3']),
+        #     #     ('recharge_battery', ['base_3'              ]),
+        #     #     ('go_to',            ['base_3',   'region_3']),
+        #     #     ('take_image',       ['region_3'            ]),
+        #     #     ('go_to',            ['region_3',   'base_1']),
+        #     # ],
+        #     #####################################################
+        #     [
+        #         # ('recharge_battery', ['base_1'              ]),
+        #         ('go_to',            ['base_1',   'region_1']),
+        #         ('take_image',       ['region_1'            ]),
+        #         ('go_to',            ['region_1', 'region_2']),
+        #         ('take_image',       ['region_2'            ]),
+        #         ('go_to',            ['region_2', 'region_3']),
+        #         ('take_image',       ['region_3'            ]),
+        #         ('go_to',            ['region_3', 'base_1'  ]),
+        #     ],
+        #     [
+        #         ('go_to', ['region_3', 'base_3']),
+        #         ('recharge_battery', ['base_3']),
+        #         ('go_to', ['base_3', 'region_4']),
+        #         ('take_image', ['region_4']),
+        #         ('go_to', ['region_4', 'base_1']),
+        #     ],
+        # ]
+
+        # if self.plan_index < len(predefined_plans):
+        #     plan = predefined_plans[self.plan_index]
+
         self.get_logger().info(f"Generated plan with {len(plan)} actions.")
         return plan
 
@@ -197,7 +280,7 @@ class ActionPlanner(LifecycleNode):
             return GoalResponse.REJECT
         
         self.plan = self.generate_plan_custom_solver()
-        self.get_logger().info(f"Generated plan ASDASD: {self.plan}")
+        # self.get_logger().info(f"Generated plan: {self.plan}")
 
         if not self.plan:
             self.get_logger().error("Failed to generate a valid plan, rejecting goal.")
@@ -309,7 +392,7 @@ class ActionPlanner(LifecycleNode):
                 'log_pddl': self.log_pddl,
             }
 
-        self.get_logger().info(f"Received commands: {json_commands}")
+        # self.get_logger().info(f"Received commands: {json_commands}")
 
         try:
 
@@ -378,14 +461,17 @@ class ActionPlanner(LifecycleNode):
         raise NotImplementedError("Remove functions is not implemented yet.")
     def update_functions(self, functions):
         for function in functions:
+            # self.get_logger().info(f"Updating function: {function}")
             match = re.match(r"\(([^)]+)\)\s+([+-]?\d+(?:\.\d+)?)", function)
             if not match:
+                self.get_logger().error(f"Error while parsing function: '{function}'")
                 return False
             func_args = match.group(1).split()
             value = float(match.group(2))
             func_name = func_args.pop(0)
             # self.get_logger().info(f"Updating function: {func_name} with args {func_args} to value {value}")
             if not self.memory.set_function(func_name, func_args, value):
+                self.get_logger().error(f"Error while setting function: '({func_name} "+' '.join(func_args)+f") {value}'")
                 return False
         return True
 
@@ -416,6 +502,26 @@ class ActionPlanner(LifecycleNode):
         # self.get_logger().info("Current PDDL Problem:")
         # self.get_logger().info(problem_pddl)
         return True
+    
+    def start_bat_sim(self):
+        # return
+        delay_time = 10
+        runout_time = 2*(78-4-delay_time)
+
+        timer = None
+        def delay_callback():
+            nonlocal timer
+            self.destroy_timer(timer)
+
+            def sim_bat_callback():
+                battery_amount = self.memory.get_function_value("battery_amount", [])
+                battery_amount -= 100/runout_time
+                if battery_amount < 0:
+                    battery_amount = 0
+                self.memory.set_function("battery_amount", [], battery_amount)
+
+            timer = self.create_timer(1, sim_bat_callback)
+        timer = self.create_timer(delay_time, delay_callback)
 
 def main(args=None):
     """

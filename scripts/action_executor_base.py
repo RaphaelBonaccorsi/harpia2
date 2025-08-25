@@ -89,7 +89,7 @@ class ActionExecutorBase(LifecycleNode):
                 goal_handle.canceled()
                 return ActionCaller.Result()
 
-            self.get_logger().info(f"Executing step")
+            # self.get_logger().info(f"Executing step")
             finish, status = self.execute_goal(goal_handle)
             feedback = ActionCaller.Feedback()
             feedback.status = status

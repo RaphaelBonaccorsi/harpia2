@@ -36,7 +36,7 @@
             (= ?duration 5)
         :condition (and
             (at start (at ?from_region))
-            (at end (> (battery_amount) 0))
+            ; (at end (> (battery_amount) 0))
             (over all (> (battery_capacity) 0))
             ; (at start (> (battery_amount) 0))
         )
@@ -58,11 +58,12 @@
         :condition(and
             (over all(at ?region))
             (over all(picture_goal ?region))
+            (at start (> (battery_amount) 50))
        )
         :effect(and
             (at end(taken_image ?region))
             (at end(increase (mission_length) 1000))
-            (at end(decrease (battery_amount) 10))
+            ; (at end(decrease (battery_amount) 10))
         )
     )
     (:durative-action pulverize_region
@@ -79,7 +80,7 @@
             (at end(pulverized ?region))
             (at end(increase (mission_length) 314))
             (at end(decrease (input_amount) 1))
-            (at end(decrease (battery_amount) 10 ))
+            ; (at end(decrease (battery_amount) 10 ))
         )
     )
     (:durative-action recharge_battery

@@ -66,6 +66,9 @@ class ActionNodeExample(ActionExecutorBase):
         self._can_receive_new_goal = False
         self.is_action_running = True
         self.send_path_planner(origin, destination)  # Now asynchronous
+
+        self.current_waypoint_index = 0
+        self.waypoints = []
         
         return True
 
@@ -73,10 +76,11 @@ class ActionNodeExample(ActionExecutorBase):
 
         if not self.waypoints:
             # Skip processing if waypoints are not yet available
-            self.get_logger().info('Waiting for waypoints from the path planner...') # NOT_ESSENTIAL_PRINT
+            # self.get_logger().info('Waiting for waypoints from the path planner...') # NOT_ESSENTIAL_PRINT
             return False, self.progress_
 
         self.progress_ = self.current_waypoint_index / len(self.waypoints)
+        # self.get_logger().info(f"progress: {self.current_waypoint_index}/{len(self.waypoints)} = {self.progress_}")
 
         if self.progress_ < 1.0:
             return False, self.progress_
@@ -165,14 +169,14 @@ class ActionNodeExample(ActionExecutorBase):
             return
 
 
-        self.get_logger().info("sending waypoint") # NOT_ESSENTIAL_PRINT
+        # self.get_logger().info("sending waypoint") # NOT_ESSENTIAL_PRINT
         goal_msg = MoveTo.Goal()
         goal_msg.destination = waypoint
 
         while not self.action_client.wait_for_server(timeout_sec=1.0):
             self.get_logger().info("waiting...") # NOT_ESSENTIAL_PRINT
 
-        self.get_logger().info(f"Sending waypoint goal: x={waypoint.pose.position.x}, y={waypoint.pose.position.y}, z={waypoint.pose.position.z}") # NOT_ESSENTIAL_PRINT
+        # self.get_logger().info(f"Sending waypoint goal: x={waypoint.pose.position.x}, y={waypoint.pose.position.y}, z={waypoint.pose.position.z}") # NOT_ESSENTIAL_PRINT
 
         send_goal_future = self.action_client.send_goal_async(
             goal_msg, feedback_callback=self.feedback_callback
@@ -204,7 +208,7 @@ class ActionNodeExample(ActionExecutorBase):
             self.get_logger().error('Goal rejected')
             return
 
-        self.get_logger().info('Goal accepted') # NOT_ESSENTIAL_PRINT
+        # self.get_logger().info('Goal accepted') # NOT_ESSENTIAL_PRINT
         result_future = goal_handle.get_result_async()
         result_future.add_done_callback(self.get_result_callback)
 
@@ -220,7 +224,7 @@ class ActionNodeExample(ActionExecutorBase):
         """
         result = future.result().result
         if result:
-            self.get_logger().info('Waypoint reached successfully') # NOT_ESSENTIAL_PRINT
+            # self.get_logger().info('Waypoint reached successfully') # NOT_ESSENTIAL_PRINT
             self.current_waypoint_index += 1
             if self.current_waypoint_index < len(self.waypoints):
                 next_waypoint = self.waypoints[self.current_waypoint_index]
@@ -272,7 +276,7 @@ class ActionNodeExample(ActionExecutorBase):
             self.get_logger().info('response number of waypoints: ' + str(len(response.waypoints))) # NOT_ESSENTIAL_PRINT
             # if response.success: # this dont work
             if len(response.waypoints) > 0:
-                self.get_logger().info('Received waypoints from path planner:') # NOT_ESSENTIAL_PRINT
+                pass # self.get_logger().info('Received waypoints from path planner:') # NOT_ESSENTIAL_PRINT
                 for waypoint in response.waypoints:
                     pass # self.get_logger().info(f"x: {waypoint.pose.position.x:20.15f} y: {waypoint.pose.position.y:20.15f}") # NOT_ESSENTIAL_PRINT
 
@@ -281,10 +285,10 @@ class ActionNodeExample(ActionExecutorBase):
                 self.send_goal(self.waypoints[0])
             else:
                 self.get_logger().error('Failed to generate path')
-                self.finish(False, 0.0, 'Failed to generate path')
+                # self.finish(False, 0.0, 'Failed to generate path')
         except Exception as e:
             self.get_logger().error(f'Service call failed: {e}')
-            self.finish(False, 0.0, 'Service call exception')
+            # self.finish(False, 0.0, 'Service call exception')
 
 
 def main(args=None):

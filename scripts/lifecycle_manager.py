@@ -207,11 +207,15 @@ nodes = [
         'depends_on': []
     },
     {
+        'node_name': 'new_go_to',
+        'depends_on': []
+    },
+    {
         'node_name': 'new_take_image',
         'depends_on': []
     },
     {
-        'node_name': 'new_go_to',
+        'node_name': 'new_recharge_battery',
         'depends_on': []
     },
     # {
