@@ -21,7 +21,6 @@ find_package(plansys2_executor REQUIRED)
 find_package(plansys2_planner REQUIRED)
 find_package(plansys2_problem_expert REQUIRED)
 find_package(plansys2_pddl_parser REQUIRED)
-find_package(nlohmann_json REQUIRED)
 ]]
 set(CMAKE_CXX_STANDARD 17)
 
@@ -57,7 +56,7 @@ ament_target_dependencies(plansys_interface ${dependencies})
 target_link_libraries(plansys_interface nlohmann_json::nlohmann_json)
 ]]
 
-install(DIRECTORY launch pddl libs data json solver scripts DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch pddl libs data solver scripts DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY libs DESTINATION lib/${PROJECT_NAME})
 
 install(TARGETS
@@ -73,17 +72,14 @@ install(TARGETS
 install(PROGRAMS
   scripts/route_executor.py
   scripts/path_planner.py
-  scripts/go_to.py
   scripts/data_server.py
   scripts/lifecycle_manager.py
   scripts/problem_generator.py
-  scripts/take_image.py
   scripts/mission_controller.py
   scripts/action_planner.py
-  scripts/new_go_to.py
-  scripts/new_take_image.py
-  scripts/new_recharge_battery.py
-  scripts/just_a_test.py
+  scripts/go_to.py
+  scripts/take_image.py
+  scripts/recharge_battery.py
   DESTINATION lib/${PROJECT_NAME})
 
 

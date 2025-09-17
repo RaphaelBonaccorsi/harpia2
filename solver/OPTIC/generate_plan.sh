@@ -15,7 +15,7 @@ if [[ ! -f "$DOMAIN_FILE" || ! -f "$PROBLEM_FILE" ]]; then
 fi
 
 
-if !("$SCRIPT_DIR/optic-clp" "$DOMAIN_FILE" "$PROBLEM_FILE" > "$SCRIPT_DIR/output/plan.txt" 2>/dev/null); then
+if !("$SCRIPT_DIR/optic-clp" -b "$DOMAIN_FILE" "$PROBLEM_FILE" > "$SCRIPT_DIR/output/plan.txt" 2>/dev/null); then
     echo "ERROR"
     echo "Error: Optic returned with error"
     exit 1

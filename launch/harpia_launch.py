@@ -98,32 +98,25 @@ def generate_launch_description():
         ),
         Node(
             package='route_executor2',
-            executable='new_go_to.py',
+            executable='go_to.py',
             name='new_go_to',
             output='screen',
             parameters=[]
         ),
         Node(
             package='route_executor2',
-            executable='new_take_image.py',
+            executable='take_image.py',
             name='new_take_image',
             output='screen',
             parameters=[]
         ),
         Node(
             package='route_executor2',
-            executable='new_recharge_battery.py',
+            executable='recharge_battery.py',
             name='new_recharge_battery',
             output='screen',
             parameters=[]
         ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='just_a_test.py',
-        #     name='just_a_test',
-        #     output='screen',
-        #     parameters=[]
-        # ),
     ]
 
     # Create the launch description and populate

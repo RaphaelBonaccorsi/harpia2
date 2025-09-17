@@ -66,41 +66,6 @@ class ActionPlanner(LifecycleNode):
                 "plansys_interface/update_parameters",
                 self.update_parameters_callback
             )
-
-            # self.memory.add_instance("region", "region_1")
-            # self.memory.add_instance("region", "region_2")
-            # self.memory.add_instance("base", "base_1")
-
-            # self.memory.add_predicate("picture_goal", ["region_1"])
-            # self.memory.add_predicate("picture_goal", ["region_2"])
-            # self.memory.add_predicate("at", ["region_1"])
-
-            # self.memory.set_function("distance", ["base_1", "base_1"], 0.0000000000)
-            # self.memory.set_function("distance", ["base_1", "region_1"], 126.2738489105)
-            # self.memory.set_function("distance", ["base_1", "region_2"], 94.0538024899)
-            # self.memory.set_function("distance", ["region_1", "base_1"], 126.2738489105)
-            # self.memory.set_function("distance", ["region_1", "region_1"], 0.0000000000)
-            # self.memory.set_function("distance", ["region_1", "region_2"], 129.3246029227)
-            # self.memory.set_function("distance", ["region_2", "base_1"], 94.0538024899)
-            # self.memory.set_function("distance", ["region_2", "region_1"], 129.3246029227)
-            # self.memory.set_function("distance", ["region_2", "region_2"], 0.0000000000)
-            # self.memory.set_function("battery_capacity", [], 100.0000000000)
-            # self.memory.set_function("input_capacity", [], 1.0000000000)
-            # self.memory.set_function("battery_amount", [], 100.0000000000)
-            # self.memory.set_function("input_amount", [], 1.0000000000)
-            # self.memory.set_function("mission_length", [], 0.0000000000)
-
-            # self.memory.add_goal("taken_image", ["region_1"] )
-            # self.memory.add_goal("taken_image", ["region_2"] )
-            # self.memory.add_goal("at", ["base_1"] )
-
-            # plan = self.generate_plan_custom__solver()
-
-            # self.get_logger().info(f"Generated plan:")
-            # for action in plan:
-            #     self.get_logger().info(f"{action[0]} "+" ".join(action[1]))
-                        
-            # self.plan_executor.execute_plan(plan)
             
         except Exception as e:
             self.get_logger().error(f"Error during activation: {e}")
@@ -133,8 +98,9 @@ class ActionPlanner(LifecycleNode):
         the output into a plan list, and send it to plan_executor.
         """
 
-        solver_base = get_package_share_directory("route_executor2")
-        solver_dir = os.path.join(solver_base, "solver")
+        project_name = "route_executor2"
+        share_path = get_package_share_directory(project_name)
+        solver_dir = os.path.join(share_path, "solver")
         domain_path = os.path.join(solver_dir, "domain.pddl")
         problem_path = os.path.join(solver_dir, "problem.pddl")
 
@@ -160,6 +126,27 @@ class ActionPlanner(LifecycleNode):
             self.get_logger().error(f"Failed to write problem file: {e}")
             return False
 
+        # write domain and problem to output folder
+        to_share = f'/install/{project_name}/share/{project_name}'
+        if to_share in share_path:
+            main_project_path = share_path.replace(to_share, '')
+        else:
+            main_project_path = share_path
+        try:
+            asd = os.path.join(main_project_path, 'output/domain.pddl')
+            with open(asd, "w") as f:
+                f.write(domain_pddl_text)
+        except Exception as e:
+            self.get_logger().error(f"Failed to write domain file: {e}")
+            return False
+        try:
+            asd = os.path.join(main_project_path, 'output/problem.pddl')
+            with open(asd, "w") as f:
+                f.write(problem_pddl_text)
+        except Exception as e:
+            self.get_logger().error(f"Failed to write problem file: {e}")
+            return False
+        
         solver_subdir = os.path.join(solver_dir, self.solver)
         generate_script = os.path.join(solver_subdir, "generate_plan.sh")
         cmd = [generate_script, domain_path, problem_path]
@@ -198,73 +185,6 @@ class ActionPlanner(LifecycleNode):
                 duration = float(match.group(3))
 
                 plan.append((action_name, action_parameters))
-
-        # Correct repeated go_to actions
-        if len(plan) > 1:
-            i = 0
-            while True:
-                if i >= len(plan) - 1:
-                    break
-
-                if not(plan[i][0] == 'go_to' and plan[i+1][0] == 'go_to'):
-                    i += 1
-                    continue
-
-                if plan[i][1][1] == plan[i+1][1][0]:
-                    self.get_logger().warn(f"Merging actions: {plan[i][0]} {plan[i][1]} and {plan[i+1][0]} {plan[i+1][1]}")
-                    plan[i][1][1] = plan[i+1][1][1]
-                    del plan[i+1]
-
-
-        # # Check if self.plan_index exists
-        # if not hasattr(self, 'plan_index'):
-        #     self.plan_index = 0
-        # else:
-        #     self.plan_index += 1
-
-        # predefined_plans = [
-
-        #     #####################################################
-        #     # use mission 2
-        #     # [
-        #     #     # ('recharge_battery', ['base_1'              ]),
-        #     #     ('go_to',            ['base_1',   'region_1']),
-        #     #     ('take_image',       ['region_1'            ]),
-        #     #     ('go_to',            ['region_1', 'region_2']),
-        #     #     ('take_image',       ['region_2'            ]),
-        #     #     ('go_to',            ['region_2', 'region_3']),
-        #     #     ('take_image',       ['region_3'            ]),
-        #     #     ('go_to',            ['region_3', 'base_1'  ]),
-        #     # ],
-        #     # [
-        #     #     ('go_to',            ['region_3',   'base_3']),
-        #     #     ('recharge_battery', ['base_3'              ]),
-        #     #     ('go_to',            ['base_3',   'region_3']),
-        #     #     ('take_image',       ['region_3'            ]),
-        #     #     ('go_to',            ['region_3',   'base_1']),
-        #     # ],
-        #     #####################################################
-        #     [
-        #         # ('recharge_battery', ['base_1'              ]),
-        #         ('go_to',            ['base_1',   'region_1']),
-        #         ('take_image',       ['region_1'            ]),
-        #         ('go_to',            ['region_1', 'region_2']),
-        #         ('take_image',       ['region_2'            ]),
-        #         ('go_to',            ['region_2', 'region_3']),
-        #         ('take_image',       ['region_3'            ]),
-        #         ('go_to',            ['region_3', 'base_1'  ]),
-        #     ],
-        #     [
-        #         ('go_to', ['region_3', 'base_3']),
-        #         ('recharge_battery', ['base_3']),
-        #         ('go_to', ['base_3', 'region_4']),
-        #         ('take_image', ['region_4']),
-        #         ('go_to', ['region_4', 'base_1']),
-        #     ],
-        # ]
-
-        # if self.plan_index < len(predefined_plans):
-        #     plan = predefined_plans[self.plan_index]
 
         self.get_logger().info(f"Generated plan with {len(plan)} actions.")
         return plan

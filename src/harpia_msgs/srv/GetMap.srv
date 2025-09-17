@@ -1,6 +1,0 @@
-# Request
-bool request
-
----
-# Response
-string map_file

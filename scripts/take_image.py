@@ -1,68 +1,65 @@
 #!/usr/bin/env python3
 
-import rclpy
-from rclpy.parameter import Parameter, ParameterType
-from harpia_msgs.srv import GeneratePath
-from geometry_msgs.msg import PoseStamped
-from harpia_msgs.action import MoveTo
-from rclpy.action import ActionClient
-from plansys2_support_py.ActionExecutorClient import ActionExecutorClient
+import os, sys, rclpy
+from ament_index_python.packages import get_package_share_directory
+from rclpy.executors import MultiThreadedExecutor
+package_share_path = get_package_share_directory("route_executor2")
+scripts_path = os.path.join(package_share_path, 'scripts')
+sys.path.append(scripts_path)
 
+from action_executor_base import ActionExecutorBase
+from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, LifecycleState
 
-class take_image(ActionExecutorClient):
- 
+class ActionNodeExample(ActionExecutorBase):
+
     def __init__(self):
-        super().__init__('take_image', 0.5)
-        self.is_action_running = False
+        super().__init__("take_image")
+        self.get_logger().info("ActionNodeExample initialized")
 
+        self.index = 0
+        self.n_iterations = 10
 
-    # DO NOT USE THIS ↓↓↓ FUNCTIONS TO IMPLEMENT THE ACTION 
-    def finish(self, success, completion, status):
-        super().finish(success, completion, status)
-        self.handle_end_of_action(success, completion, status)
-        self.is_action_running = False
-
-    def do_work(self):
-        if not self.is_action_running:
-            self.is_action_running = True
-            self.handle_start_of_action()
-        self.handle_action_loop()
-
-    def on_deactivate(self, state):
-        self.is_action_running = False
-        return super().on_deactivate(state)
-    # DO NOT USE THIS ↑↑↑ FUNCTIONS TO IMPLEMENT THE ACTION 
+    def on_configure_extension(self):
+        self.get_logger().info("Configuring... (example)")
+        return TransitionCallbackReturn.SUCCESS
     
-    def handle_start_of_action(self):
-        self.get_logger().info('Starting action take_image')
-        self.progress_ = 0.0
 
-            
-    def handle_action_loop(self):
+    def new_goal(self, goal_request):
+        self.get_logger().info("New goal received")
+        self.index = 0
+        return True
 
-        self.progress_ += 0.1
+    def execute_goal(self, goal_handle):
 
-        if self.progress_ < 1.0:
-            self.send_feedback(self.progress_, 'Taking image...')
-        else:
-            self.finish(True, 1.0, 'Image successfully taken')
+        # self.get_logger().info("action name: " + str(goal_handle.request.action_name))
+        # self.get_logger().info("parameters: " + str(goal_handle.request.parameters))
+        # self.get_logger().info("Executing goal")
+        self.index += 1
 
-    def handle_end_of_action(self, success, completion, status):
-        if success:
-            self.get_logger().info("Action finished successfully.")
-        else:
-            self.get_logger().info(f"Action finished with error: {status}")
+        if self.index >= self.n_iterations:
+            self.get_logger().info("Goal completed")
+            return True, 1.0
+        
+        self.get_logger().info(f"Goal status {self.index}/{self.n_iterations}")
+        return False, self.index/self.n_iterations   
+
+    def cancel_goal(self, goal_handle):
+        self.get_logger().info("Canceling goal")
+
+    def cancel_goal_request(self, goal_handle):
+        self.get_logger().info("Cancel goal request received")
+        return True
 
 def main(args=None):
     rclpy.init(args=args)
-
-    node = take_image()
-    node.set_parameters([Parameter(name='action_name', value='take_image')])
-
-    node.trigger_configure()
-
-    rclpy.spin(node)
-
+    node = ActionNodeExample()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    try:
+        executor.spin()
+    except KeyboardInterrupt:
+        node.get_logger().info('KeyboardInterrupt, shutting down.\n')
+    node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':

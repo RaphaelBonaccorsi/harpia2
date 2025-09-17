@@ -6,7 +6,7 @@ import re
 import json
 from termcolor import colored
 
-launch_script = 'launch/patrol_example_launch.py'
+launch_script = 'launch/harpia_launch.py'
 
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 

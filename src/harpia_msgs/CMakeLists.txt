@@ -11,7 +11,6 @@ find_package(geometry_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GeneratePath.srv"
-  "srv/GetMap.srv"
   "srv/StrInOut.srv"
   "action/MoveTo.action"
   "action/ExecutePlan.action"
