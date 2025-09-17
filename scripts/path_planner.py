@@ -321,7 +321,7 @@ class PathPlanner(LifecycleNode):
         waypointsList.extend(self.generate_path(start, goal) or [])
         response.waypoints = waypointsList
 
-        pass # self.get_logger().info("Path generation complete.") # NOT_ESSENTIAL_PRINT
+        self.get_logger().info("Path generation complete.") # NOT_ESSENTIAL_PRINT
         return response
 
     def generate_path(self, start: tuple, goal: tuple ) -> list:

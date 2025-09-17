@@ -125,19 +125,20 @@ class DataServer(LifecycleNode):
     def test_update(self):
         def test_update_callback():
             self.destroy_timer(self.test_timer)
+            self.get_logger().info("Publishing mission updates")
             self.publish_mission_updates([
                 {
                     'type': 'remove',
-                    'area': 'region_1',
+                    'area': 'region_3',
                     'command': 'take_picture',
                 },
                 {
                     'type': 'add',
-                    'area': 'region_3',
+                    'area': 'region_4',
                     'command': 'take_picture',
                 },
             ])
-        self.test_timer = self.create_timer(43, test_update_callback)
+        self.test_timer = self.create_timer(85-5, test_update_callback)
     
     def gps_pos_service_callback(self, request, response):
         inside_regions = self.compute_region()

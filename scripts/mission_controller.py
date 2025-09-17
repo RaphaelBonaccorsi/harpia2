@@ -41,12 +41,12 @@ class MissionController(LifecycleNode):
             self.logger.error('get_problem service not available, activation failed!')
             return TransitionCallbackReturn.ERROR
 
-        self.execute_plan_action_client = ActionClient(self, ExecutePlan, 'plansys_interface/execute_plan')
+        self.execute_plan_action_client = ActionClient(self, ExecutePlan, 'action_planner/execute_plan')
 
         self.get_problem()
 
-        self.create_timer(1, self.check_battery_callback)
-        self.battery_sim = 1
+        # self.create_timer(1, self.check_battery_callback)
+        # self.battery_sim = 1
 
         # def replan_test_timer_callback():
         #     if self.replan_timer is not None:
@@ -81,6 +81,8 @@ class MissionController(LifecycleNode):
         # Create and send request
         request = StrInOut.Request()
         request.message = json.dumps(updates)
+
+        # self.get_logger().info(f'@@ SENDING PARAMETERS UPDATE')
             
         future = self.update_parameters_client.call_async(request)
         future.add_done_callback(callback_func)
@@ -118,7 +120,8 @@ class MissionController(LifecycleNode):
             else:
                 self.logger.error('Service call timed out!')
                 return TransitionCallbackReturn.ERROR
-            
+        
+        # self.get_logger().info('@@ FROM send_problem')
         self.send_parameters_update(updates, service_callback)
 
     def get_problem(self):
@@ -134,13 +137,14 @@ class MissionController(LifecycleNode):
                 self.logger.error(f'Failed to retrieve problem')
                 return
             
-            self.logger.info(f'Problem retrieved successfully')
+            # self.logger.info(f'Problem retrieved successfully')
 
             problem = json.loads(response.message)
-            self.logger.info(f'Problem: {problem}')
+            # self.logger.info(f'Problem: {problem}')
 
             self.send_problem(problem)
 
+        # self.get_logger().info('@@ FROM GET PROBLEM')
         future = self.get_problem_client.call_async(request)
         future.add_done_callback(service_callback)
 
@@ -200,9 +204,16 @@ class MissionController(LifecycleNode):
             #         self.whatToRunWhenReplan()
             #         self.whatToRunWhenReplan = None
 
+        else:
+            if result.success:
+                self.get_logger().info('Mission completed successfully')
+            else:
+                self.get_logger().error('Mission failed, lets try again')
+                self.requestPlanExecution()
+
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback
-        self.get_logger().info(f'Received feedback: Step {feedback.step}/{feedback.nofsteps}')
+        # self.get_logger().info(f'Received feedback: Step {feedback.step}/{feedback.nofsteps}')
 
         # if feedback.step == 2:
         #     self.cancel_goal()
@@ -282,39 +293,39 @@ class MissionController(LifecycleNode):
                 self.logger.info(f'Updated problem successfully, now executing...')
                 self.requestPlanExecution()
 
+            # self.get_logger().info('@@ FROM problem_update_callback')
             self.send_parameters_update(problem_updates, when_finished_updating_problem)
 
         self.request_cancel_goal(when_cancel_goal)
 
-    def check_battery_callback(self):
-        return
-        dec = 1/60 # 1 min of battery life
-        self.battery_sim -= dec
-        if(self.battery_sim < 0):
-            self.battery_sim = 0
+    # def check_battery_callback(self):
+    #     dec = 1/30 # 30s of battery life
+    #     self.battery_sim -= dec
+    #     if(self.battery_sim < 0):
+    #         self.battery_sim = 0
 
-        self.get_logger().info(f'Battery: {self.battery_sim:.2f}')
+    #     # self.get_logger().info(f'Battery: {self.battery_sim:.2f}')
 
-        updates = [
-            {
-                'type': 'update_functions',
-                'values': [f'battery_amount {str(100*self.battery_sim)}']
-            },
-        ]
+    #     updates = [
+    #         {
+    #             'type': 'update_functions',
+    #             'values': [f'(battery_amount) {str(100*self.battery_sim)}']
+    #         },
+    #     ]
 
-        def service_callback(future):
-            if future.result() is None:
-                self.logger.error('battery call timed out!')
-                return
+    #     def service_callback(future):
+    #         if future.result() is None:
+    #             self.logger.error('battery call timed out!')
+    #             return
 
-            response = future.result()
-            if not response.success:
-                self.logger.error(f'battery failed: {response.message}')
-                return
+    #         response = future.result()
+    #         if not response.success:
+    #             self.logger.error(f'battery failed: {response.message}')
+    #             return
             
-            # self.logger.info(f'battery update successful')
+    #         # self.logger.info(f'battery update successful')
 
-        self.send_parameters_update(updates, service_callback)
+    #     self.send_parameters_update(updates, service_callback)
 
 def main(args=None):
     rclpy.init(args=args)

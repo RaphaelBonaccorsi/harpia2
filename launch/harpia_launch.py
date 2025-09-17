@@ -33,18 +33,19 @@ def generate_launch_description():
     mission_index_value = LaunchConfiguration('mission_index')
     
     # Get the launch directory
-    example_dir = get_package_share_directory('route_executor2')
+    share_dir = get_package_share_directory('route_executor2')
+    domain_file = share_dir + '/pddl/harpia_domain_test.pddl'
 
     ld = LaunchDescription()
 
     nodes_to_add = [
-        IncludeLaunchDescription( # plansys
-            PythonLaunchDescriptionSource(os.path.join(
-                get_package_share_directory('plansys2_bringup'),
-                'launch',
-                'plansys2_bringup_launch_monolithic.py')),
-            launch_arguments={'model_file': example_dir + '/pddl/harpia_domain_test.pddl'}.items()
-        ),
+        # IncludeLaunchDescription( # plansys
+        #     PythonLaunchDescriptionSource(os.path.join(
+        #         get_package_share_directory('plansys2_bringup'),
+        #         'launch',
+        #         'plansys2_bringup_launch_monolithic.py')),
+        #     launch_arguments={'model_file': domain_file}.items()
+        # ),
         Node(
             package='route_executor2',
             executable='lifecycle_manager.py',
@@ -52,24 +53,10 @@ def generate_launch_description():
             output='screen',
             parameters=[]
         ),
-        # Node(
-        #     package='route_executor2',
-        #     executable='planning_controller_node',
-        #     name='planning_controller_node',
-        #     output='screen',
-        #     parameters=[]
-        # ),
         Node(
             package='route_executor2',
-            executable='go_to.py',
-            name='go_to',
-            output='screen',
-            parameters=[]
-        ),
-        Node(
-            package='route_executor2',
-            executable='take_image.py',
-            name='take_image',
+            executable='mission_controller.py',
+            name='mission_controller',
             output='screen',
             parameters=[]
         ),
@@ -103,15 +90,30 @@ def generate_launch_description():
         ),
         Node(
             package='route_executor2',
-            executable='plansys_interface',
-            name='plansys_interface',
+            executable='action_planner.py',
+            name='action_planner',
+            output='screen',
+            # parameters=[{'pddl_domain': share_dir + '/pddl/harpia_domain.pddl'}]
+            parameters=[{"pddl_domain": share_dir+'/pddl/harpia_domain_test.pddl'}]
+        ),
+        Node(
+            package='route_executor2',
+            executable='go_to.py',
+            name='new_go_to',
             output='screen',
             parameters=[]
         ),
         Node(
             package='route_executor2',
-            executable='mission_controller.py',
-            name='mission_controller',
+            executable='take_image.py',
+            name='new_take_image',
+            output='screen',
+            parameters=[]
+        ),
+        Node(
+            package='route_executor2',
+            executable='recharge_battery.py',
+            name='new_recharge_battery',
             output='screen',
             parameters=[]
         ),

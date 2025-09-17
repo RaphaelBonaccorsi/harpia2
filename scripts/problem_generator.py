@@ -13,27 +13,31 @@ class ProblemGenerator(LifecycleNode):
         super().__init__('problem_generator')
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:
-        self.get_logger().info("Configuring node...")
+        try:
+            self.get_logger().info("Configuring node...")
 
-        self.data = {
-            "map": None,
-            "hardware": None,
-            "mission": None
-        }
-        self.current_region = None
-        self.last_problem = None
+            self.data = {
+                "map": None,
+                "hardware": None,
+                "mission": None
+            }
+            self.current_region = None
+            self.last_problem = None
 
-        self.map_cli = self.create_client(Trigger, 'data_server/map')
-        self.hardware_cli = self.create_client(Trigger, 'data_server/hardware')
-        self.mission_cli = self.create_client(Trigger, 'data_server/mission')
-        self.gps_cli = self.create_client(Trigger, 'data_server/gps_position')
-        self.mission_updates_subscription = self.create_subscription(String, 'data_server/mission_updates', self.mission_update_callback, 10)
+            self.map_cli = self.create_client(Trigger, 'data_server/map')
+            self.hardware_cli = self.create_client(Trigger, 'data_server/hardware')
+            self.mission_cli = self.create_client(Trigger, 'data_server/mission')
+            self.gps_cli = self.create_client(Trigger, 'data_server/gps_position')
+            self.mission_updates_subscription = self.create_subscription(String, 'data_server/mission_updates', self.mission_update_callback, 10)
 
-        self.getData()
+            self.getData()
 
-        self.get_current_position()
+            self.get_current_position()
 
-        return TransitionCallbackReturn.SUCCESS
+            return TransitionCallbackReturn.SUCCESS
+        except Exception as e:
+            self.get_logger().error(f"Error during configuration: {e}")
+            return TransitionCallbackReturn.FAILURE
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:
         self.get_logger().info("Activating node...")
@@ -166,11 +170,12 @@ class ProblemGenerator(LifecycleNode):
 
         functions.append(f"(battery_capacity) {self.data['hardware']['battery-capacity']}")
         # functions.append(f"(= (discharge_rate_battery) {self.data['hardware']['discharge-rate-battery']})")
-        functions.append(f"(discharge_rate_battery) {0.1}")
-        functions.append(f"(velocity) {self.data['hardware']['efficient_velocity']}")
+        # functions.append(f"(discharge_rate_battery) {0.1}")
+        # functions.append(f"(velocity) {self.data['hardware']['efficient_velocity']}")
         functions.append(f"(input_capacity) {self.data['hardware']['input-capacity']}")
 
         functions.append(f"(battery_amount) {self.data['hardware']['battery-capacity']}")
+        # functions.append(f"(battery_amount) 0")
         functions.append(f"(input_amount) {self.data['hardware']['input-capacity']}")
         predicates.append(f"at {inside_region}")
         
